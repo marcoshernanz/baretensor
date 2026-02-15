@@ -1,23 +1,23 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 
-#include "bt/dog.h"
+#include "bt/tensor.h"
+#include "vector"
 
 namespace nb = nanobind;
-using namespace nb::literals;
 
-static int add(int a, int b = 1) { return a + b; }
+class Tensor {
+ public:
+  int a;
+  Tensor(int a) { this->a = a; }
+};
 
 NB_MODULE(_C, m) {
-    m.doc() = "BareTensor native extension (bootstrap)";
+  m.doc() = "BareTensor";
 
-    m.def("add", &add, "a"_a, "b"_a = 1,
-          "Add two integers (default b=1).\n\n"
-          "This exists only to validate the nanobind toolchain.");
-
-    nb::class_<Dog>(m, "Dog")
-        .def(nb::init<>())
-        .def(nb::init<const std::string &>())
-        .def("bark", &Dog::bark)
-        .def_rw("name", &Dog::name);
+  nb::class_<Tensor>(m, "Tensor").def(nb::init<int>());
+  //   nb::class_<Tensor>(m, "Tensor").def(nb::init<std::vector<int>>());
+  //   .def(nb::init<const std::string&>())
+  //   .def("bark", &Dog::bark)
+  //   .def_rw("name", &Dog::name);
 }
