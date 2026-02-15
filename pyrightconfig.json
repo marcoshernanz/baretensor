@@ -4,5 +4,5 @@
   "venv": ".venv",
   "include": ["src", "tests"],
   "exclude": ["build", "third_party"],
-  "typeCheckingMode": "basic"
+  "typeCheckingMode": "strict"
 }
