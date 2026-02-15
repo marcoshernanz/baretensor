@@ -48,7 +48,7 @@ Why this organization works well:
 
 "Modern but boring" baseline (good today, likely good for months):
 
-- Python: 3.13.x recommended (3.12+ acceptable if your toolchain is picky)
+- Python: 3.13
 - uv: latest stable
 - ruff: latest stable
 - pyright: latest stable
