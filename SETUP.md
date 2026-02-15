@@ -148,6 +148,12 @@ Your CMake should place the built extension into the importable package dir (rec
 - output: `src/bt/_C*.so` (macOS/Linux)
 - Python imports it as `import bt._C as _C`
 
+This project also generates type stubs at build time using nanobind's CMake stub
+helper:
+
+- `src/bt/_C.pyi`
+- `src/bt/py.typed`
+
 If you don't do this, you'll end up fighting `PYTHONPATH` and "why is import finding the wrong module?"
 
 ## 4) Test runner discipline

@@ -75,8 +75,8 @@ typecheck: ## Typecheck Python (pyright)
 check: lint typecheck test ## Run lint + typecheck + tests
 
 .PHONY: stub
-stub: ## (Optional) Generate/update .pyi stubs for native modules (manual for now)
-	@echo "Stubs live in src/bt/_C.pyi (edit manually or add stubgen later)."
+stub: ## Generate/update nanobind stubs via CMake
+	$(CMAKE) --build --preset dev --target bt_stub
 
 .PHONY: clean
 clean: ## Remove CMake build directory

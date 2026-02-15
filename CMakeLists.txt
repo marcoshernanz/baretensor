@@ -25,12 +25,22 @@ find_package(nanobind CONFIG REQUIRED)
 
 nanobind_add_module(_C NOMINSIZE native/python/bindings.cpp)
 
-target_include_directories(_C PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/native/include"
-)
+# Add include dirs here as you grow (native/include, native/src, etc.).
 
 # Make the module importable without installation:
 #   PYTHONPATH=src python -c "import bt; ..."
 set_target_properties(_C PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/bt"
+)
+
+# Generate typing stubs at build time.
+# This runs nanobind's stub generator after the module is built, and writes
+# the result next to the extension so that Pyright/VS Code can pick it up.
+nanobind_add_stub(
+  bt_stub
+  MODULE bt._C
+  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/bt/_C.pyi"
+  MARKER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/bt/py.typed"
+  PYTHON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  DEPENDS _C
 )

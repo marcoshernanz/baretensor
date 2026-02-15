@@ -20,6 +20,11 @@ cmake --build build
 
 PYTHONPATH=src .venv/bin/python -c "import bt; print(bt.add(1, 2))"
 PYTHONPATH=src .venv/bin/python -m unittest discover -v -s tests -p 'test_*.py'
+
+# Stubs are generated automatically by the CMake build into:
+#   src/bt/_C.pyi
+# and a marker file:
+#   src/bt/py.typed
 ```
 
 Common commands:
