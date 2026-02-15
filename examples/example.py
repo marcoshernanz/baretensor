@@ -2,7 +2,7 @@ import bt
 
 
 def main() -> None:
-    tensor = bt.Tensor(3)
+    tensor = bt.Tensor(32)
 
 
 if __name__ == "__main__":
