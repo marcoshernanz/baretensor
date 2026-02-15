@@ -90,7 +90,7 @@ requires-python = ">=3.13"
 dependencies = []
 
 [dependency-groups]
-dev = ["ruff", "pyright"]
+dev = ["ruff", "pyright", "nanobind"]
 
 [tool.ruff]
 target-version = "py313"
@@ -136,6 +136,13 @@ cmake -S . -B build -G Ninja -DPython_EXECUTABLE=/ABS/PATH/TO/python
 cmake --build build
 ```
 
+If you install nanobind into the same venv (e.g. via `uv sync --dev`), you can use the venv python directly:
+
+```bash
+cmake -S . -B build -G Ninja -DPython_EXECUTABLE="$(pwd)/.venv/bin/python"
+cmake --build build
+```
+
 Your CMake should place the built extension into the importable package dir (recommended):
 
 - output: `src/bt/_C*.so` (macOS/Linux)
@@ -148,7 +155,7 @@ If you don't do this, you'll end up fighting `PYTHONPATH` and "why is import fin
 Keep tests dependency-free:
 
 ```bash
-PYTHONPATH=src uv run python -m unittest -v
+PYTHONPATH=src uv run python -m unittest discover -v -s tests -p "test_*.py"
 ```
 
 For early milestones, prioritize tiny tests:

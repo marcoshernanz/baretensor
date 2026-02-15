@@ -1,0 +1,13 @@
+#include <nanobind/nanobind.h>
+
+namespace nb = nanobind;
+using namespace nb::literals;
+
+static int add(int a, int b = 1) { return a + b; }
+
+NB_MODULE(_C, m) {
+    m.doc() = "BareTensor native extension (bootstrap)";
+    m.def("add", &add, "a"_a, "b"_a = 1,
+          "Add two integers (default b=1).\n\n"
+          "This exists only to validate the nanobind toolchain.");
+}

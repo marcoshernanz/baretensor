@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+.pyright/
+
+# CMake / native builds
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Native artifacts (if built outside build/)
+*.so
+*.dylib
+*.pyd
+
+# OS / editor
+.DS_Store
+.vscode/.ropeproject/
+.cache/
