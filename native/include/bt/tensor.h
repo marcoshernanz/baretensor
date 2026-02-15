@@ -1,3 +1,7 @@
 #pragma once
 
-class Tensor;
+class Tensor {
+ public:
+  int a;
+  Tensor(int a);
+};

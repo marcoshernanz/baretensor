@@ -2,7 +2,7 @@ import bt
 
 
 def main() -> None:
-    t = bt.Tensor(32)
+    t = bt.Tensor(a)
     print(t)
 
 
