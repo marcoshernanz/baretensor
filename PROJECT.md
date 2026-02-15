@@ -6,6 +6,8 @@ BareTensor is a from-scratch tensor + autograd engine with custom CUDA kernels, 
 
 This file is the complete project spec and context.
 
+Setup instructions live in `SETUP.md`.
+
 ## Context (constraints + goals)
 
 - Owner: Marcos Hernanz (UAM Computer Engineering; incoming Vercel internship in San Francisco starting 2026-06-15).
@@ -115,15 +117,15 @@ baretensor/
 
 Languages:
 
-- Python: 3.12.x (managed with `uv`)
+- Python: 3.13, managed with `uv`
 - C++: C++20 (compiler: clang++ 17+ or g++ 13+)
 - CUDA: CUDA C++ (CUDA toolkit 12.x on the RTX 2060 box)
 
 Python tooling (dev-only):
 
-- `uv` (0.5.x) for Python version + venv + running tasks
-- `ruff` (0.7.x) for lint + format
-- `pyright` (1.1.x) for static type checking
+- `uv` (latest stable) for Python version + venv + running tasks
+- `ruff` (latest stable) for lint + format
+- `pyright` (latest stable) for static type checking
 
 Build tooling:
 
