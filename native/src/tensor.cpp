@@ -1,9 +1,31 @@
-#include "tensor.h"
+#include "bt/tensor.h"
 
 #include <array>
 #include <vector>
 
-Tensor::Tensor(int a) { this->a = a; }
+class Tensor {
+ private:
+  std::vector<float> data;
+
+ public:
+  std::vector<int> shape;
+
+  Tensor(const std::vector<int> sizes) {
+    if (sizes.empty()) {
+      throw std::runtime_error("Sizes array must not be empty");
+    }
+
+    int totalSize = 1;
+    for (int size : sizes) {
+      if (size <= 0) {
+        throw std::runtime_error("Size must be positive");
+      }
+      totalSize *= size;
+    }
+    data.assign(totalSize, 0.0f);
+    shape = sizes;
+  }
+};
 
 // class Tensor {
 //  private:
