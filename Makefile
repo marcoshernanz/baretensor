@@ -47,6 +47,10 @@ rebuild: ## Clean build dir, then configure + build
 run: ## Run a tiny demo: bt.add(1, 2)
 	PYTHONPATH="$(PYTHONPATH)" $(UV) run python -c "import bt; print(bt.add(1, 2))"
 
+.PHONY: dog
+dog: ## Run the Dog example script
+	PYTHONPATH="$(PYTHONPATH)" $(UV) run python examples/dog_demo.py
+
 .PHONY: repl
 repl: ## Start an interactive Python REPL with bt importable
 	PYTHONPATH="$(PYTHONPATH)" $(UV) run python
@@ -57,11 +61,11 @@ test: ## Run unit tests (unittest discovery)
 
 .PHONY: fmt
 fmt: ## Format Python (ruff format)
-	PYTHONPATH="$(PYTHONPATH)" $(UV) run ruff format src tests
+	PYTHONPATH="$(PYTHONPATH)" $(UV) run ruff format src tests examples
 
 .PHONY: lint
 lint: ## Lint Python (ruff check)
-	PYTHONPATH="$(PYTHONPATH)" $(UV) run ruff check src tests
+	PYTHONPATH="$(PYTHONPATH)" $(UV) run ruff check src tests examples
 
 .PHONY: typecheck
 typecheck: ## Typecheck Python (pyright)

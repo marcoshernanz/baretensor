@@ -25,6 +25,10 @@ find_package(nanobind CONFIG REQUIRED)
 
 nanobind_add_module(_C NOMINSIZE native/python/bindings.cpp)
 
+target_include_directories(_C PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/native/include"
+)
+
 # Make the module importable without installation:
 #   PYTHONPATH=src python -c "import bt; ..."
 set_target_properties(_C PROPERTIES

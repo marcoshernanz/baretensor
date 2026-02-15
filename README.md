@@ -26,6 +26,7 @@ Common commands:
 
 - `make build`
 - `make run`
+- `make dog`
 - `make test`
 - `make check`
 

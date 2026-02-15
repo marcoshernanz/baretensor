@@ -3,6 +3,6 @@
 This is intentionally tiny for milestone A1: prove native build + import works.
 """
 
-from ._C import add
+from ._C import Dog, add  # pylint: disable=no-name-in-module
 
-__all__ = ["add"]
+__all__ = ["Dog", "add"]

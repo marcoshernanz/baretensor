@@ -6,6 +6,7 @@ These steps are optional but recommended for a smooth VS Code experience.
 
 - "Python" (ms-python.python)
 - "Ruff" (charliermarsh.ruff)
+- "C/C++" (ms-vscode.cpptools)
 - "CMake Tools" (ms-vscode.cmake-tools)
 
 2) VS Code: open the workspace at the repo root
@@ -22,3 +23,8 @@ These steps are optional but recommended for a smooth VS Code experience.
 - Command Palette -> "CMake: Select Configure Preset"
 - Select: `dev`
 - Then: "CMake: Build"
+
+5) If C++ shows `Python.h` include errors
+
+- Run `make build` once (this generates `build/compile_commands.json`).
+- In VS Code: Command Palette -> "Developer: Reload Window".
