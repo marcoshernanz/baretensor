@@ -5,6 +5,10 @@ Bootstrap for the BareTensor project (tensor engine + autograd + CUDA), starting
 ## Quickstart (A1)
 
 ```bash
+make bootstrap
+
+# or run the steps manually:
+
 brew install uv cmake ninja
 
 uv python install 3.13
@@ -17,6 +21,13 @@ cmake --build build
 PYTHONPATH=src .venv/bin/python -c "import bt; print(bt.add(1, 2))"
 PYTHONPATH=src .venv/bin/python -m unittest discover -v -s tests -p 'test_*.py'
 ```
+
+Common commands:
+
+- `make build`
+- `make run`
+- `make test`
+- `make check`
 
 Docs:
 
