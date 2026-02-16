@@ -2,13 +2,19 @@
 
 #include <vector>
 
+namespace bt {
+
 class Tensor {
  public:
   std::vector<float> data;
-  std::vector<int> shape;
+  std::vector<int64_t> shape;
+  std::vector<int64_t> strides;
+
+  void update_strides();
 };
 
-// Tensor tensor(std::vector<float> data);
-Tensor full(std::vector<int> shape, float fill_value);
-Tensor zeros(std::vector<int> shape);
-Tensor ones(std::vector<int> shape);
+Tensor full(std::vector<int64_t> shape, float fill_value);
+Tensor zeros(std::vector<int64_t> shape);
+Tensor ones(std::vector<int64_t> shape);
+
+}  // namespace bt
