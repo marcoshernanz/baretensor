@@ -25,6 +25,8 @@ Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
   storage = std::make_shared<Storage>(size);
 }
 
+int Tensor::dim() const { return shape.size(); }
+
 int64_t Tensor::numel() const {
   int64_t n = 1;
   for (auto s : shape) {

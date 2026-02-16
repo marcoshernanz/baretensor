@@ -16,6 +16,7 @@ class Tensor {
 
   Tensor(const std::vector<int64_t>& shape);
 
+  int dim() const;
   int64_t numel() const;
   bool is_contiguous() const;
   float* data_ptr();
