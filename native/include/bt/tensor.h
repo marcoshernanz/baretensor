@@ -2,13 +2,13 @@
 
 #include <vector>
 
+#include "bt/storage.h"
+
 namespace bt {
 
 class Tensor {
- private:
-  std::vector<float> data;
-
  public:
+  std::shared_ptr<Storage> data;
   std::vector<int64_t> shape;
   std::vector<int64_t> strides;
 

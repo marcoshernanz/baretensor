@@ -10,10 +10,10 @@ namespace bt {
 Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
   size_t dim = shape.size();
 
-  int64_t num_elements = 1;
+  int64_t size = 1;
   for (auto s : shape) {
     if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
-    num_elements *= s;
+    size *= s;
   }
 
   strides.resize(dim);
@@ -24,7 +24,7 @@ Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
     }
   }
 
-  data.resize(num_elements);
+  data = Storage(size);
 }
 
 void Tensor::fill(float fill_value) {
