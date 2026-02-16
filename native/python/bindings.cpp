@@ -9,6 +9,8 @@ NB_MODULE(_C, m) {
   m.doc() = "BareTensor native extension (bootstrap)";
 
   nb::class_<Tensor>(m, "Tensor")
-      .def(nb::init<const std::vector<int>&>())
-      .def_ro("shape", &Tensor::shape);
+      .def_ro("shape", &Tensor::shape)
+      .def("fill", &Tensor::full)
+      .def("fill", &Tensor::zeros)
+      .def("fill", &Tensor::ones);
 }

@@ -8,8 +8,8 @@ class Tensor {
 
  public:
   std::vector<int> shape;
-
-  Tensor full(std::vector<int> size, float fill_value);
-  Tensor zeros(std::vector<int> size);
-  Tensor ones(std::vector<int> size);
 };
+
+Tensor full(std::vector<int> size, float fill_value);
+Tensor zeros(std::vector<int> size);
+Tensor ones(std::vector<int> size);

@@ -6,5 +6,5 @@ sys.path.append(os.path.abspath("../src"))
 
 import bt
 
-t = bt.Tensor([10, 20])
+t = bt.
 print(t.shape)
