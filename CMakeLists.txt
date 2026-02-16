@@ -23,7 +23,7 @@ execute_process(
 
 find_package(nanobind CONFIG REQUIRED)
 
-nanobind_add_module(_C NOMINSIZE native/python/bindings.cpp native/src/tensor.cpp)
+nanobind_add_module(_C NOMINSIZE native/python/bindings.cpp native/src/tensor.cpp native/src/storage.cpp)
 
 target_include_directories(_C PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/native/include"
