@@ -25,6 +25,27 @@ Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
   storage = std::make_shared<Storage>(size);
 }
 
+int64_t Tensor::numel() const {
+  int64_t n = 1;
+  for (auto s : shape) {
+    n *= s;
+  }
+  return n;
+}
+
+bool Tensor::is_contiguous() const {
+  int64_t expected = 1;
+  for (int i = shape.size(); i >= 0; i++) {
+    if (shape[i] == 0) return true;
+    if (shape[i] == 1) continue;
+    if (strides[i] != expected) return false;
+    expected *= shape[i];
+  }
+  return true;
+}
+
+float* Tensor::data_ptr() { return storage->data.data() + storage_offset; }
+
 Tensor Tensor::operator+(const Tensor& t) const {
   if (shape != t.shape) {
     throw std::runtime_error("Tensors must have the same shape");
