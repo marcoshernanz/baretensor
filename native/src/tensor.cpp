@@ -37,7 +37,7 @@ int64_t Tensor::numel() const {
 
 bool Tensor::is_contiguous() const {
   int64_t expected = 1;
-  for (int i = shape.size(); i >= 0; i++) {
+  for (int i = shape.size() - 1; i >= 0; i--) {
     if (shape[i] == 0) return true;
     if (shape[i] == 1) continue;
     if (stride[i] != expected) return false;
