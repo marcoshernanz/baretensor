@@ -29,11 +29,11 @@ void Tensor::fill(float fill_value) {
   std::fill(data.begin(), data.end(), fill_value);
 }
 
-std::vector<int64_t> Tensor::stride() { return strides; }
+std::vector<int64_t> Tensor::stride() const { return strides; }
 
-int64_t Tensor::stride(int dim) {
+int64_t Tensor::stride(int dim) const {
   if (dim < 0) {
-    dim = shape.size() - dim;
+    dim = shape.size() + dim;
   }
 
   if (dim < 0 || dim >= strides.size()) {
