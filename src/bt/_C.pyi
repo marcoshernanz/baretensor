@@ -1,11 +1,18 @@
 """BareTensor native extension (bootstrap)"""
 
 from collections.abc import Sequence
+from typing import overload
 
 
 class Tensor:
     @property
     def shape(self) -> list[int]: ...
+
+    @overload
+    def stride(self) -> list[int]: ...
+
+    @overload
+    def stride(self, arg: int, /) -> int: ...
 
 def full(arg0: Sequence[int], arg1: float, /) -> Tensor: ...
 

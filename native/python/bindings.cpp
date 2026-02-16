@@ -10,9 +10,8 @@ NB_MODULE(_C, m) {
 
   nb::class_<bt::Tensor>(m, "Tensor")
       .def_ro("shape", &bt::Tensor::shape)
-      .def("stride", [](const bt::Tensor& t) { return t.stride(); })
-      .def("stride",
-           [](const bt::Tensor& t, int dim) { return t.stride(dim); });
+      .def("stride", nb::overload_cast<>(&bt::Tensor::stride, nb::const_))
+      .def("stride", nb::overload_cast<int>(&bt::Tensor::stride, nb::const_));
 
   m.def("full", &bt::full);
   m.def("zeros", &bt::zeros);
