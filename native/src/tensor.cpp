@@ -5,10 +5,15 @@
 #include <vector>
 
 namespace bt {
-void Tensor::update_strides() {
-  strides.resize(shape.size());
+void Tensor::update_shape(std::vector<int64_t> shape) {
+  this->shape = shape;
+  size_t size = shape.size();
+
+  data.resize(size);
+
+  strides.resize(size);
   strides[strides.size() - 1] = 1;
-  for (int i = strides.size() - 2; i >= 0; i--) {
+  for (int i = size - 2; i >= 0; i--) {
     strides[i] = strides[i + 1] * shape[i + 1];
   }
 }
@@ -21,8 +26,7 @@ Tensor full(std::vector<int64_t> shape, float fill_value) {
   }
 
   Tensor tensor;
-  tensor.data.resize(total_size, fill_value);
-  tensor.shape = shape;
+  tensor.update_shape(shape);
   return tensor;
 }
 
