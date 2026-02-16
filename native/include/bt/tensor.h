@@ -3,13 +3,12 @@
 #include <vector>
 
 class Tensor {
- private:
-  std::vector<float> data;
-
  public:
+  std::vector<float> data;
   std::vector<int> shape;
 };
 
-Tensor full(std::vector<int> size, float fill_value);
-Tensor zeros(std::vector<int> size);
-Tensor ones(std::vector<int> size);
+// Tensor tensor(std::vector<float> data);
+Tensor full(std::vector<int> shape, float fill_value);
+Tensor zeros(std::vector<int> shape);
+Tensor ones(std::vector<int> shape);
