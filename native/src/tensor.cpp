@@ -4,8 +4,8 @@
 #include <vector>
 
 namespace bt {
-int64_t Tensor::set_shape(const std::vector<int64_t>& new_shape) {
-  shape = new_shape;
+
+Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
   size_t dim = shape.size();
 
   int64_t num_elements = 1;
@@ -22,12 +22,20 @@ int64_t Tensor::set_shape(const std::vector<int64_t>& new_shape) {
     }
   }
 
-  return num_elements;
+  data.resize(num_elements);
+}
+
+void Tensor::fill(float fill_value) {
+  std::fill(data.begin(), data.end(), fill_value);
 }
 
 std::vector<int64_t> Tensor::stride() { return strides; }
 
 int64_t Tensor::stride(int dim) {
+  if (dim < 0) {
+    dim = shape.size() - dim;
+  }
+
   if (dim < 0 || dim >= strides.size()) {
     throw std::runtime_error("Invalid dimension");
   }
@@ -36,9 +44,8 @@ int64_t Tensor::stride(int dim) {
 }
 
 Tensor full(const std::vector<int64_t>& shape, float fill_value) {
-  Tensor tensor;
-  int64_t num_elements = tensor.set_shape(shape);
-  tensor.data.resize(num_elements, fill_value);
+  Tensor tensor(shape);
+  tensor.fill(fill_value);
   return tensor;
 }
 

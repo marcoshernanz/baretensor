@@ -5,12 +5,15 @@
 namespace bt {
 
 class Tensor {
- public:
+ private:
   std::vector<float> data;
+
+ public:
   std::vector<int64_t> shape;
   std::vector<int64_t> strides;
 
-  int64_t set_shape(const std::vector<int64_t>& new_shape);
+  Tensor(const std::vector<int64_t>& shape);
+  void fill(float fill_value);
 
   std::vector<int64_t> stride();
   int64_t stride(int dim);
