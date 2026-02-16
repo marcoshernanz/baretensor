@@ -23,7 +23,13 @@ class Tensor {
   float* data_ptr();
 
   Tensor operator+(const Tensor& t) const;
-  Tensor operator+(const float value) const;
+  Tensor operator+(const float rhs) const;
+  Tensor operator-(const Tensor& t) const;
+  Tensor operator-(const float rhs) const;
+  Tensor operator*(const Tensor& t) const;
+  Tensor operator*(const float rhs) const;
+  Tensor operator/(const Tensor& t) const;
+  Tensor operator/(const float rhs) const;
 };
 
 Tensor full(const std::vector<int64_t>& shape, float fill_value);

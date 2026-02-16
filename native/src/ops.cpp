@@ -1,3 +1,5 @@
+#include "bt/ops.h"
+
 #include <stdexcept>
 #include <vector>
 
@@ -108,4 +110,36 @@ bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
   recursive_apply_tt(0, a.dim(), a.shape, a, s, out, a.storage_offset,
                      out.storage_offset, a.stride, out.stride, op);
   return out;
+}
+
+bt::Tensor bt::Tensor::operator+(const bt::Tensor& rhs) const {
+  return binary_tt(*this, rhs, bt::ops::Add{});
+}
+
+bt::Tensor bt::Tensor::operator+(float s) const {
+  return binary_ts(*this, s, bt::ops::Add{});
+}
+
+bt::Tensor bt::Tensor::operator-(const bt::Tensor& rhs) const {
+  return binary_tt(*this, rhs, bt::ops::Sub{});
+}
+
+bt::Tensor bt::Tensor::operator-(float s) const {
+  return binary_ts(*this, s, bt::ops::Sub{});
+}
+
+bt::Tensor bt::Tensor::operator*(const bt::Tensor& rhs) const {
+  return binary_tt(*this, rhs, bt::ops::Mul{});
+}
+
+bt::Tensor bt::Tensor::operator*(float s) const {
+  return binary_ts(*this, s, bt::ops::Mul{});
+}
+
+bt::Tensor bt::Tensor::operator/(const bt::Tensor& rhs) const {
+  return binary_tt(*this, rhs, bt::ops::Div{});
+}
+
+bt::Tensor bt::Tensor::operator/(float s) const {
+  return binary_ts(*this, s, bt::ops::Div{});
 }
