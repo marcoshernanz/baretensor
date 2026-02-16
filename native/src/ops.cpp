@@ -7,64 +7,60 @@
 
 template <class Op>
 void recursive_apply_tt(int dim, int last_dim,
-                        const std::vector<int64_t>& shape,
-                        const std::vector<float>& a,
-                        const std::vector<float>& b, std::vector<float>& out,
-                        int64_t offset_a, int64_t offset_b, int64_t offset_out,
+                        const std::vector<int64_t>& shape, const float* a,
+                        const float* b, float* out,
                         const std::vector<int64_t>& stride_a,
                         const std::vector<int64_t>& stride_b,
                         const std::vector<int64_t>& stride_out, Op op) {
   if (shape.size() == 0) {
-    out[offset_out] = op(a[offset_a], b[offset_b]);
+    *out = op(*a, *b);
     return;
   }
 
   if (dim == last_dim) {
     for (int64_t i = 0; i < shape[dim]; i++) {
-      out[offset_out] = op(a[offset_a], b[offset_b]);
-      offset_a += stride_a[dim];
-      offset_b += stride_b[dim];
-      offset_out += stride_out[dim];
+      *out = op(*a, *b);
+      a += stride_a[dim];
+      b += stride_b[dim];
+      out += stride_out[dim];
     }
     return;
   }
 
   for (int64_t i = 0; i < shape[dim]; i++) {
-    recursive_apply(dim + 1, last_dim, shape, a, b, out, offset_a, offset_b,
-                    offset_out, stride_a, stride_b, stride_out, op);
-    offset_a += stride_a[dim];
-    offset_b += stride_b[dim];
-    offset_out += stride_out[dim];
+    recursive_apply_tt(dim + 1, last_dim, shape, a, b, out, stride_a, stride_b,
+                       stride_out, op);
+    a += stride_a[dim];
+    b += stride_b[dim];
+    out += stride_out[dim];
   }
 }
 
 template <class Op>
 void recursive_apply_ts(int dim, int last_dim,
-                        const std::vector<int64_t>& shape,
-                        const std::vector<float>& a, float s,
-                        std::vector<float>& out, int64_t offset_a,
-                        int64_t offset_out,
+                        const std::vector<int64_t>& shape, const float* a,
+                        float s, float* out,
                         const std::vector<int64_t>& stride_a,
                         const std::vector<int64_t>& stride_out, Op op) {
   if (shape.size() == 0) {
-    out[offset_out] = op(a[offset_a], s);
+    *out = op(*a, s);
     return;
   }
 
   if (dim == last_dim) {
     for (int64_t i = 0; i < shape[dim]; i++) {
-      out[offset_out] = op(a[offset_a], s);
-      offset_a += stride_a[dim];
-      offset_out += stride_out[dim];
+      *out = op(*a, s);
+      a += stride_a[dim];
+      out += stride_out[dim];
     }
     return;
   }
 
   for (int64_t i = 0; i < shape[dim]; i++) {
-    recursive_apply(dim + 1, last_dim, shape, a, s, out, offset_a, offset_out,
-                    stride_a, stride_out, op);
-    offset_a += stride_a[dim];
-    offset_out += stride_out[dim];
+    recursive_apply_ts(dim + 1, last_dim, shape, a, s, out, stride_a,
+                       stride_out, op);
+    a += stride_a[dim];
+    out += stride_out[dim];
   }
 }
 
@@ -86,9 +82,8 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
     return out;
   }
 
-  recursive_apply_tt(0, a.dim(), a.shape, a, b, out, a.storage_offset,
-                     b.storage_offset, out.storage_offset, a.stride, b.stride,
-                     out.stride, op);
+  recursive_apply_tt(0, a.dim(), a.shape, a.data_ptr(), b.data_ptr(),
+                     out.data_ptr(), a.stride, b.stride, out.stride, op);
   return out;
 }
 
@@ -107,8 +102,8 @@ bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
     return out;
   }
 
-  recursive_apply_tt(0, a.dim(), a.shape, a, s, out, a.storage_offset,
-                     out.storage_offset, a.stride, out.stride, op);
+  recursive_apply_ts(0, a.dim(), a.shape, a.data_ptr(), s, out.data_ptr(),
+                     a.stride, out.stride, op);
   return out;
 }
 
