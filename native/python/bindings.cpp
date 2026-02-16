@@ -8,9 +8,8 @@ namespace nb = nanobind;
 NB_MODULE(_C, m) {
   m.doc() = "BareTensor native extension (bootstrap)";
 
-  nb::class_<Tensor>(m, "Tensor")
-      .def_ro("shape", &Tensor::shape)
-      .def("fill", &Tensor::full)
-      .def("fill", &Tensor::zeros)
-      .def("fill", &Tensor::ones);
+  nb::class_<Tensor>(m, "Tensor").def_ro("shape", &Tensor::shape);
+  m.def("full", &full);
+  m.def("zeros", &zeros);
+  m.def("ones", &ones);
 }
