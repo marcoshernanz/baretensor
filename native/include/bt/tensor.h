@@ -19,6 +19,7 @@ class Tensor {
   int dim() const;
   int64_t numel() const;
   bool is_contiguous() const;
+  const float* data_ptr() const;
   float* data_ptr();
 
   Tensor operator+(const Tensor& t) const;

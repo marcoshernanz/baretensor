@@ -46,6 +46,10 @@ bool Tensor::is_contiguous() const {
   return true;
 }
 
+const float* Tensor::data_ptr() const {
+  return storage->data.data() + storage_offset;
+}
+
 float* Tensor::data_ptr() { return storage->data.data() + storage_offset; }
 
 Tensor Tensor::operator+(const Tensor& t) const {
