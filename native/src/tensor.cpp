@@ -29,6 +29,8 @@ void Tensor::fill(float fill_value) {
   std::fill(data.begin(), data.end(), fill_value);
 }
 
+std::string Tensor::__repr__() const { return "This is a test"; }
+
 std::vector<int64_t> Tensor::stride() const { return strides; }
 
 int64_t Tensor::stride(int dim) const {
