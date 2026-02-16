@@ -6,7 +6,7 @@
 #include "bt/tensor.h"
 
 template <class Op>
-void recursive_apply_tt(int dim, int last_dim,
+void recursive_apply_tt(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
                         const float* b, float* out,
                         const std::vector<int64_t>& stride_a,
@@ -17,7 +17,7 @@ void recursive_apply_tt(int dim, int last_dim,
     return;
   }
 
-  if (dim == last_dim) {
+  if (dim == num_dims - 1) {
     for (int64_t i = 0; i < shape[dim]; i++) {
       *out = op(*a, *b);
       a += stride_a[dim];
@@ -28,7 +28,7 @@ void recursive_apply_tt(int dim, int last_dim,
   }
 
   for (int64_t i = 0; i < shape[dim]; i++) {
-    recursive_apply_tt(dim + 1, last_dim, shape, a, b, out, stride_a, stride_b,
+    recursive_apply_tt(dim + 1, num_dims, shape, a, b, out, stride_a, stride_b,
                        stride_out, op);
     a += stride_a[dim];
     b += stride_b[dim];
@@ -37,7 +37,7 @@ void recursive_apply_tt(int dim, int last_dim,
 }
 
 template <class Op>
-void recursive_apply_ts(int dim, int last_dim,
+void recursive_apply_ts(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
                         float s, float* out,
                         const std::vector<int64_t>& stride_a,
@@ -47,7 +47,7 @@ void recursive_apply_ts(int dim, int last_dim,
     return;
   }
 
-  if (dim == last_dim) {
+  if (dim == num_dims - 1) {
     for (int64_t i = 0; i < shape[dim]; i++) {
       *out = op(*a, s);
       a += stride_a[dim];
@@ -57,7 +57,7 @@ void recursive_apply_ts(int dim, int last_dim,
   }
 
   for (int64_t i = 0; i < shape[dim]; i++) {
-    recursive_apply_ts(dim + 1, last_dim, shape, a, s, out, stride_a,
+    recursive_apply_ts(dim + 1, num_dims, shape, a, s, out, stride_a,
                        stride_out, op);
     a += stride_a[dim];
     out += stride_out[dim];
