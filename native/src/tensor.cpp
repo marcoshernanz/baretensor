@@ -52,30 +52,6 @@ const float* Tensor::data_ptr() const {
 
 float* Tensor::data_ptr() { return storage->data.data() + storage_offset; }
 
-Tensor Tensor::operator+(const Tensor& t) const {
-  if (shape != t.shape) {
-    throw std::runtime_error("Tensors must have the same shape");
-  }
-
-  Tensor new_tensor(shape);
-  int64_t size = storage->data.size();
-  for (int64_t i = 0; i < size; i++) {
-    new_tensor.storage->data[i] = storage->data[i] + t.storage->data[i];
-  }
-
-  return new_tensor;
-}
-
-Tensor Tensor::operator+(const float value) const {
-  Tensor new_tensor(shape);
-  int64_t size = storage->data.size();
-  for (int64_t i = 0; i < size; i++) {
-    new_tensor.storage->data[i] = storage->data[i] + value;
-  }
-
-  return new_tensor;
-}
-
 Tensor full(const std::vector<int64_t>& shape, float fill_value) {
   Tensor tensor(shape);
   tensor.storage->fill(fill_value);
