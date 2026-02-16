@@ -11,11 +11,21 @@ void Tensor::update_shape(std::vector<int64_t> shape) {
 
   data.resize(size);
 
-  strides.resize(size);
-  strides[strides.size() - 1] = 1;
+  stride.resize(size);
+  stride[size - 1] = 1;
   for (int i = size - 2; i >= 0; i--) {
-    strides[i] = strides[i + 1] * shape[i + 1];
+    stride[i] = stride[i + 1] * shape[i + 1];
   }
+}
+
+std::vector<int64_t> Tensor::stride() { return stride; }
+
+std::vector<int64_t> Tensor::stride(int dim) {
+  if (dim < 0 || dim >= stride.size()) {
+    throw new std::runtime_error("Invalid dimension");
+  }
+
+  return stride[dim];
 }
 
 Tensor full(std::vector<int64_t> shape, float fill_value) {
