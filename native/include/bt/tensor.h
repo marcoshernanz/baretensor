@@ -11,6 +11,9 @@ class Tensor {
   std::vector<int64_t> strides;
 
   int64_t set_shape(const std::vector<int64_t>& new_shape);
+
+  std::vector<int64_t> stride();
+  int64_t stride(int dim);
 };
 
 Tensor full(const std::vector<int64_t>& shape, float fill_value);

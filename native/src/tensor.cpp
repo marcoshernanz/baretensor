@@ -25,6 +25,16 @@ int64_t Tensor::set_shape(const std::vector<int64_t>& new_shape) {
   return num_elements;
 }
 
+std::vector<int64_t> Tensor::stride() { return strides; }
+
+int64_t Tensor::stride(int dim) {
+  if (dim < 0 || dim >= strides.size()) {
+    throw std::runtime_error("Invalid dimension");
+  }
+
+  return strides[dim];
+}
+
 Tensor full(const std::vector<int64_t>& shape, float fill_value) {
   Tensor tensor;
   int64_t num_elements = tensor.set_shape(shape);
