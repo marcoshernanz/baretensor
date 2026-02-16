@@ -7,7 +7,7 @@
 Tensor full(std::vector<int> shape, float fill_value) {
   long long total_size = 1;
   for (int s : shape) {
-    if (s < 0) throw runtime_error("Negative sizes are not allowed");
+    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
     total_size *= s;
   }
 
