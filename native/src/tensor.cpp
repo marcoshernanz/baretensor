@@ -14,11 +14,11 @@ Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
     size *= s;
   }
 
-  strides.resize(dim);
+  stride.resize(dim);
   if (dim > 0) {
-    strides[dim - 1] = 1;
+    stride[dim - 1] = 1;
     for (int i = dim - 2; i >= 0; i--) {
-      strides[i] = strides[i + 1] * shape[i + 1];
+      stride[i] = stride[i + 1] * shape[i + 1];
     }
   }
 
@@ -40,7 +40,7 @@ bool Tensor::is_contiguous() const {
   for (int i = shape.size(); i >= 0; i++) {
     if (shape[i] == 0) return true;
     if (shape[i] == 1) continue;
-    if (strides[i] != expected) return false;
+    if (stride[i] != expected) return false;
     expected *= shape[i];
   }
   return true;

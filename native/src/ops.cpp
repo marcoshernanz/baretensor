@@ -55,7 +55,7 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
   }
 
   recursive_apply_tt(0, a.dim(), a.shape, a, b, out, a.storage_offset,
-                     b.storage_offset, out.storage_offset, a.strides, b.strides,
-                     out.strides, op);
+                     b.storage_offset, out.storage_offset, a.stride, b.stride,
+                     out.stride, op);
   return out;
 }

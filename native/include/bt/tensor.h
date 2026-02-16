@@ -12,7 +12,7 @@ class Tensor {
   int64_t storage_offset = 0;
 
   std::vector<int64_t> shape;
-  std::vector<int64_t> strides;
+  std::vector<int64_t> stride;
 
   Tensor(const std::vector<int64_t>& shape);
 
