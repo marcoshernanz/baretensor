@@ -1,10 +1,10 @@
+# %%
+import sys
+import os
+
+sys.path.append(os.path.abspath("../src"))
+
 import bt
 
-
-def main() -> None:
-    t = bt.Tensor(10)
-    print(t)
-
-
-if __name__ == "__main__":
-    main()
+t = bt.Tensor([10, 20])
+print(t.shape)
