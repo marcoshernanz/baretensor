@@ -1,6 +1,8 @@
 #include "bt/tensor.h"
 
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace bt {
@@ -29,7 +31,25 @@ void Tensor::fill(float fill_value) {
   std::fill(data.begin(), data.end(), fill_value);
 }
 
-std::string Tensor::__repr__() const { return "This is a test"; }
+std::string Tensor::__repr__() const {
+  std::stringstream ss;
+  ss << "Tensor(";
+
+  ss << "shape=[";
+  for (size_t i = 0; i < shape.size(); ++i) {
+    ss << shape[i] << (i < shape.size() - 1 ? ", " : "");
+  }
+  ss << "], ";
+
+  ss << "stride=[";
+  for (size_t i = 0; i < strides.size(); ++i) {
+    ss << strides[i] << (i < strides.size() - 1 ? ", " : "");
+  }
+  ss << "]";
+
+  ss << ")";
+  return ss.str();
+}
 
 std::vector<int64_t> Tensor::stride() const { return strides; }
 
