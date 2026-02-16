@@ -9,6 +9,8 @@ namespace bt {
 class Tensor {
  public:
   std::shared_ptr<Storage> storage;
+  int64_t storage_offset = 0;
+
   std::vector<int64_t> shape;
   std::vector<int64_t> strides;
 
