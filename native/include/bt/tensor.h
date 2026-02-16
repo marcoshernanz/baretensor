@@ -13,6 +13,9 @@ class Tensor {
   std::vector<int64_t> strides;
 
   Tensor(const std::vector<int64_t>& shape);
+
+  Tensor operator+(const Tensor& t) const;
+  Tensor operator+(const float value) const;
 };
 
 Tensor full(const std::vector<int64_t>& shape, float fill_value);
