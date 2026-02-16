@@ -8,17 +8,11 @@ namespace bt {
 
 class Tensor {
  public:
-  std::shared_ptr<Storage> data;
+  std::shared_ptr<Storage> storage;
   std::vector<int64_t> shape;
   std::vector<int64_t> strides;
 
   Tensor(const std::vector<int64_t>& shape);
-  void fill(float fill_value);
-
-  std::string __repr__() const;
-
-  std::vector<int64_t> stride() const;
-  int64_t stride(int dim) const;
 };
 
 Tensor full(const std::vector<int64_t>& shape, float fill_value);
