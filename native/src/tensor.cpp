@@ -4,9 +4,9 @@
 #include <vector>
 
 namespace bt {
-int64_t Tensor::set_shape(std::vector<int64_t> shape) {
-  this->shape = shape;
-  size_t size = shape.size();
+int64_t Tensor::set_shape(const std::vector<int64_t>& new_shape) {
+  shape = new_shape;
+  size_t dim = shape.size();
 
   int64_t num_elements = 1;
   for (auto s : shape) {
@@ -14,24 +14,26 @@ int64_t Tensor::set_shape(std::vector<int64_t> shape) {
     num_elements *= s;
   }
 
-  strides.resize(size);
-  strides[size - 1] = 1;
-  for (int i = size - 2; i >= 0; i--) {
-    strides[i] = strides[i + 1] * shape[i + 1];
+  strides.resize(dim);
+  if (dim > 0) {
+    strides[dim - 1] = 1;
+    for (int i = dim - 2; i >= 0; i--) {
+      strides[i] = strides[i + 1] * shape[i + 1];
+    }
   }
 
   return num_elements;
 }
 
-Tensor full(std::vector<int64_t> shape, float fill_value) {
+Tensor full(const std::vector<int64_t>& shape, float fill_value) {
   Tensor tensor;
   int64_t num_elements = tensor.set_shape(shape);
   tensor.data.resize(num_elements, fill_value);
   return tensor;
 }
 
-Tensor zeros(std::vector<int64_t> shape) { return full(shape, 0.0f); }
+Tensor zeros(const std::vector<int64_t>& shape) { return full(shape, 0.0f); }
 
-Tensor ones(std::vector<int64_t> shape) { return full(shape, 1.0); }
+Tensor ones(const std::vector<int64_t>& shape) { return full(shape, 1.0); }
 
 }  // namespace bt
