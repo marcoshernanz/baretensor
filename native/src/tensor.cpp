@@ -1,11 +1,10 @@
 #include "bt/tensor.h"
 
-#include <array>
 #include <stdexcept>
 #include <vector>
 
 namespace bt {
-void Tensor::update_shape(std::vector<int64_t> shape) {
+int64_t Tensor::set_shape(std::vector<int64_t> shape) {
   this->shape = shape;
   size_t size = shape.size();
 
@@ -14,28 +13,20 @@ void Tensor::update_shape(std::vector<int64_t> shape) {
     if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
     num_elements *= s;
   }
-  data.resize(num_elements);
 
-  stride.resize(size);
-  stride[size - 1] = 1;
+  strides.resize(size);
+  strides[size - 1] = 1;
   for (int i = size - 2; i >= 0; i--) {
-    stride[i] = stride[i + 1] * shape[i + 1];
-  }
-}
-
-std::vector<int64_t> Tensor::stride() { return stride; }
-
-int64_t Tensor::stride(int dim) {
-  if (dim < 0 || dim >= stride.size()) {
-    throw std::runtime_error("Invalid dimension");
+    strides[i] = strides[i + 1] * shape[i + 1];
   }
 
-  return stride[dim];
+  return num_elements;
 }
 
 Tensor full(std::vector<int64_t> shape, float fill_value) {
   Tensor tensor;
-  tensor.update_shape(shape);
+  int64_t num_elements = tensor.set_shape(shape);
+  tensor.data.resize(num_elements, fill_value);
   return tensor;
 }
 
