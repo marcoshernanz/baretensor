@@ -1,3 +1,5 @@
+#pragma once
+
 namespace bt::ops {
 
 struct Add {
