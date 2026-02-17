@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "bt/storage.h"
@@ -12,7 +14,7 @@ class Tensor {
   int64_t storage_offset = 0;
 
   std::vector<int64_t> shape;
-  std::vector<int64_t> stride;
+  std::vector<int64_t> strides;
 
   Tensor(const std::vector<int64_t>& shape);
 
