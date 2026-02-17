@@ -1,31 +1,39 @@
 #include "bt/tensor.h"
 
+#include <cstddef>
 #include <stdexcept>
-#include <vector>
+
+namespace {
+
+int64_t compute_numel_or_throw(const std::vector<int64_t>& shape) {
+  int64_t n = 1;
+  for (const int64_t s : shape) {
+    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
+    n *= s;
+  }
+  return n;
+}
+
+}  // namespace
 
 namespace bt {
 
 Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
-  size_t dim = shape.size();
+  const size_t dim = shape.size();
+  const int64_t size = compute_numel_or_throw(shape);
 
-  int64_t size = 1;
-  for (auto s : shape) {
-    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
-    size *= s;
-  }
-
-  stride.resize(dim);
+  strides.resize(dim);
   if (dim > 0) {
-    stride[dim - 1] = 1;
+    strides[dim - 1] = 1;
     for (int i = dim - 2; i >= 0; i--) {
-      stride[i] = stride[i + 1] * shape[i + 1];
+      strides[i] = strides[i + 1] * shape[i + 1];
     }
   }
 
   storage = std::make_shared<Storage>(size);
 }
 
-int Tensor::dim() const { return shape.size(); }
+int Tensor::dim() const { return static_cast<int>(shape.size()); }
 
 int64_t Tensor::numel() const {
   int64_t n = 1;
@@ -37,10 +45,10 @@ int64_t Tensor::numel() const {
 
 bool Tensor::is_contiguous() const {
   int64_t expected = 1;
-  for (int i = shape.size() - 1; i >= 0; i--) {
+  for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
     if (shape[i] == 0) return true;
     if (shape[i] == 1) continue;
-    if (stride[i] != expected) return false;
+    if (strides[i] != expected) return false;
     expected *= shape[i];
   }
   return true;
