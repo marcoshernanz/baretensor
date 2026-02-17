@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 namespace bt {
@@ -8,7 +9,7 @@ class Storage {
  public:
   std::vector<float> data;
 
-  Storage(int64_t size);
+  explicit Storage(int64_t size);
 
   void fill(float fill_value);
 };
