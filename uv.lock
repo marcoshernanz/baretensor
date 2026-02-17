@@ -23,7 +23,7 @@ wheels = [
 [[package]]
 name = "baretensor"
 version = "0.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "torch" },
 ]

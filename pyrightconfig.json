@@ -2,7 +2,7 @@
   "pythonVersion": "3.13",
   "venvPath": ".",
   "venv": ".venv",
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "examples"],
   "exclude": ["build", "third_party"],
   "typeCheckingMode": "strict"
 }
