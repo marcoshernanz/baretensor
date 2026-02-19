@@ -1,10 +1,14 @@
 #pragma once
 
+#include <nanobind/ndarray.h>
+
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "bt/storage.h"
+
+namespace nb = nanobind;
 
 namespace bt {
 
@@ -17,6 +21,7 @@ class Tensor {
   std::vector<int64_t> strides;
 
   Tensor(const std::vector<int64_t>& shape);
+  Tensor(const std::vector<int64_t>& shape, const std::vector<float>& data);
 
   int dim() const;
   int64_t numel() const;
@@ -37,5 +42,7 @@ class Tensor {
 Tensor full(const std::vector<int64_t>& shape, float fill_value);
 Tensor zeros(const std::vector<int64_t>& shape);
 Tensor ones(const std::vector<int64_t>& shape);
+
+Tensor tensor(const nb::ndarray<>& array);
 
 }  // namespace bt

@@ -3,24 +3,15 @@
 #include <cstddef>
 #include <stdexcept>
 
-namespace {
-
-int64_t compute_numel_or_throw(const std::vector<int64_t>& shape) {
-  int64_t n = 1;
-  for (const int64_t s : shape) {
-    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
-    n *= s;
-  }
-  return n;
-}
-
-}  // namespace
-
 namespace bt {
 
 Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
   const size_t dim = shape.size();
-  const int64_t size = compute_numel_or_throw(shape);
+  int64_t numel = 1;
+  for (const int64_t s : shape) {
+    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
+    numel *= s;
+  }
 
   strides.resize(dim);
   if (dim > 0) {
@@ -30,7 +21,28 @@ Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
     }
   }
 
-  storage = std::make_shared<Storage>(size);
+  storage = std::make_shared<Storage>(numel);
+}
+
+Tensor::Tensor(const std::vector<int64_t>& shape,
+               const std::vector<float>& data)
+    : shape(shape) {
+  const size_t dim = shape.size();
+  int64_t numel = 1;
+  for (const int64_t s : shape) {
+    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
+    numel *= s;
+  }
+
+  strides.resize(dim);
+  if (dim > 0) {
+    strides[dim - 1] = 1;
+    for (int i = dim - 2; i >= 0; i--) {
+      strides[i] = strides[i + 1] * shape[i + 1];
+    }
+  }
+
+  storage = std::make_shared<Storage>(data);
 }
 
 int Tensor::dim() const { return static_cast<int>(shape.size()); }
@@ -69,5 +81,19 @@ Tensor full(const std::vector<int64_t>& shape, float fill_value) {
 Tensor zeros(const std::vector<int64_t>& shape) { return full(shape, 0.0f); }
 
 Tensor ones(const std::vector<int64_t>& shape) { return full(shape, 1.0); }
+
+// Tensor tensor(const nb::ndarray<float>& array) {
+//   std::vector<int64_t> shape(array.ndim());
+//   std::vector<int64_t> strides(array.ndim());
+//   for (int i = 0; i < array.ndim(); i++) {
+//     shape[i] = array.shape(i);
+//     strides[i] = array.stride(i);
+//   }
+
+//   Tensor tensor(shape);
+//   tensor.strides = strides;
+//   auto x = array.data();
+//   tensor.storage->data = static_cast<float*>(array.data());
+// }
 
 }  // namespace bt
