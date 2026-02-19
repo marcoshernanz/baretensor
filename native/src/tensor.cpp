@@ -82,18 +82,4 @@ Tensor zeros(const std::vector<int64_t>& shape) { return full(shape, 0.0f); }
 
 Tensor ones(const std::vector<int64_t>& shape) { return full(shape, 1.0); }
 
-// Tensor tensor(const nb::ndarray<float>& array) {
-//   std::vector<int64_t> shape(array.ndim());
-//   std::vector<int64_t> strides(array.ndim());
-//   for (int i = 0; i < array.ndim(); i++) {
-//     shape[i] = array.shape(i);
-//     strides[i] = array.stride(i);
-//   }
-
-//   Tensor tensor(shape);
-//   tensor.strides = strides;
-//   auto x = array.data();
-//   tensor.storage->data = static_cast<float*>(array.data());
-// }
-
 }  // namespace bt

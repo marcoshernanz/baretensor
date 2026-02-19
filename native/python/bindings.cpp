@@ -28,3 +28,17 @@ NB_MODULE(_C, m) {
   m.def("zeros", &bt::zeros);
   m.def("ones", &bt::ones);
 }
+
+// Tensor tensor(const nb::ndarray<float>& array) {
+//   std::vector<int64_t> shape(array.ndim());
+//   std::vector<int64_t> strides(array.ndim());
+//   for (int i = 0; i < array.ndim(); i++) {
+//     shape[i] = array.shape(i);
+//     strides[i] = array.stride(i);
+//   }
+
+//   Tensor tensor(shape);
+//   tensor.strides = strides;
+//   auto x = array.data();
+//   tensor.storage->data = static_cast<float*>(array.data());
+// }
