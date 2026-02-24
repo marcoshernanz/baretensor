@@ -1,3 +1,8 @@
+/*
+ * File: native/src/ops.cpp
+ * Purpose: Implements elementwise tensor operations and scalar variants.
+ */
+
 #include "bt/ops.h"
 
 #include <cstdint>
@@ -6,8 +11,15 @@
 #include "bt/detail/broadcast.h"
 #include "bt/tensor.h"
 
+/*
+ * Namespace: (anonymous)
+ * Purpose: Private implementation details local to this translation unit.
+ */
 namespace {
 
+/*
+ * Applies a tensor-tensor operation by recursively traversing N-D shape space.
+ */
 template <class Op>
 void recursive_apply_tt(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
@@ -35,6 +47,9 @@ void recursive_apply_tt(int dim, int num_dims,
   }
 }
 
+/*
+ * Applies a tensor-scalar operation by recursively traversing N-D shape space.
+ */
 template <class Op>
 void recursive_apply_ts(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
@@ -59,6 +74,9 @@ void recursive_apply_ts(int dim, int num_dims,
   }
 }
 
+/*
+ * Executes a tensor-tensor elementwise operation with broadcasting support.
+ */
 template <class Op>
 bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
   const std::vector<int64_t> out_shape =
@@ -96,6 +114,9 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
   return out;
 }
 
+/*
+ * Executes a tensor-scalar elementwise operation.
+ */
 template <class Op>
 bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
   bt::Tensor out(a.shape);
@@ -122,40 +143,68 @@ bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
   return out;
 }
 
-}  // namespace
+} /* namespace (anonymous) */
 
+/*
+ * Namespace: bt
+ * Purpose: Public BareTensor C++ API surface.
+ */
 namespace bt {
 
+/*
+ * Elementwise tensor-tensor addition.
+ */
 Tensor Tensor::operator+(const Tensor& rhs) const {
   return binary_tt(*this, rhs, ops::Add{});
 }
 
+/*
+ * Elementwise tensor-scalar addition.
+ */
 Tensor Tensor::operator+(float rhs) const {
   return binary_ts(*this, rhs, ops::Add{});
 }
 
+/*
+ * Elementwise tensor-tensor subtraction.
+ */
 Tensor Tensor::operator-(const Tensor& rhs) const {
   return binary_tt(*this, rhs, ops::Sub{});
 }
 
+/*
+ * Elementwise tensor-scalar subtraction.
+ */
 Tensor Tensor::operator-(float rhs) const {
   return binary_ts(*this, rhs, ops::Sub{});
 }
 
+/*
+ * Elementwise tensor-tensor multiplication.
+ */
 Tensor Tensor::operator*(const Tensor& rhs) const {
   return binary_tt(*this, rhs, ops::Mul{});
 }
 
+/*
+ * Elementwise tensor-scalar multiplication.
+ */
 Tensor Tensor::operator*(float rhs) const {
   return binary_ts(*this, rhs, ops::Mul{});
 }
 
+/*
+ * Elementwise tensor-tensor division.
+ */
 Tensor Tensor::operator/(const Tensor& rhs) const {
   return binary_tt(*this, rhs, ops::Div{});
 }
 
+/*
+ * Elementwise tensor-scalar division.
+ */
 Tensor Tensor::operator/(float rhs) const {
   return binary_ts(*this, rhs, ops::Div{});
 }
 
-}  // namespace bt
+} /* namespace bt */
