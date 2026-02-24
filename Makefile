@@ -44,12 +44,8 @@ rebuild: ## Clean build dir, then configure + build
 	$(CMAKE) --build --preset dev
 
 .PHONY: run
-run: ## Run a tiny demo: bt.add(1, 2)
-	PYTHONPATH="$(PYTHONPATH)" $(UV) run python -c "import bt; print(bt.add(1, 2))"
-
-.PHONY: dog
-dog: ## Run the Dog example script
-	PYTHONPATH="$(PYTHONPATH)" $(UV) run python examples/dog_demo.py
+run: ## Run the example script
+	PYTHONPATH="$(PYTHONPATH)" $(UV) run python examples/example.py
 
 .PHONY: repl
 repl: ## Start an interactive Python REPL with bt importable
