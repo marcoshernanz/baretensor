@@ -119,11 +119,16 @@ void recursive_apply_ts(int dim, int num_dims,
 
 template <class Op>
 bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
-  bt::Tensor out(infer_broadcast_shape(a.shape, b.shape));
-  const int64_t n = a.numel();
+  const std::vector<int64_t> out_shape =
+      infer_broadcast_shape(a.shape, b.shape);
+  bt::Tensor out(out_shape);
+
+  const int64_t n = out.numel();
   if (n == 0) return out;
 
-  if (a.is_contiguous() && b.is_contiguous() && out.is_contiguous()) {
+  const bool no_broadcast = (a.shape == out_shape) && (b.shape == out_shape);
+  if (no_broadcast && a.is_contiguous() && b.is_contiguous() &&
+      out.is_contiguous()) {
     const float* a_ptr = a.data_ptr();
     const float* b_ptr = b.data_ptr();
     float* out_ptr = out.data_ptr();
@@ -133,14 +138,19 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
     return out;
   }
 
-  const int num_dims = a.dim();
+  const int num_dims = out.dim();
   if (num_dims == 0) {
     *out.data_ptr() = op(*a.data_ptr(), *b.data_ptr());
     return out;
   }
 
-  recursive_apply_tt(0, num_dims, a.shape, a.data_ptr(), b.data_ptr(),
-                     out.data_ptr(), a.strides, b.strides, out.strides, op);
+  const std::vector<int64_t> stride_a =
+      aligned_broadcast_strides(a.shape, a.strides, out_shape);
+  const std::vector<int64_t> stride_b =
+      aligned_broadcast_strides(b.shape, b.strides, out_shape);
+
+  recursive_apply_tt(0, num_dims, out_shape, a.data_ptr(), b.data_ptr(),
+                     out.data_ptr(), stride_a, stride_b, out.strides, op);
   return out;
 }
 
