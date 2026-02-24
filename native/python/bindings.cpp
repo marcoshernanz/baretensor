@@ -5,7 +5,9 @@
 
 #include <cstddef>
 #include <cstring>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "bt/tensor.h"
@@ -20,6 +22,17 @@ namespace {
     std::memcpy(out.data(), t.data_ptr(), out.size() * sizeof(float));
   }
   return out;
+}
+
+[[nodiscard]] std::string shape_to_string(const std::vector<int64_t>& shape) {
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < shape.size(); ++i) {
+    if (i != 0) oss << ", ";
+    oss << shape[i];
+  }
+  oss << "]";
+  return oss.str();
 }
 
 }  // namespace
@@ -67,7 +80,11 @@ NB_MODULE(_C, m) {
     bt::Tensor t(shape);
     const size_t expected_nbytes = static_cast<size_t>(t.numel()) * sizeof(float);
     if (a.nbytes() != expected_nbytes) {
-      throw std::runtime_error("Unexpected NumPy array byte size for tensor copy");
+      std::ostringstream oss;
+      oss << "Failed to copy NumPy array into Tensor(shape="
+          << shape_to_string(shape) << "): expected " << expected_nbytes
+          << " bytes but got " << a.nbytes() << ".";
+      throw std::runtime_error(oss.str());
     }
     if (a.nbytes() != 0) {
       std::memcpy(t.data_ptr(), a.data(), a.nbytes());
