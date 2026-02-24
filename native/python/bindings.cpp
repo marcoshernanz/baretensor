@@ -7,9 +7,9 @@
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
+#include "bt/detail/format.h"
 #include "bt/tensor.h"
 
 namespace nb = nanobind;
@@ -22,17 +22,6 @@ namespace {
     std::memcpy(out.data(), t.data_ptr(), out.size() * sizeof(float));
   }
   return out;
-}
-
-[[nodiscard]] std::string shape_to_string(const std::vector<int64_t>& shape) {
-  std::ostringstream oss;
-  oss << "[";
-  for (size_t i = 0; i < shape.size(); ++i) {
-    if (i != 0) oss << ", ";
-    oss << shape[i];
-  }
-  oss << "]";
-  return oss.str();
 }
 
 }  // namespace
@@ -70,25 +59,29 @@ NB_MODULE(_C, m) {
   m.def("zeros", &bt::zeros, nb::arg("shape"));
   m.def("ones", &bt::ones, nb::arg("shape"));
 
-  m.def("tensor", [](const NdArrayF32& a) {
-    std::vector<int64_t> shape;
-    shape.reserve(a.ndim());
-    for (size_t i = 0; i < a.ndim(); ++i) {
-      shape.push_back(static_cast<int64_t>(a.shape(i)));
-    }
+  m.def(
+      "tensor",
+      [](const NdArrayF32& a) {
+        std::vector<int64_t> shape;
+        shape.reserve(a.ndim());
+        for (size_t i = 0; i < a.ndim(); ++i) {
+          shape.push_back(static_cast<int64_t>(a.shape(i)));
+        }
 
-    bt::Tensor t(shape);
-    const size_t expected_nbytes = static_cast<size_t>(t.numel()) * sizeof(float);
-    if (a.nbytes() != expected_nbytes) {
-      std::ostringstream oss;
-      oss << "Failed to copy NumPy array into Tensor(shape="
-          << shape_to_string(shape) << "): expected " << expected_nbytes
-          << " bytes but got " << a.nbytes() << ".";
-      throw std::runtime_error(oss.str());
-    }
-    if (a.nbytes() != 0) {
-      std::memcpy(t.data_ptr(), a.data(), a.nbytes());
-    }
-    return t;
-  }, nb::arg("array"));
+        bt::Tensor t(shape);
+        const size_t expected_nbytes =
+            static_cast<size_t>(t.numel()) * sizeof(float);
+        if (a.nbytes() != expected_nbytes) {
+          std::ostringstream oss;
+          oss << "Failed to copy NumPy array into Tensor(shape="
+              << bt::detail::shape_to_string(shape) << "): expected "
+              << expected_nbytes << " bytes but got " << a.nbytes() << ".";
+          throw std::runtime_error(oss.str());
+        }
+        if (a.nbytes() != 0) {
+          std::memcpy(t.data_ptr(), a.data(), a.nbytes());
+        }
+        return t;
+      },
+      nb::arg("array"));
 }
