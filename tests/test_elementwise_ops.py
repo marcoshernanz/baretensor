@@ -130,6 +130,16 @@ class ElementwiseOpsTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         _ = _apply_bt_op(name, a, b)
 
+    def test_incompatible_shapes_error_message_contains_context(self) -> None:
+        a = bt.tensor(np.asarray(np.zeros((2, 3), dtype=np.float32), dtype=np.float32))
+        b = bt.tensor(np.asarray(np.zeros((4, 3), dtype=np.float32), dtype=np.float32))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Cannot broadcast shapes \[2, 3\] and \[4, 3\]: incompatible dimension",
+        ):
+            _ = a + b
+
 
 if __name__ == "__main__":
     unittest.main()

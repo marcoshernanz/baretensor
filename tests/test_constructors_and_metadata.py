@@ -48,10 +48,16 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         np.testing.assert_allclose(to_numpy(tensor), np.zeros((0, 3), dtype=np.float32))
 
     def test_negative_shape_raises(self) -> None:
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Invalid tensor shape \[2, -1\]: dimension 1 has negative size -1\.",
+        ):
             _ = bt.zeros([2, -1])
 
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Invalid tensor shape \[-3\]: dimension 0 has negative size -3\.",
+        ):
             _ = bt.full([-3], 1.0)
 
     def test_tensor_accepts_non_float32_and_non_contiguous_numpy(self) -> None:
