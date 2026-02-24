@@ -8,14 +8,40 @@
 
 namespace {
 
+[[nodiscard]] std::vector<int64_t> infer_broadcast_shape(
+    const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape) {
+  size_t size = std::max(a_shape.size(), b_shape.size());
+  std::vector<int64_t> out(size);
+
+  for (int i = 0; i < size; i++) {
+    int a_i = a_shape.size() - i - 1;
+    int b_i = b_shape.size() - i - 1;
+    int out_i = size - i - 1;
+
+    int64_t a_s = a_i >= 0 ? a_shape[a_i] : 1;
+    int64_t b_s = b_i >= 0 ? b_shape[b_i] : 1;
+
+    if (a_s == b_s) {
+      out[out_i] = a_s;
+    } else if (a_s == 1) {
+      out[out_i] = b_s;
+    } else if (b_s == 1) {
+      out[out_i] = a_s;
+    } else {
+      throw std::invalid_argument("shape mismatch");
+    }
+  }
+
+  return out;
+}
+
 template <class Op>
 void recursive_apply_tt(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
                         const float* b, float* out,
                         const std::vector<int64_t>& stride_a,
                         const std::vector<int64_t>& stride_b,
-                        const std::vector<int64_t>& stride_out,
-                        const Op& op) {
+                        const std::vector<int64_t>& stride_out, const Op& op) {
   if (shape[dim] == 0) return;
   if (dim == num_dims - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
@@ -41,8 +67,7 @@ void recursive_apply_ts(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
                         float s, float* out,
                         const std::vector<int64_t>& stride_a,
-                        const std::vector<int64_t>& stride_out,
-                        const Op& op) {
+                        const std::vector<int64_t>& stride_out, const Op& op) {
   if (shape[dim] == 0) return;
   if (dim == num_dims - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
