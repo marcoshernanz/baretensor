@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -10,7 +11,11 @@ namespace bt {
 namespace {
 
 [[nodiscard]] size_t checked_storage_size(int64_t size) {
-  if (size < 0) throw std::invalid_argument("Storage size must be non-negative");
+  if (size < 0) {
+    std::ostringstream oss;
+    oss << "Invalid storage size " << size << ": size must be non-negative.";
+    throw std::invalid_argument(oss.str());
+  }
   return static_cast<size_t>(size);
 }
 
