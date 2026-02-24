@@ -1,3 +1,8 @@
+/*
+ * File: native/src/tensor.cpp
+ * Purpose: Implements tensor construction, metadata queries, and factories.
+ */
+
 #include "bt/tensor.h"
 
 #include <stdexcept>
@@ -7,14 +12,24 @@
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
 
+/*
+ * Namespace: bt
+ * Purpose: Public BareTensor C++ API surface.
+ */
 namespace bt {
 
+/*
+ * Constructs a tensor and allocates storage for the given shape.
+ */
 Tensor::Tensor(const std::vector<int64_t>& shape) : shape(shape) {
   const int64_t n = detail::checked_numel(shape);
   strides = detail::contiguous_strides(shape);
   storage = std::make_shared<Storage>(n);
 }
 
+/*
+ * Constructs a tensor from provided shape and owned data vector.
+ */
 Tensor::Tensor(const std::vector<int64_t>& shape, std::vector<float> data)
     : shape(shape) {
   const int64_t n = detail::checked_numel(shape);
@@ -28,8 +43,14 @@ Tensor::Tensor(const std::vector<int64_t>& shape, std::vector<float> data)
   storage = std::make_shared<Storage>(std::move(data));
 }
 
+/*
+ * Returns the tensor rank.
+ */
 int Tensor::dim() const noexcept { return static_cast<int>(shape.size()); }
 
+/*
+ * Returns the total number of tensor elements.
+ */
 int64_t Tensor::numel() const noexcept {
   int64_t n = 1;
   for (auto s : shape) {
@@ -38,6 +59,9 @@ int64_t Tensor::numel() const noexcept {
   return n;
 }
 
+/*
+ * Returns whether the current shape/stride metadata is contiguous.
+ */
 bool Tensor::is_contiguous() const noexcept {
   int64_t expected = 1;
   for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
@@ -49,22 +73,37 @@ bool Tensor::is_contiguous() const noexcept {
   return true;
 }
 
+/*
+ * Returns a const pointer to tensor data at storage offset.
+ */
 const float* Tensor::data_ptr() const noexcept {
   return storage->data_ptr() + storage_offset;
 }
 
+/*
+ * Returns a mutable pointer to tensor data at storage offset.
+ */
 float* Tensor::data_ptr() noexcept {
   return storage->data_ptr() + storage_offset;
 }
 
+/*
+ * Creates a tensor filled with a constant value.
+ */
 Tensor full(const std::vector<int64_t>& shape, float fill_value) {
   Tensor tensor(shape);
   tensor.storage->fill(fill_value);
   return tensor;
 }
 
+/*
+ * Creates a tensor filled with zeros.
+ */
 Tensor zeros(const std::vector<int64_t>& shape) { return full(shape, 0.0f); }
 
+/*
+ * Creates a tensor filled with ones.
+ */
 Tensor ones(const std::vector<int64_t>& shape) { return full(shape, 1.0f); }
 
-}  // namespace bt
+} /* namespace bt */
