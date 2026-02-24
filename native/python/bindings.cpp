@@ -12,8 +12,21 @@
 
 namespace nb = nanobind;
 
+namespace {
+
+[[nodiscard]] std::vector<float> tensor_to_vector(const bt::Tensor& t) {
+  std::vector<float> out(static_cast<size_t>(t.numel()));
+  if (!out.empty()) {
+    std::memcpy(out.data(), t.data_ptr(), out.size() * sizeof(float));
+  }
+  return out;
+}
+
+}  // namespace
+
 NB_MODULE(_C, m) {
   m.doc() = "BareTensor native extension (bootstrap)";
+  nb::module_ numpy = nb::module_::import_("numpy");
 
   using NdArrayF32 =
       nb::ndarray<nb::numpy, const float, nb::c_contig, nb::device::cpu>;
@@ -26,11 +39,14 @@ NB_MODULE(_C, m) {
       .def("is_contiguous", &bt::Tensor::is_contiguous)
       .def("tolist",
            [](const bt::Tensor& t) {
-             std::vector<float> out(static_cast<size_t>(t.numel()));
-             if (!out.empty()) {
-               std::memcpy(out.data(), t.data_ptr(), out.size() * sizeof(float));
-             }
-             return out;
+             return tensor_to_vector(t);
+           })
+      .def("numpy",
+           [numpy](const bt::Tensor& t) {
+             const std::vector<float> values = tensor_to_vector(t);
+             nb::object array = numpy.attr("array")(
+                 nb::cast(values), nb::arg("dtype") = numpy.attr("float32"));
+             return array.attr("reshape")(nb::cast(t.shape));
            })
       .def(nb::self + nb::self)
       .def(nb::self + float())
