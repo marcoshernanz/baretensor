@@ -10,23 +10,23 @@ namespace {
 
 [[nodiscard]] std::vector<int64_t> infer_broadcast_shape(
     const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape) {
-  size_t size = std::max(a_shape.size(), b_shape.size());
-  std::vector<int64_t> out(size);
+  const size_t out_rank = std::max(a_shape.size(), b_shape.size());
+  std::vector<int64_t> out(out_rank, 1);
 
-  for (int i = 0; i < size; i++) {
-    int a_i = a_shape.size() - i - 1;
-    int b_i = b_shape.size() - i - 1;
-    int out_i = size - i - 1;
+  for (size_t i = 0; i < out_rank; ++i) {
+    const size_t out_i = out_rank - 1 - i;
 
-    int64_t a_s = a_i >= 0 ? a_shape[a_i] : 1;
-    int64_t b_s = b_i >= 0 ? b_shape[b_i] : 1;
+    const int64_t a_dim =
+        (i < a_shape.size()) ? a_shape[a_shape.size() - 1 - i] : int64_t{1};
+    const int64_t b_dim =
+        (i < b_shape.size()) ? b_shape[b_shape.size() - 1 - i] : int64_t{1};
 
-    if (a_s == b_s) {
-      out[out_i] = a_s;
-    } else if (a_s == 1) {
-      out[out_i] = b_s;
-    } else if (b_s == 1) {
-      out[out_i] = a_s;
+    if (a_dim == b_dim) {
+      out[out_i] = a_dim;
+    } else if (a_dim == 1) {
+      out[out_i] = b_dim;
+    } else if (b_dim == 1) {
+      out[out_i] = a_dim;
     } else {
       throw std::invalid_argument("shape mismatch");
     }
