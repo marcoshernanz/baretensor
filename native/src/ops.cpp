@@ -1,110 +1,12 @@
 #include "bt/ops.h"
 
-#include <algorithm>
 #include <cstdint>
-#include <sstream>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
+#include "bt/detail/broadcast.h"
 #include "bt/tensor.h"
 
 namespace {
-
-[[nodiscard]] std::string shape_to_string(const std::vector<int64_t>& shape) {
-  std::ostringstream oss;
-  oss << "[";
-  for (size_t i = 0; i < shape.size(); ++i) {
-    if (i != 0) oss << ", ";
-    oss << shape[i];
-  }
-  oss << "]";
-  return oss.str();
-}
-
-[[noreturn]] void throw_broadcast_mismatch(
-    const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape,
-    size_t out_i, int64_t a_dim, int64_t b_dim) {
-  const size_t out_rank = std::max(a_shape.size(), b_shape.size());
-  const size_t axis_from_right = out_rank - out_i;
-
-  std::ostringstream oss;
-  oss << "Cannot broadcast shapes " << shape_to_string(a_shape) << " and "
-      << shape_to_string(b_shape)
-      << ": incompatible dimension at axis -" << axis_from_right
-      << " (from right), got " << a_dim << " and " << b_dim << ".";
-  throw std::invalid_argument(oss.str());
-}
-
-[[nodiscard]] std::vector<int64_t> infer_broadcast_shape(
-    const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape) {
-  const size_t out_rank = std::max(a_shape.size(), b_shape.size());
-  std::vector<int64_t> out(out_rank, 1);
-
-  for (size_t i = 0; i < out_rank; ++i) {
-    const size_t out_i = out_rank - 1 - i;
-
-    const int64_t a_dim =
-        (i < a_shape.size()) ? a_shape[a_shape.size() - 1 - i] : int64_t{1};
-    const int64_t b_dim =
-        (i < b_shape.size()) ? b_shape[b_shape.size() - 1 - i] : int64_t{1};
-
-    if (a_dim == b_dim) {
-      out[out_i] = a_dim;
-    } else if (a_dim == 1) {
-      out[out_i] = b_dim;
-    } else if (b_dim == 1) {
-      out[out_i] = a_dim;
-    } else {
-      throw_broadcast_mismatch(a_shape, b_shape, out_i, a_dim, b_dim);
-    }
-  }
-
-  return out;
-}
-
-[[nodiscard]] std::vector<int64_t> aligned_broadcast_strides(
-    const std::vector<int64_t>& in_shape,
-    const std::vector<int64_t>& in_strides,
-    const std::vector<int64_t>& out_shape) {
-  if (in_shape.size() != in_strides.size()) {
-    std::ostringstream oss;
-    oss << "Tensor metadata invariant violation: shape rank " << in_shape.size()
-        << " does not match stride rank " << in_strides.size() << ".";
-    throw std::invalid_argument(oss.str());
-  }
-
-  const size_t out_rank = out_shape.size();
-  const size_t in_rank = in_shape.size();
-  std::vector<int64_t> out_strides(out_rank, 0);
-
-  for (size_t i = 0; i < out_rank; ++i) {
-    const size_t out_i = out_rank - 1 - i;
-    if (i >= in_rank) {
-      out_strides[out_i] = 0;
-      continue;
-    }
-
-    const size_t in_i = in_rank - 1 - i;
-    const int64_t in_dim = in_shape[in_i];
-    const int64_t out_dim = out_shape[out_i];
-
-    if (in_dim == out_dim) {
-      out_strides[out_i] = in_strides[in_i];
-    } else if (in_dim == 1) {
-      out_strides[out_i] = 0;
-    } else {
-      std::ostringstream oss;
-      oss << "Internal broadcast stride alignment error: cannot align input "
-          << "shape " << shape_to_string(in_shape) << " with output shape "
-          << shape_to_string(out_shape) << " at axis -" << (out_rank - out_i)
-          << " (from right), got " << in_dim << " and " << out_dim << ".";
-      throw std::invalid_argument(oss.str());
-    }
-  }
-
-  return out_strides;
-}
 
 template <class Op>
 void recursive_apply_tt(int dim, int num_dims,
@@ -160,7 +62,7 @@ void recursive_apply_ts(int dim, int num_dims,
 template <class Op>
 bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
   const std::vector<int64_t> out_shape =
-      infer_broadcast_shape(a.shape, b.shape);
+      bt::detail::infer_broadcast_shape(a.shape, b.shape);
   bt::Tensor out(out_shape);
 
   const int64_t n = out.numel();
@@ -185,9 +87,9 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
   }
 
   const std::vector<int64_t> stride_a =
-      aligned_broadcast_strides(a.shape, a.strides, out_shape);
+      bt::detail::aligned_broadcast_strides(a.shape, a.strides, out_shape);
   const std::vector<int64_t> stride_b =
-      aligned_broadcast_strides(b.shape, b.strides, out_shape);
+      bt::detail::aligned_broadcast_strides(b.shape, b.strides, out_shape);
 
   recursive_apply_tt(0, num_dims, out_shape, a.data_ptr(), b.data_ptr(),
                      out.data_ptr(), stride_a, stride_b, out.strides, op);
