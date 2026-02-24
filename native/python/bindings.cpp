@@ -24,6 +24,14 @@ NB_MODULE(_C, m) {
       .def("dim", &bt::Tensor::dim)
       .def("numel", &bt::Tensor::numel)
       .def("is_contiguous", &bt::Tensor::is_contiguous)
+      .def("tolist",
+           [](const bt::Tensor& t) {
+             std::vector<float> out(static_cast<size_t>(t.numel()));
+             if (!out.empty()) {
+               std::memcpy(out.data(), t.data_ptr(), out.size() * sizeof(float));
+             }
+             return out;
+           })
       .def(nb::self + nb::self)
       .def(nb::self + float())
       .def(nb::self - nb::self)
