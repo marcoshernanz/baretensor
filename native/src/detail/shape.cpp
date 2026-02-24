@@ -1,3 +1,8 @@
+/*
+ * File: native/src/detail/shape.cpp
+ * Purpose: Implements shape/stride validation and utility helpers.
+ */
+
 #include "bt/detail/shape.h"
 
 #include <limits>
@@ -6,8 +11,15 @@
 
 #include "bt/detail/format.h"
 
+/*
+ * Namespace: bt::detail
+ * Purpose: Internal reusable implementation helpers.
+ */
 namespace bt::detail {
 
+/*
+ * Computes contiguous strides for the provided shape.
+ */
 std::vector<int64_t> contiguous_strides(const std::vector<int64_t>& shape) {
   std::vector<int64_t> strides(shape.size(), 1);
   for (size_t i = shape.size(); i > 1; --i) {
@@ -17,6 +29,9 @@ std::vector<int64_t> contiguous_strides(const std::vector<int64_t>& shape) {
   return strides;
 }
 
+/*
+ * Validates shape dimensions and computes total element count.
+ */
 int64_t checked_numel(const std::vector<int64_t>& shape) {
   int64_t n = 1;
   for (size_t i = 0; i < shape.size(); ++i) {
@@ -39,4 +54,4 @@ int64_t checked_numel(const std::vector<int64_t>& shape) {
   return n;
 }
 
-}  // namespace bt::detail
+} /* namespace bt::detail */
