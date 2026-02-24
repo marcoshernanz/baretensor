@@ -1,4 +1,5 @@
 #include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/vector.h>
 
@@ -27,6 +28,16 @@ NB_MODULE(_C, m) {
   m.def("full", &bt::full);
   m.def("zeros", &bt::zeros);
   m.def("ones", &bt::ones);
+  m.def("tensor",
+        [](const nb::ndarray<float, nb::c_contig>& a, nb::device::cpu) {
+          std::vector<int64_t> shape(a.ndim());
+          for (int i = 0; i < a.ndim(); i++) {
+            shape[i] = a.shape(i);
+          }
+          bt::Tensor t(shape);
+          std::memcpy(t.data_ptr(), a.data(), a.nbytes());
+          return t;
+        });
 }
 
 // Tensor tensor(const nb::ndarray<float>& array) {

@@ -1,7 +1,10 @@
 """BareTensor native extension (bootstrap)"""
 
 from collections.abc import Sequence
-from typing import overload
+from typing import Annotated, overload
+
+import numpy
+from numpy.typing import NDArray
 
 
 class Tensor:
@@ -46,3 +49,5 @@ def full(arg0: Sequence[int], arg1: float, /) -> Tensor: ...
 def zeros(arg: Sequence[int], /) -> Tensor: ...
 
 def ones(arg: Sequence[int], /) -> Tensor: ...
+
+def tensor(arg: Annotated[NDArray[numpy.float32], dict(order='C')], /) -> None: ...
