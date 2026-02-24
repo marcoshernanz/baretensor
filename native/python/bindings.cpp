@@ -3,7 +3,10 @@
 #include <nanobind/operators.h>
 #include <nanobind/stl/vector.h>
 
+#include <cstddef>
 #include <cstring>
+#include <stdexcept>
+#include <vector>
 
 #include "bt/tensor.h"
 
@@ -30,20 +33,25 @@ NB_MODULE(_C, m) {
       .def(nb::self / nb::self)
       .def(nb::self / float());
 
-  m.def("full", &bt::full);
-  m.def("zeros", &bt::zeros);
-  m.def("ones", &bt::ones);
+  m.def("full", &bt::full, nb::arg("shape"), nb::arg("fill_value"));
+  m.def("zeros", &bt::zeros, nb::arg("shape"));
+  m.def("ones", &bt::ones, nb::arg("shape"));
 
   m.def("tensor", [](const NdArrayF32& a) {
-    std::vector<int64_t> shape(a.ndim());
+    std::vector<int64_t> shape;
+    shape.reserve(a.ndim());
     for (size_t i = 0; i < a.ndim(); ++i) {
       shape.push_back(static_cast<int64_t>(a.shape(i)));
     }
 
     bt::Tensor t(shape);
+    const size_t expected_nbytes = static_cast<size_t>(t.numel()) * sizeof(float);
+    if (a.nbytes() != expected_nbytes) {
+      throw std::runtime_error("Unexpected NumPy array byte size for tensor copy");
+    }
     if (a.nbytes() != 0) {
       std::memcpy(t.data_ptr(), a.data(), a.nbytes());
     }
     return t;
-  });
+  }, nb::arg("array"));
 }
