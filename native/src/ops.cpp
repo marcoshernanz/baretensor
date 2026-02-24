@@ -1,12 +1,40 @@
 #include "bt/ops.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "bt/tensor.h"
 
 namespace {
+
+[[nodiscard]] std::string shape_to_string(const std::vector<int64_t>& shape) {
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < shape.size(); ++i) {
+    if (i != 0) oss << ", ";
+    oss << shape[i];
+  }
+  oss << "]";
+  return oss.str();
+}
+
+[[noreturn]] void throw_broadcast_mismatch(
+    const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape,
+    size_t out_i, int64_t a_dim, int64_t b_dim) {
+  const size_t out_rank = std::max(a_shape.size(), b_shape.size());
+  const size_t axis_from_right = out_rank - out_i;
+
+  std::ostringstream oss;
+  oss << "Cannot broadcast shapes " << shape_to_string(a_shape) << " and "
+      << shape_to_string(b_shape)
+      << ": incompatible dimension at axis -" << axis_from_right
+      << " (from right), got " << a_dim << " and " << b_dim << ".";
+  throw std::invalid_argument(oss.str());
+}
 
 [[nodiscard]] std::vector<int64_t> infer_broadcast_shape(
     const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape) {
@@ -28,7 +56,7 @@ namespace {
     } else if (b_dim == 1) {
       out[out_i] = a_dim;
     } else {
-      throw std::invalid_argument("shape mismatch");
+      throw_broadcast_mismatch(a_shape, b_shape, out_i, a_dim, b_dim);
     }
   }
 
@@ -39,6 +67,13 @@ namespace {
     const std::vector<int64_t>& in_shape,
     const std::vector<int64_t>& in_strides,
     const std::vector<int64_t>& out_shape) {
+  if (in_shape.size() != in_strides.size()) {
+    std::ostringstream oss;
+    oss << "Tensor metadata invariant violation: shape rank " << in_shape.size()
+        << " does not match stride rank " << in_strides.size() << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
   const size_t out_rank = out_shape.size();
   const size_t in_rank = in_shape.size();
   std::vector<int64_t> out_strides(out_rank, 0);
@@ -59,7 +94,12 @@ namespace {
     } else if (in_dim == 1) {
       out_strides[out_i] = 0;
     } else {
-      throw std::invalid_argument("shape mismatch");
+      std::ostringstream oss;
+      oss << "Internal broadcast stride alignment error: cannot align input "
+          << "shape " << shape_to_string(in_shape) << " with output shape "
+          << shape_to_string(out_shape) << " at axis -" << (out_rank - out_i)
+          << " (from right), got " << in_dim << " and " << out_dim << ".";
+      throw std::invalid_argument(oss.str());
     }
   }
 
