@@ -35,6 +35,37 @@ namespace {
   return out;
 }
 
+[[nodiscard]] std::vector<int64_t> aligned_broadcast_strides(
+    const std::vector<int64_t>& in_shape,
+    const std::vector<int64_t>& in_strides,
+    const std::vector<int64_t>& out_shape) {
+  const size_t out_rank = out_shape.size();
+  const size_t in_rank = in_shape.size();
+  std::vector<int64_t> out_strides(out_rank, 0);
+
+  for (size_t i = 0; i < out_rank; ++i) {
+    const size_t out_i = out_rank - 1 - i;
+    if (i >= in_rank) {
+      out_strides[out_i] = 0;
+      continue;
+    }
+
+    const size_t in_i = in_rank - 1 - i;
+    const int64_t in_dim = in_shape[in_i];
+    const int64_t out_dim = out_shape[out_i];
+
+    if (in_dim == out_dim) {
+      out_strides[out_i] = in_strides[in_i];
+    } else if (in_dim == 1) {
+      out_strides[out_i] = 0;
+    } else {
+      throw std::invalid_argument("shape mismatch");
+    }
+  }
+
+  return out_strides;
+}
+
 template <class Op>
 void recursive_apply_tt(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
@@ -88,9 +119,7 @@ void recursive_apply_ts(int dim, int num_dims,
 
 template <class Op>
 bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
-  if (a.shape != b.shape) throw std::invalid_argument("shape mismatch");
-
-  bt::Tensor out(a.shape);
+  bt::Tensor out(infer_broadcast_shape(a.shape, b.shape));
   const int64_t n = a.numel();
   if (n == 0) return out;
 
