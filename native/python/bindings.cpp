@@ -37,10 +37,6 @@ NB_MODULE(_C, m) {
       .def("dim", &bt::Tensor::dim)
       .def("numel", &bt::Tensor::numel)
       .def("is_contiguous", &bt::Tensor::is_contiguous)
-      .def("tolist",
-           [](const bt::Tensor& t) {
-             return tensor_to_vector(t);
-           })
       .def("numpy",
            [numpy](const bt::Tensor& t) {
              const std::vector<float> values = tensor_to_vector(t);
