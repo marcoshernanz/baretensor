@@ -1,3 +1,8 @@
+/*
+ * File: native/python/bindings.cpp
+ * Purpose: Defines Python bindings for the BareTensor native C++ backend.
+ */
+
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
@@ -14,8 +19,15 @@
 
 namespace nb = nanobind;
 
+/*
+ * Namespace: (anonymous)
+ * Purpose: Private implementation details local to this translation unit.
+ */
 namespace {
 
+/*
+ * Copies tensor data into a std::vector for Python conversion helpers.
+ */
 [[nodiscard]] std::vector<float> tensor_to_vector(const bt::Tensor& t) {
   std::vector<float> out(static_cast<size_t>(t.numel()));
   if (!out.empty()) {
@@ -24,8 +36,11 @@ namespace {
   return out;
 }
 
-}  // namespace
+} /* namespace (anonymous) */
 
+/*
+ * Defines module bt._C and binds Tensor and factory functions to Python.
+ */
 NB_MODULE(_C, m) {
   m.doc() = "BareTensor native extension (bootstrap)";
   nb::module_ numpy = nb::module_::import_("numpy");
