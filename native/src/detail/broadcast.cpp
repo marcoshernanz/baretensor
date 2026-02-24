@@ -1,3 +1,8 @@
+/*
+ * File: native/src/detail/broadcast.cpp
+ * Purpose: Implements shape inference and stride alignment for broadcasting.
+ */
+
 #include "bt/detail/broadcast.h"
 
 #include <algorithm>
@@ -6,10 +11,21 @@
 
 #include "bt/detail/format.h"
 
+/*
+ * Namespace: bt::detail
+ * Purpose: Internal reusable implementation helpers.
+ */
 namespace bt::detail {
 
+/*
+ * Namespace: (anonymous)
+ * Purpose: Private implementation details local to this translation unit.
+ */
 namespace {
 
+/*
+ * Throws a detailed broadcast mismatch error for incompatible dimensions.
+ */
 [[noreturn]] void throw_broadcast_mismatch(
     const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape,
     size_t out_i, int64_t a_dim, int64_t b_dim) {
@@ -24,8 +40,11 @@ namespace {
   throw std::invalid_argument(oss.str());
 }
 
-}  // namespace
+} /* namespace (anonymous) */
 
+/*
+ * Infers the broadcasted output shape for two input shapes.
+ */
 std::vector<int64_t> infer_broadcast_shape(
     const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape) {
   const size_t out_rank = std::max(a_shape.size(), b_shape.size());
@@ -53,6 +72,9 @@ std::vector<int64_t> infer_broadcast_shape(
   return out;
 }
 
+/*
+ * Aligns input strides to an output broadcast shape.
+ */
 std::vector<int64_t> aligned_broadcast_strides(
     const std::vector<int64_t>& in_shape,
     const std::vector<int64_t>& in_strides,
@@ -96,4 +118,4 @@ std::vector<int64_t> aligned_broadcast_strides(
   return out_strides;
 }
 
-}  // namespace bt::detail
+} /* namespace bt::detail */
