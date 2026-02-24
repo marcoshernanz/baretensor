@@ -26,17 +26,17 @@ class Tensor {
   [[nodiscard]] float* data_ptr() noexcept;
 
   Tensor operator+(const Tensor& t) const;
-  Tensor operator+(const float rhs) const;
+  Tensor operator+(float rhs) const;
   Tensor operator-(const Tensor& t) const;
-  Tensor operator-(const float rhs) const;
+  Tensor operator-(float rhs) const;
   Tensor operator*(const Tensor& t) const;
-  Tensor operator*(const float rhs) const;
+  Tensor operator*(float rhs) const;
   Tensor operator/(const Tensor& t) const;
-  Tensor operator/(const float rhs) const;
+  Tensor operator/(float rhs) const;
 };
 
-Tensor full(const std::vector<int64_t>& shape, float fill_value);
-Tensor zeros(const std::vector<int64_t>& shape);
-Tensor ones(const std::vector<int64_t>& shape);
+[[nodiscard]] Tensor full(const std::vector<int64_t>& shape, float fill_value);
+[[nodiscard]] Tensor zeros(const std::vector<int64_t>& shape);
+[[nodiscard]] Tensor ones(const std::vector<int64_t>& shape);
 
 }  // namespace bt

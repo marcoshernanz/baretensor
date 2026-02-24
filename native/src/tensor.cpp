@@ -1,6 +1,7 @@
 #include "bt/tensor.h"
 
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -10,20 +11,21 @@ namespace {
 
 [[nodiscard]] std::vector<int64_t> contiguous_strides(
     const std::vector<int64_t>& shape) {
-  std::vector<int64_t> strides(shape.size());
-  if (shape.empty()) return strides;
-
-  strides.back() = 1;
-  for (size_t i = shape.size() - 1; i >= 0; --i) {
-    strides[i] = strides[i + 1] * shape[i + 1];
+  std::vector<int64_t> strides(shape.size(), 1);
+  for (size_t i = shape.size(); i > 1; --i) {
+    strides[i - 2] = strides[i - 1] * shape[i - 1];
   }
+
   return strides;
 }
 
 [[nodiscard]] int64_t checked_numel(const std::vector<int64_t>& shape) {
   int64_t n = 1;
   for (const int64_t s : shape) {
-    if (s < 0) throw std::runtime_error("Negative sizes are not allowed");
+    if (s < 0) throw std::invalid_argument("Negative sizes are not allowed");
+    if (s != 0 && n > std::numeric_limits<int64_t>::max() / s) {
+      throw std::overflow_error("Tensor numel overflow");
+    }
     n *= s;
   }
   return n;
@@ -69,11 +71,11 @@ bool Tensor::is_contiguous() const noexcept {
 }
 
 const float* Tensor::data_ptr() const noexcept {
-  return storage->data.data() + storage_offset;
+  return storage->data_ptr() + storage_offset;
 }
 
 float* Tensor::data_ptr() noexcept {
-  return storage->data.data() + storage_offset;
+  return storage->data_ptr() + storage_offset;
 }
 
 Tensor full(const std::vector<int64_t>& shape, float fill_value) {
@@ -84,6 +86,6 @@ Tensor full(const std::vector<int64_t>& shape, float fill_value) {
 
 Tensor zeros(const std::vector<int64_t>& shape) { return full(shape, 0.0f); }
 
-Tensor ones(const std::vector<int64_t>& shape) { return full(shape, 1.0); }
+Tensor ones(const std::vector<int64_t>& shape) { return full(shape, 1.0f); }
 
 }  // namespace bt
