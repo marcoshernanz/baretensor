@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <stdexcept>
+#include <vector>
 
 #include "bt/tensor.h"
 
@@ -13,7 +14,8 @@ void recursive_apply_tt(int dim, int num_dims,
                         const float* b, float* out,
                         const std::vector<int64_t>& stride_a,
                         const std::vector<int64_t>& stride_b,
-                        const std::vector<int64_t>& stride_out, Op op) {
+                        const std::vector<int64_t>& stride_out,
+                        const Op& op) {
   if (shape[dim] == 0) return;
   if (dim == num_dims - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
@@ -39,7 +41,8 @@ void recursive_apply_ts(int dim, int num_dims,
                         const std::vector<int64_t>& shape, const float* a,
                         float s, float* out,
                         const std::vector<int64_t>& stride_a,
-                        const std::vector<int64_t>& stride_out, Op op) {
+                        const std::vector<int64_t>& stride_out,
+                        const Op& op) {
   if (shape[dim] == 0) return;
   if (dim == num_dims - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
@@ -60,7 +63,7 @@ void recursive_apply_ts(int dim, int num_dims,
 
 template <class Op>
 bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
-  if (a.shape != b.shape) throw std::runtime_error("shape mismatch");
+  if (a.shape != b.shape) throw std::invalid_argument("shape mismatch");
 
   bt::Tensor out(a.shape);
   const int64_t n = a.numel();
