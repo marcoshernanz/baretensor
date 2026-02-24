@@ -2,7 +2,9 @@
 
 #include <cstddef>
 #include <limits>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace bt {
@@ -19,12 +21,33 @@ namespace {
   return strides;
 }
 
+[[nodiscard]] std::string shape_to_string(const std::vector<int64_t>& shape) {
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < shape.size(); ++i) {
+    if (i != 0) oss << ", ";
+    oss << shape[i];
+  }
+  oss << "]";
+  return oss.str();
+}
+
 [[nodiscard]] int64_t checked_numel(const std::vector<int64_t>& shape) {
   int64_t n = 1;
-  for (const int64_t s : shape) {
-    if (s < 0) throw std::invalid_argument("Negative sizes are not allowed");
+  for (size_t i = 0; i < shape.size(); ++i) {
+    const int64_t s = shape[i];
+    if (s < 0) {
+      std::ostringstream oss;
+      oss << "Invalid tensor shape " << shape_to_string(shape)
+          << ": dimension " << i << " has negative size " << s << ".";
+      throw std::invalid_argument(oss.str());
+    }
     if (s != 0 && n > std::numeric_limits<int64_t>::max() / s) {
-      throw std::overflow_error("Tensor numel overflow");
+      std::ostringstream oss;
+      oss << "Tensor numel overflow for shape " << shape_to_string(shape)
+          << ": partial element count " << n << " cannot be multiplied by "
+          << s << " within int64 range.";
+      throw std::overflow_error(oss.str());
     }
     n *= s;
   }
@@ -43,7 +66,10 @@ Tensor::Tensor(const std::vector<int64_t>& shape, std::vector<float> data)
     : shape(shape) {
   const int64_t n = checked_numel(shape);
   if (static_cast<int64_t>(data.size()) != n) {
-    throw std::runtime_error("Tensor data size mismatch");
+    std::ostringstream oss;
+    oss << "Tensor data size mismatch for shape " << shape_to_string(shape)
+        << ": expected " << n << " values but got " << data.size() << ".";
+    throw std::invalid_argument(oss.str());
   }
   strides = contiguous_strides(shape);
   storage = std::make_shared<Storage>(std::move(data));
