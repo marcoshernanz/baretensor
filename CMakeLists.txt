@@ -23,13 +23,24 @@ execute_process(
 
 find_package(nanobind CONFIG REQUIRED)
 
+set(BT_DETAIL_SOURCES
+  native/src/detail/broadcast.cpp
+  native/src/detail/format.cpp
+  native/src/detail/shape.cpp
+)
+
+set(BT_CORE_SOURCES
+  native/src/ops.cpp
+  native/src/storage.cpp
+  native/src/tensor.cpp
+)
+
 nanobind_add_module(
   _C
   NOMINSIZE
   native/python/bindings.cpp
-  native/src/ops.cpp
-  native/src/storage.cpp
-  native/src/tensor.cpp
+  ${BT_DETAIL_SOURCES}
+  ${BT_CORE_SOURCES}
 )
 
 target_include_directories(_C PRIVATE
