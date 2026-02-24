@@ -17,13 +17,13 @@ class Tensor {
   std::vector<int64_t> strides;
 
   Tensor(const std::vector<int64_t>& shape);
-  Tensor(const std::vector<int64_t>& shape, const std::vector<float>& data);
+  Tensor(const std::vector<int64_t>& shape, std::vector<float> data);
 
-  int dim() const;
-  int64_t numel() const;
-  bool is_contiguous() const;
-  const float* data_ptr() const;
-  float* data_ptr();
+  [[nodiscard]] int dim() const noexcept;
+  [[nodiscard]] int64_t numel() const noexcept;
+  [[nodiscard]] bool is_contiguous() const noexcept;
+  [[nodiscard]] const float* data_ptr() const noexcept;
+  [[nodiscard]] float* data_ptr() noexcept;
 
   Tensor operator+(const Tensor& t) const;
   Tensor operator+(const float rhs) const;
