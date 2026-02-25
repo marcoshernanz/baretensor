@@ -54,7 +54,8 @@ class Tensor {
   Tensor(const std::vector<int64_t>& shape, std::vector<float> data);
 
   /*
-   * TODO
+   * Constructs a tensor view over existing storage and explicit metadata.
+   * This constructor is intended for internal view-producing operations.
    */
   Tensor(const std::shared_ptr<Storage> storage, const int64_t storage_offset,
          const std::vector<int64_t>& shape,
@@ -86,9 +87,10 @@ class Tensor {
   [[nodiscard]] float* data_ptr() noexcept;
 
   /*
-   * TODO
+   * Returns a reshaped view when element count is preserved and layout permits.
+   * Supports a single inferred '-1' dimension in the requested shape.
    */
-  [[nodiscard]] Tensor reshape(const std::vector<int64_t>& shape);
+  [[nodiscard]] Tensor reshape(const std::vector<int64_t>& shape) const;
 
   /*
    * Elementwise tensor-tensor addition.

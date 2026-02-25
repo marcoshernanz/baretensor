@@ -9,7 +9,6 @@
 #include <string>
 #include <utility>
 
-#include "bt/detail/broadcast.h"
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
 
@@ -45,7 +44,8 @@ Tensor::Tensor(const std::vector<int64_t>& shape, std::vector<float> data)
 }
 
 /*
- * TODO
+ * Constructs a tensor view over existing storage and explicit metadata.
+ * This constructor is intended for internal view-producing operations.
  */
 Tensor::Tensor(const std::shared_ptr<Storage> storage,
                const int64_t storage_offset, const std::vector<int64_t>& shape,
@@ -100,14 +100,18 @@ float* Tensor::data_ptr() noexcept {
 }
 
 /*
- * TODO
+ * Returns a reshaped view when element count is preserved and layout permits.
+ * Supports a single inferred '-1' dimension in the requested shape.
  */
-[[nodiscard]] Tensor Tensor::reshape(const std::vector<int64_t>& shape) {
-  if (numel() != detail::checked_numel(shape)) {
-    throw std::invalid_argument("invalid shape");
+Tensor Tensor::reshape(const std::vector<int64_t>& shape) const {
+  if (!is_contiguous()) {
+    throw std::invalid_argument(
+        "Cannot reshape non-contiguous tensor with shape " +
+        detail::shape_to_string(this->shape) + ".");
   }
 
-  std::vector<int64_t> new_shape = detail::check_shape(self, shape);
+  std::vector<int64_t> new_shape =
+      detail::infer_reshape_shape(this->shape, shape);
   std::vector<int64_t> new_strides = detail::contiguous_strides(new_shape);
 
   return Tensor(storage, storage_offset, new_shape, new_strides);
