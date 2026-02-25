@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "bt/tensor.h"
+
 /*
  * Namespace: bt::detail
  * Purpose: Internal reusable implementation helpers.
@@ -24,5 +26,11 @@ namespace bt::detail {
  * Validates shape dimensions and computes total element count.
  */
 [[nodiscard]] int64_t checked_numel(const std::vector<int64_t>& shape);
+
+/*
+ * TODO
+ */
+[[nodiscard]] std::vector<int64_t> check_shape(bt::Tensor& tensor,
+                                               std::vector<int64_t>& shape);
 
 } /* namespace bt::detail */
