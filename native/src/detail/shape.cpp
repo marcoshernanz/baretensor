@@ -6,8 +6,10 @@
 #include "bt/detail/shape.h"
 
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 
 #include "bt/detail/format.h"
 
@@ -55,34 +57,71 @@ int64_t checked_numel(const std::vector<int64_t>& shape) {
 }
 
 /*
- * TODO
+ * Resolves a requested reshape target against an input shape.
+ * Supports at most one inferred '-1' dimension and validates total elements.
  */
-[[nodiscard]] std::vector<int64_t> check_shape(bt::Tensor& tensor,
-                                               std::vector<int64_t>& shape) {
-  int64_t numel = 1;
-  int infer_pos = -1;
-  for (int i = 0; i < shape.size(); ++i) {
-    if (shape[i] == -1 && infer_pos == -1) {
-      infer_pos = i;
-    } else if (shape[i] == -1) {
-      throw std::invalid_argument("invalid shape");
-    } else {
-      numel *= shape[i];
+std::vector<int64_t> infer_reshape_shape(
+    const std::vector<int64_t>& input_shape,
+    const std::vector<int64_t>& requested_shape) {
+  const int64_t input_numel = checked_numel(input_shape);
+
+  int64_t known_numel = 1;
+  std::optional<size_t> inferred_dim_index;
+  for (size_t i = 0; i < requested_shape.size(); ++i) {
+    const int64_t d = requested_shape[i];
+
+    if (d == -1) {
+      if (inferred_dim_index.has_value()) {
+        throw std::invalid_argument("Invalid reshape target " +
+                                    shape_to_string(requested_shape) +
+                                    ": at most one '-1' dimension is allowed.");
+      }
+      inferred_dim_index = i;
+      continue;
     }
+
+    if (d < -1) {
+      throw std::invalid_argument(
+          "Invalid reshape target " + shape_to_string(requested_shape) +
+          ": dimension " + std::to_string(i) + " has invalid size " +
+          std::to_string(d) + ".");
+    }
+
+    if (d != 0 && known_numel > std::numeric_limits<int64_t>::max() / d) {
+      throw std::overflow_error("Reshape target numel overflow for shape " +
+                                shape_to_string(requested_shape) + ".");
+    }
+    known_numel *= d;
   }
 
-  if (infer_pos == -1 && numel == tensor.numel()) {
-    std::vector<int64_t> new_shape(shape);
-    return new_shape;
-  } else if (infer_pos == -1) {
-    throw std::invalid_argument("invalid shape");
-  } else if (tensor.numel() > numel && tensor.numel() % numel == 0) {
-    std::vector<int64_t> new_shape(shape);
-    new_shape[infer_pos] = tensor.numel() / numel;
-    return new_shape;
-  } else {
-    throw std::invalid_argument("invalid shape");
+  if (!inferred_dim_index.has_value()) {
+    if (known_numel != input_numel) {
+      throw std::invalid_argument(
+          "Invalid reshape from " + shape_to_string(input_shape) + " to " +
+          shape_to_string(requested_shape) + ": element counts differ (" +
+          std::to_string(input_numel) + " vs " + std::to_string(known_numel) +
+          ").");
+    }
+    return requested_shape;
   }
+
+  if (known_numel == 0) {
+    throw std::invalid_argument(
+        "Invalid reshape target " + shape_to_string(requested_shape) +
+        ": cannot infer '-1' when known dimensions multiply to zero.");
+  }
+
+  if (input_numel % known_numel != 0) {
+    throw std::invalid_argument(
+        "Invalid reshape from " + shape_to_string(input_shape) + " to " +
+        shape_to_string(requested_shape) + ": cannot infer '-1' because " +
+        std::to_string(input_numel) + " is not divisible by " +
+        std::to_string(known_numel) + ".");
+  }
+
+  std::vector<int64_t> resolved_shape(requested_shape);
+  resolved_shape[*inferred_dim_index] = input_numel / known_numel;
+  return resolved_shape;
 }
 
 } /* namespace bt::detail */
