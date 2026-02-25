@@ -26,21 +26,22 @@ namespace {
 /*
  * Throws a detailed broadcast mismatch error for incompatible dimensions.
  */
-[[noreturn]] void throw_broadcast_mismatch(
-    const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape,
-    size_t out_i, int64_t a_dim, int64_t b_dim) {
+[[noreturn]] void throw_broadcast_mismatch(const std::vector<int64_t>& a_shape,
+                                           const std::vector<int64_t>& b_shape,
+                                           size_t out_i, int64_t a_dim,
+                                           int64_t b_dim) {
   const size_t out_rank = std::max(a_shape.size(), b_shape.size());
   const size_t axis_from_right = out_rank - out_i;
 
   std::ostringstream oss;
   oss << "Cannot broadcast shapes " << shape_to_string(a_shape) << " and "
-      << shape_to_string(b_shape)
-      << ": incompatible dimension at axis -" << axis_from_right
-      << " (from right), got " << a_dim << " and " << b_dim << ".";
+      << shape_to_string(b_shape) << ": incompatible dimension at axis -"
+      << axis_from_right << " (from right), got " << a_dim << " and " << b_dim
+      << ".";
   throw std::invalid_argument(oss.str());
 }
 
-} /* namespace (anonymous) */
+}  // namespace
 
 /*
  * Infers the broadcasted output shape for two input shapes.
