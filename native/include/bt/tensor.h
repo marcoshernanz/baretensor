@@ -54,6 +54,13 @@ class Tensor {
   Tensor(const std::vector<int64_t>& shape, std::vector<float> data);
 
   /*
+   * TODO
+   */
+  Tensor(const std::shared_ptr<Storage> storage, const int64_t storage_offset,
+         const std::vector<int64_t>& shape,
+         const std::vector<int64_t>& strides);
+
+  /*
    * Returns the tensor rank.
    */
   [[nodiscard]] int dim() const noexcept;
@@ -77,6 +84,11 @@ class Tensor {
    * Returns a mutable data pointer at the tensor offset.
    */
   [[nodiscard]] float* data_ptr() noexcept;
+
+  /*
+   * TODO
+   */
+  [[nodiscard]] Tensor reshape(const std::vector<int64_t>& shape);
 
   /*
    * Elementwise tensor-tensor addition.

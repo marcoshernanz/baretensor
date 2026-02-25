@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "bt/detail/broadcast.h"
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
 
@@ -42,6 +43,17 @@ Tensor::Tensor(const std::vector<int64_t>& shape, std::vector<float> data)
   strides = detail::contiguous_strides(shape);
   storage = std::make_shared<Storage>(std::move(data));
 }
+
+/*
+ * TODO
+ */
+Tensor::Tensor(const std::shared_ptr<Storage> storage,
+               const int64_t storage_offset, const std::vector<int64_t>& shape,
+               const std::vector<int64_t>& strides)
+    : storage(storage),
+      storage_offset(storage_offset),
+      shape(shape),
+      strides(strides) {}
 
 /*
  * Returns the tensor rank.
@@ -85,6 +97,20 @@ const float* Tensor::data_ptr() const noexcept {
  */
 float* Tensor::data_ptr() noexcept {
   return storage->data_ptr() + storage_offset;
+}
+
+/*
+ * TODO
+ */
+[[nodiscard]] Tensor Tensor::reshape(const std::vector<int64_t>& shape) {
+  if (numel() != detail::checked_numel(shape)) {
+    throw std::invalid_argument("invalid shape");
+  }
+
+  std::vector<int64_t> new_shape = detail::check_shape(self, shape);
+  std::vector<int64_t> new_strides = detail::contiguous_strides(new_shape);
+
+  return Tensor(storage, storage_offset, new_shape, new_strides);
 }
 
 /*
