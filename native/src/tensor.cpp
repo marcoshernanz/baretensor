@@ -240,8 +240,8 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
  * TODO
  */
 [[nodiscard]] Tensor Tensor::transpose(const int dim0, const int dim1) const {
-  int real_dim0 = dim0 >= 0 ? dim0 : ndim() - dim0;
-  int real_dim1 = dim1 >= 0 ? dim1 : ndim() - dim1;
+  int real_dim0 = dim0 >= 0 ? dim0 : ndim() + dim0;
+  int real_dim1 = dim1 >= 0 ? dim1 : ndim() + dim1;
   if (real_dim0 < 0 || real_dim0 >= ndim()) {
     throw std::invalid_argument("invalid dimension");
   } else if (real_dim1 < 0 || real_dim1 >= ndim()) {
