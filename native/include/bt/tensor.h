@@ -94,7 +94,15 @@ class Tensor {
   [[nodiscard]] Tensor contiguous() const;
 
   /*
-   * Returns a reshaped view when element count is preserved and layout permits.
+   * Returns a view of this tensor with the requested shape when the current
+   * shape and strides are layout-compatible with the target view.
+   * Supports a single inferred '-1' dimension in the requested shape.
+   */
+  [[nodiscard]] Tensor view(const std::vector<int64_t>& shape) const;
+
+  /*
+   * Returns a tensor with the requested shape, returning a view when possible
+   * and otherwise returning a contiguous copy with the target shape.
    * Supports a single inferred '-1' dimension in the requested shape.
    */
   [[nodiscard]] Tensor reshape(const std::vector<int64_t>& shape) const;
