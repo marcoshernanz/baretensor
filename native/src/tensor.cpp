@@ -5,10 +5,10 @@
 
 #include "bt/tensor.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -74,6 +74,32 @@ void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
     src += src_strides[dim];
     dst += dst_strides[dim];
   }
+}
+
+/*
+ * Normalizes transpose dimensions and validates they are within rank bounds.
+ */
+std::pair<int64_t, int64_t> normalize_transpose_dims(
+    int64_t dim0, int64_t dim1, const std::vector<int64_t> &shape) {
+  const int64_t rank = static_cast<int64_t>(shape.size());
+  const auto normalize = [rank](const int64_t dim) -> int64_t {
+    return dim < 0 ? dim + rank : dim;
+  };
+
+  const int64_t normalized_dim0 = normalize(dim0);
+  const int64_t normalized_dim1 = normalize(dim1);
+  if (normalized_dim0 < 0 || normalized_dim0 >= rank || normalized_dim1 < 0 ||
+      normalized_dim1 >= rank) {
+    std::ostringstream oss;
+    oss << "transpose failed for tensor with shape "
+        << bt::detail::shape_to_string(shape)
+        << ": dim0=" << dim0 << ", dim1=" << dim1
+        << ". Expected each dimension to satisfy -" << rank << " <= dim < "
+        << rank << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  return {normalized_dim0, normalized_dim1};
 }
 
 } // namespace
@@ -237,21 +263,24 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
 }
 
 /*
- * TODO
+ * Returns a view with dim0 and dim1 swapped.
+ * Supports negative dimensions using Python-style indexing.
  */
-[[nodiscard]] Tensor Tensor::transpose(const int dim0, const int dim1) const {
-  int real_dim0 = dim0 >= 0 ? dim0 : ndim() + dim0;
-  int real_dim1 = dim1 >= 0 ? dim1 : ndim() + dim1;
-  if (real_dim0 < 0 || real_dim0 >= ndim()) {
-    throw std::invalid_argument("invalid dimension");
-  } else if (real_dim1 < 0 || real_dim1 >= ndim()) {
-    throw std::invalid_argument("invalid dimension");
+Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
+  validate_copy_metadata(*this, "transpose");
+
+  const auto [normalized_dim0, normalized_dim1] =
+      normalize_transpose_dims(dim0, dim1, shape);
+  if (normalized_dim0 == normalized_dim1) {
+    return *this;
   }
 
   std::vector<int64_t> target_shape(shape);
   std::vector<int64_t> target_strides(strides);
-  std::swap(target_shape[real_dim0], target_shape[real_dim1]);
-  std::swap(target_strides[real_dim0], target_strides[real_dim1]);
+  std::swap(target_shape[static_cast<size_t>(normalized_dim0)],
+            target_shape[static_cast<size_t>(normalized_dim1)]);
+  std::swap(target_strides[static_cast<size_t>(normalized_dim0)],
+            target_strides[static_cast<size_t>(normalized_dim1)]);
 
   return Tensor(storage, storage_offset, target_shape, target_strides);
 }

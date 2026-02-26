@@ -108,9 +108,10 @@ public:
   [[nodiscard]] Tensor reshape(const std::vector<int64_t> &shape) const;
 
   /*
-   * TODO
+   * Returns a view with dim0 and dim1 swapped.
+   * Supports negative dimensions using Python-style indexing.
    */
-  [[nodiscard]] Tensor transpose(const int dim0, const int dim1) const;
+  [[nodiscard]] Tensor transpose(int64_t dim0, int64_t dim1) const;
 
   /*
    * Elementwise tensor-tensor addition.
