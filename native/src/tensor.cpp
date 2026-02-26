@@ -37,8 +37,8 @@ void recursive_copy(int dim, int ndim, const std::vector<int64_t>& shape,
 
   for (int64_t i = 0; i < shape[dim]; ++i) {
     recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
-    src += src_strides[dim];
-    dst += dst_strides[dim];
+    src += src_strides[i];
+    dst += dst_strides[i];
   }
 }
 
@@ -140,7 +140,7 @@ float* Tensor::data_ptr() noexcept {
   }
 
   Tensor out(shape);
-  recursive_copy(0, shape.size(), shape, storage->data_ptr(),
+  recursive_copy(0, shape.size(), shape, storage->data_ptr() + storage_offset,
                  out.storage->data_ptr(), strides, out.strides);
 
   return out;
