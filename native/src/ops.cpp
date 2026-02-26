@@ -21,14 +21,13 @@ namespace {
  * Applies a tensor-tensor operation by recursively traversing N-D shape space.
  */
 template <class Op>
-void recursive_apply_tt(int dim, int num_dims,
-                        const std::vector<int64_t>& shape, const float* a,
-                        const float* b, float* out,
+void recursive_apply_tt(int dim, int ndim, const std::vector<int64_t>& shape,
+                        const float* a, const float* b, float* out,
                         const std::vector<int64_t>& stride_a,
                         const std::vector<int64_t>& stride_b,
                         const std::vector<int64_t>& stride_out, const Op& op) {
   if (shape[dim] == 0) return;
-  if (dim == num_dims - 1) {
+  if (dim == ndim - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
       *out = op(*a, *b);
       a += stride_a[dim];
@@ -39,7 +38,7 @@ void recursive_apply_tt(int dim, int num_dims,
   }
 
   for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_apply_tt(dim + 1, num_dims, shape, a, b, out, stride_a, stride_b,
+    recursive_apply_tt(dim + 1, ndim, shape, a, b, out, stride_a, stride_b,
                        stride_out, op);
     a += stride_a[dim];
     b += stride_b[dim];
@@ -51,13 +50,12 @@ void recursive_apply_tt(int dim, int num_dims,
  * Applies a tensor-scalar operation by recursively traversing N-D shape space.
  */
 template <class Op>
-void recursive_apply_ts(int dim, int num_dims,
-                        const std::vector<int64_t>& shape, const float* a,
-                        float s, float* out,
+void recursive_apply_ts(int dim, int ndim, const std::vector<int64_t>& shape,
+                        const float* a, float s, float* out,
                         const std::vector<int64_t>& stride_a,
                         const std::vector<int64_t>& stride_out, const Op& op) {
   if (shape[dim] == 0) return;
-  if (dim == num_dims - 1) {
+  if (dim == ndim - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
       *out = op(*a, s);
       a += stride_a[dim];
@@ -67,8 +65,8 @@ void recursive_apply_ts(int dim, int num_dims,
   }
 
   for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_apply_ts(dim + 1, num_dims, shape, a, s, out, stride_a,
-                       stride_out, op);
+    recursive_apply_ts(dim + 1, ndim, shape, a, s, out, stride_a, stride_out,
+                       op);
     a += stride_a[dim];
     out += stride_out[dim];
   }
@@ -98,8 +96,8 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
     return out;
   }
 
-  const int num_dims = out.dim();
-  if (num_dims == 0) {
+  const int ndim = out.dim();
+  if (ndim == 0) {
     *out.data_ptr() = op(*a.data_ptr(), *b.data_ptr());
     return out;
   }
@@ -109,7 +107,7 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
   const std::vector<int64_t> stride_b =
       bt::detail::aligned_broadcast_strides(b.shape, b.strides, out_shape);
 
-  recursive_apply_tt(0, num_dims, out_shape, a.data_ptr(), b.data_ptr(),
+  recursive_apply_tt(0, ndim, out_shape, a.data_ptr(), b.data_ptr(),
                      out.data_ptr(), stride_a, stride_b, out.strides, op);
   return out;
 }
@@ -132,13 +130,13 @@ bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
     return out;
   }
 
-  const int num_dims = a.dim();
-  if (num_dims == 0) {
+  const int ndim = a.dim();
+  if (ndim == 0) {
     *out.data_ptr() = op(*a.data_ptr(), s);
     return out;
   }
 
-  recursive_apply_ts(0, num_dims, a.shape, a.data_ptr(), s, out.data_ptr(),
+  recursive_apply_ts(0, ndim, a.shape, a.data_ptr(), s, out.data_ptr(),
                      a.strides, out.strides, op);
   return out;
 }
