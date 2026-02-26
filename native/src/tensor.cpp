@@ -122,7 +122,7 @@ Tensor::Tensor(const std::shared_ptr<Storage> storage,
 /*
  * Returns the tensor rank.
  */
-int Tensor::dim() const noexcept { return static_cast<int>(shape.size()); }
+int Tensor::ndim() const noexcept { return static_cast<int>(shape.size()); }
 
 /*
  * Returns the total number of tensor elements.

@@ -64,7 +64,7 @@ public:
   /*
    * Returns the tensor rank.
    */
-  [[nodiscard]] int dim() const noexcept;
+  [[nodiscard]] int ndim() const noexcept;
 
   /*
    * Returns the number of elements.
