@@ -87,6 +87,11 @@ class Tensor {
   [[nodiscard]] float* data_ptr() noexcept;
 
   /*
+   * TODO
+   */
+  [[nodiscard]] Tensor contiguous() const;
+
+  /*
    * Returns a reshaped view when element count is preserved and layout permits.
    * Supports a single inferred '-1' dimension in the requested shape.
    */

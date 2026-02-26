@@ -13,6 +13,38 @@
 #include "bt/detail/shape.h"
 
 /*
+ * TODO
+ */
+namespace {
+
+/*
+ * TODO
+ */
+void recursive_copy(int dim, int ndim, const std::vector<int64_t>& shape,
+                    const float* src, float* dst,
+                    const std::vector<int64_t>& src_strides,
+                    const std::vector<int64_t>& dst_strides) {
+  if (shape[dim] == 0) return;
+
+  if (dim == ndim - 1) {
+    for (int64_t i = 0; i < shape[dim]; ++i) {
+      *dst = *src;
+      src += src_strides[i];
+      dst += dst_strides[i];
+    }
+    return;
+  }
+
+  for (int64_t i = 0; i < shape[dim]; ++i) {
+    recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
+    src += src_strides[dim];
+    dst += dst_strides[dim];
+  }
+}
+
+}  // namespace
+
+/*
  * Namespace: bt
  * Purpose: Public BareTensor C++ API surface.
  */
@@ -97,6 +129,21 @@ const float* Tensor::data_ptr() const noexcept {
  */
 float* Tensor::data_ptr() noexcept {
   return storage->data_ptr() + storage_offset;
+}
+
+/*
+ * TODO
+ */
+[[nodiscard]] Tensor Tensor::contiguous() const {
+  if (is_contiguous()) {
+    return *this;
+  }
+
+  Tensor out(shape);
+  recursive_copy(0, shape.size(), shape, storage->data_ptr(),
+                 out.storage->data_ptr(), strides, out.strides);
+
+  return out;
 }
 
 /*
