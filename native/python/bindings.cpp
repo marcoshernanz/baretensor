@@ -36,7 +36,7 @@ namespace {
   return out;
 }
 
-} /* namespace (anonymous) */
+}  // namespace
 
 /*
  * Defines module bt._C and binds Tensor and factory functions to Python.

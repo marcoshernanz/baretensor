@@ -35,7 +35,7 @@ namespace {
   return static_cast<size_t>(size);
 }
 
-} /* namespace (anonymous) */
+}  // namespace
 
 /*
  * Constructs storage with the requested number of elements.

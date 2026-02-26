@@ -143,7 +143,7 @@ bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
   return out;
 }
 
-} /* namespace (anonymous) */
+}  // namespace
 
 /*
  * Namespace: bt
