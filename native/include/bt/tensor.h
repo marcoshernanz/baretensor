@@ -110,7 +110,7 @@ public:
   /*
    * TODO
    */
-  [[nodiscard]] Tensor transpose() const;
+  [[nodiscard]] Tensor transpose(const int dim0, const int dim1) const;
 
   /*
    * Elementwise tensor-tensor addition.

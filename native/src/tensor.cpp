@@ -239,11 +239,19 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
 /*
  * TODO
  */
-[[nodiscard]] Tensor Tensor::transpose() const {
+[[nodiscard]] Tensor Tensor::transpose(const int dim0, const int dim1) const {
+  int real_dim0 = dim0 >= 0 ? dim0 : ndim() - dim0;
+  int real_dim1 = dim1 >= 0 ? dim1 : ndim() - dim1;
+  if (real_dim0 < 0 || real_dim0 >= ndim()) {
+    throw std::invalid_argument("invalid dimension");
+  } else if (real_dim1 < 0 || real_dim1 >= ndim()) {
+    throw std::invalid_argument("invalid dimension");
+  }
+
   std::vector<int64_t> target_shape(shape);
   std::vector<int64_t> target_strides(strides);
-  std::reverse(target_shape.begin(), target_shape.end());
-  std::reverse(target_strides.begin(), target_strides.end());
+  std::swap(target_shape[real_dim0], target_shape[real_dim1]);
+  std::swap(target_strides[real_dim0], target_strides[real_dim1]);
 
   return Tensor(storage, storage_offset, target_shape, target_strides);
 }
