@@ -60,6 +60,8 @@ NB_MODULE(_C, m) {
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"),
            nb::arg("dim1"))
+      .def_prop_ro("T", &bt::Tensor::T)
+      .def_prop_ro("mT", &bt::Tensor::mT)
       .def("numpy",
            [numpy](const bt::Tensor &t) {
              const bt::Tensor contiguous = t.contiguous();
