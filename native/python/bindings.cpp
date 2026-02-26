@@ -26,7 +26,8 @@ namespace nb = nanobind;
 namespace {
 
 /*
- * Copies tensor data into a std::vector for Python conversion helpers.
+ * Copies contiguous tensor data into a std::vector for Python conversion
+ * helpers.
  */
 [[nodiscard]] std::vector<float> tensor_to_vector(const bt::Tensor &t) {
   std::vector<float> out(static_cast<size_t>(t.numel()));
@@ -61,7 +62,8 @@ NB_MODULE(_C, m) {
            nb::arg("dim1"))
       .def("numpy",
            [numpy](const bt::Tensor &t) {
-             const std::vector<float> values = tensor_to_vector(t);
+             const bt::Tensor contiguous = t.contiguous();
+             const std::vector<float> values = tensor_to_vector(contiguous);
              nb::object array = numpy.attr("array")(
                  nb::cast(values), nb::arg("dtype") = numpy.attr("float32"));
              return array.attr("reshape")(nb::cast(t.shape));
