@@ -5,6 +5,7 @@
 
 #include "bt/tensor.h"
 
+#include <cstddef>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -13,14 +14,43 @@
 #include "bt/detail/shape.h"
 
 /*
- * TODO
+ * Namespace: (anonymous)
+ * Purpose: Private implementation details local to this translation unit.
  */
 namespace {
 
 /*
- * TODO
+ * Validates tensor metadata invariants required by low-level copy routines.
  */
-void recursive_copy(int dim, int ndim, const std::vector<int64_t>& shape,
+void validate_copy_metadata(const bt::Tensor& tensor,
+                            const std::string& operation_name) {
+  if (!tensor.storage) {
+    throw std::invalid_argument(operation_name +
+                                " failed: tensor storage is null.");
+  }
+
+  if (tensor.storage_offset < 0) {
+    throw std::invalid_argument(operation_name +
+                                " failed for tensor with shape " +
+                                bt::detail::shape_to_string(tensor.shape) +
+                                ": storage offset must be non-negative, got " +
+                                std::to_string(tensor.storage_offset) + ".");
+  }
+
+  if (tensor.shape.size() != tensor.strides.size()) {
+    throw std::invalid_argument(
+        operation_name + " failed for tensor with shape " +
+        bt::detail::shape_to_string(tensor.shape) + ": shape rank " +
+        std::to_string(tensor.shape.size()) + " does not match stride rank " +
+        std::to_string(tensor.strides.size()) + ".");
+  }
+}
+
+/*
+ * Recursively copies data from a strided source layout into a strided
+ * destination layout over a shared logical shape.
+ */
+void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t>& shape,
                     const float* src, float* dst,
                     const std::vector<int64_t>& src_strides,
                     const std::vector<int64_t>& dst_strides) {
@@ -29,16 +59,16 @@ void recursive_copy(int dim, int ndim, const std::vector<int64_t>& shape,
   if (dim == ndim - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
       *dst = *src;
-      src += src_strides[i];
-      dst += dst_strides[i];
+      src += src_strides[dim];
+      dst += dst_strides[dim];
     }
     return;
   }
 
   for (int64_t i = 0; i < shape[dim]; ++i) {
     recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
-    src += src_strides[i];
-    dst += dst_strides[i];
+    src += src_strides[dim];
+    dst += dst_strides[dim];
   }
 }
 
@@ -132,16 +162,28 @@ float* Tensor::data_ptr() noexcept {
 }
 
 /*
- * TODO
+ * Returns a contiguous tensor with identical logical values and shape.
+ * If the tensor is already contiguous, this returns an equivalent tensor
+ * referencing the same storage.
  */
-[[nodiscard]] Tensor Tensor::contiguous() const {
+Tensor Tensor::contiguous() const {
+  validate_copy_metadata(*this, "contiguous");
+
   if (is_contiguous()) {
     return *this;
   }
 
   Tensor out(shape);
-  recursive_copy(0, shape.size(), shape, storage->data_ptr() + storage_offset,
-                 out.storage->data_ptr(), strides, out.strides);
+  validate_copy_metadata(out, "contiguous");
+
+  const size_t ndim = shape.size();
+  if (ndim == 0) {
+    *out.data_ptr() = *data_ptr();
+    return out;
+  }
+
+  recursive_copy(0, ndim, shape, data_ptr(), out.data_ptr(), strides,
+                 out.strides);
 
   return out;
 }

@@ -87,7 +87,9 @@ class Tensor {
   [[nodiscard]] float* data_ptr() noexcept;
 
   /*
-   * TODO
+   * Returns a contiguous tensor with identical logical values and shape.
+   * If the tensor is already contiguous, this returns an equivalent tensor
+   * referencing the same storage.
    */
   [[nodiscard]] Tensor contiguous() const;
 
