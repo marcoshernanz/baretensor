@@ -22,7 +22,7 @@ namespace bt {
  * Purpose: Represents tensor metadata and storage-backed data access.
  */
 class Tensor {
- public:
+public:
   /*
    * Shared backing storage for tensor values.
    */
@@ -46,20 +46,20 @@ class Tensor {
   /*
    * Constructs a tensor with allocated storage for the given shape.
    */
-  Tensor(const std::vector<int64_t>& shape);
+  Tensor(const std::vector<int64_t> &shape);
 
   /*
    * Constructs a tensor from owned data with the given shape.
    */
-  Tensor(const std::vector<int64_t>& shape, std::vector<float> data);
+  Tensor(const std::vector<int64_t> &shape, std::vector<float> data);
 
   /*
    * Constructs a tensor view over existing storage and explicit metadata.
    * This constructor is intended for internal view-producing operations.
    */
   Tensor(const std::shared_ptr<Storage> storage, const int64_t storage_offset,
-         const std::vector<int64_t>& shape,
-         const std::vector<int64_t>& strides);
+         const std::vector<int64_t> &shape,
+         const std::vector<int64_t> &strides);
 
   /*
    * Returns the tensor rank.
@@ -79,12 +79,12 @@ class Tensor {
   /*
    * Returns a const data pointer at the tensor offset.
    */
-  [[nodiscard]] const float* data_ptr() const noexcept;
+  [[nodiscard]] const float *data_ptr() const noexcept;
 
   /*
    * Returns a mutable data pointer at the tensor offset.
    */
-  [[nodiscard]] float* data_ptr() noexcept;
+  [[nodiscard]] float *data_ptr() noexcept;
 
   /*
    * Returns a contiguous tensor with identical logical values and shape.
@@ -98,19 +98,24 @@ class Tensor {
    * shape and strides are layout-compatible with the target view.
    * Supports a single inferred '-1' dimension in the requested shape.
    */
-  [[nodiscard]] Tensor view(const std::vector<int64_t>& shape) const;
+  [[nodiscard]] Tensor view(const std::vector<int64_t> &shape) const;
 
   /*
    * Returns a tensor with the requested shape, returning a view when possible
    * and otherwise returning a contiguous copy with the target shape.
    * Supports a single inferred '-1' dimension in the requested shape.
    */
-  [[nodiscard]] Tensor reshape(const std::vector<int64_t>& shape) const;
+  [[nodiscard]] Tensor reshape(const std::vector<int64_t> &shape) const;
+
+  /*
+   * TODO
+   */
+  [[nodiscard]] Tensor transpose() const;
 
   /*
    * Elementwise tensor-tensor addition.
    */
-  Tensor operator+(const Tensor& t) const;
+  Tensor operator+(const Tensor &t) const;
 
   /*
    * Elementwise tensor-scalar addition.
@@ -120,7 +125,7 @@ class Tensor {
   /*
    * Elementwise tensor-tensor subtraction.
    */
-  Tensor operator-(const Tensor& t) const;
+  Tensor operator-(const Tensor &t) const;
 
   /*
    * Elementwise tensor-scalar subtraction.
@@ -130,7 +135,7 @@ class Tensor {
   /*
    * Elementwise tensor-tensor multiplication.
    */
-  Tensor operator*(const Tensor& t) const;
+  Tensor operator*(const Tensor &t) const;
 
   /*
    * Elementwise tensor-scalar multiplication.
@@ -140,7 +145,7 @@ class Tensor {
   /*
    * Elementwise tensor-tensor division.
    */
-  Tensor operator/(const Tensor& t) const;
+  Tensor operator/(const Tensor &t) const;
 
   /*
    * Elementwise tensor-scalar division.
@@ -151,16 +156,16 @@ class Tensor {
 /*
  * Creates a tensor filled with a constant value.
  */
-[[nodiscard]] Tensor full(const std::vector<int64_t>& shape, float fill_value);
+[[nodiscard]] Tensor full(const std::vector<int64_t> &shape, float fill_value);
 
 /*
  * Creates a tensor filled with zeros.
  */
-[[nodiscard]] Tensor zeros(const std::vector<int64_t>& shape);
+[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape);
 
 /*
  * Creates a tensor filled with ones.
  */
-[[nodiscard]] Tensor ones(const std::vector<int64_t>& shape);
+[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape);
 
 } /* namespace bt */

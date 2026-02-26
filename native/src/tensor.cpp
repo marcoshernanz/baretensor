@@ -5,7 +5,9 @@
 
 #include "bt/tensor.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -232,6 +234,18 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
   }
 
   return contiguous().view(target_shape);
+}
+
+/*
+ * TODO
+ */
+[[nodiscard]] Tensor Tensor::transpose() const {
+  std::vector<int64_t> target_shape(shape);
+  std::vector<int64_t> target_strides(strides);
+  std::reverse(target_shape.begin(), target_shape.end());
+  std::reverse(target_strides.begin(), target_strides.end());
+
+  return Tensor(storage, storage_offset, target_shape, target_strides);
 }
 
 /*
