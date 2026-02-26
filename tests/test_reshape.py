@@ -7,6 +7,66 @@ from tests.utils import to_numpy
 
 
 class ReshapeTests(unittest.TestCase):
+    def test_view_allows_scalar_to_numel_one_shape(self) -> None:
+        tensor = bt.tensor(np.asarray(3.5, dtype=np.float32))
+
+        viewed = tensor.view([1, 1])
+
+        self.assertEqual(viewed.shape, [1, 1])
+        np.testing.assert_allclose(to_numpy(viewed), np.asarray([[3.5]], dtype=np.float32))
+
+    def test_reshape_allows_scalar_to_numel_one_shape(self) -> None:
+        tensor = bt.tensor(np.asarray(3.5, dtype=np.float32))
+
+        reshaped = tensor.reshape([1, 1])
+
+        self.assertEqual(reshaped.shape, [1, 1])
+        np.testing.assert_allclose(to_numpy(reshaped), np.asarray([[3.5]], dtype=np.float32))
+
+    def test_view_preserves_values(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source)
+
+        viewed = tensor.view([2, 6])
+
+        self.assertEqual(viewed.shape, [2, 6])
+        np.testing.assert_allclose(to_numpy(viewed), source.reshape(2, 6))
+
+    def test_view_accepts_tuple_shape(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source)
+
+        viewed_tuple = tensor.view((2, 6))
+
+        np.testing.assert_allclose(to_numpy(viewed_tuple), source.reshape(2, 6))
+
+    def test_view_infers_single_negative_dimension(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source)
+
+        viewed = tensor.view([-1, 3])
+
+        self.assertEqual(viewed.shape, [4, 3])
+        np.testing.assert_allclose(to_numpy(viewed), source.reshape(4, 3))
+
+    def test_view_rejects_mismatched_numel(self) -> None:
+        tensor = bt.tensor(np.arange(6, dtype=np.float32))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"element counts differ",
+        ):
+            _ = tensor.view([4, 2])
+
+    def test_reshape_matches_view_for_viewable_shape(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source)
+
+        reshaped = tensor.reshape([2, 6])
+        viewed = tensor.view([2, 6])
+
+        np.testing.assert_allclose(to_numpy(reshaped), to_numpy(viewed))
+
     def test_reshape_preserves_values(self) -> None:
         source = np.arange(12, dtype=np.float32).reshape(3, 4)
         tensor = bt.tensor(source)
@@ -15,6 +75,14 @@ class ReshapeTests(unittest.TestCase):
 
         self.assertEqual(reshaped.shape, [2, 6])
         np.testing.assert_allclose(to_numpy(reshaped), source.reshape(2, 6))
+
+    def test_reshape_accepts_tuple_shape(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source)
+
+        reshaped_tuple = tensor.reshape((2, 6))
+
+        np.testing.assert_allclose(to_numpy(reshaped_tuple), source.reshape(2, 6))
 
     def test_reshape_infers_single_negative_dimension(self) -> None:
         source = np.arange(12, dtype=np.float32).reshape(3, 4)

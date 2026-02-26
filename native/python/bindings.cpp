@@ -55,6 +55,7 @@ NB_MODULE(_C, m) {
       .def("numel", &bt::Tensor::numel)
       .def("is_contiguous", &bt::Tensor::is_contiguous)
       .def("contiguous", &bt::Tensor::contiguous)
+      .def("view", &bt::Tensor::view, nb::arg("shape"))
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
       .def("numpy",
            [numpy](const bt::Tensor& t) {
