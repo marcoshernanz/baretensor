@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 /*
@@ -32,5 +33,14 @@ namespace bt::detail {
 [[nodiscard]] std::vector<int64_t> infer_reshape_shape(
     const std::vector<int64_t>& input_shape,
     const std::vector<int64_t>& requested_shape);
+
+/*
+ * Computes view strides for a target shape if the current layout is viewable
+ * without copying; returns std::nullopt when layout compatibility is not met.
+ */
+[[nodiscard]] std::optional<std::vector<int64_t>> infer_view_strides(
+    const std::vector<int64_t>& input_shape,
+    const std::vector<int64_t>& input_strides,
+    const std::vector<int64_t>& target_shape);
 
 } /* namespace bt::detail */

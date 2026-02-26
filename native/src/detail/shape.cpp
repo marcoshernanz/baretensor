@@ -22,7 +22,7 @@ namespace bt::detail {
 /*
  * Computes contiguous strides for the provided shape.
  */
-std::vector<int64_t> contiguous_strides(const std::vector<int64_t>& shape) {
+std::vector<int64_t> contiguous_strides(const std::vector<int64_t> &shape) {
   std::vector<int64_t> strides(shape.size(), 1);
   for (size_t i = shape.size(); i > 1; --i) {
     strides[i - 2] = strides[i - 1] * shape[i - 1];
@@ -34,7 +34,7 @@ std::vector<int64_t> contiguous_strides(const std::vector<int64_t>& shape) {
 /*
  * Validates shape dimensions and computes total element count.
  */
-int64_t checked_numel(const std::vector<int64_t>& shape) {
+int64_t checked_numel(const std::vector<int64_t> &shape) {
   int64_t n = 1;
   for (size_t i = 0; i < shape.size(); ++i) {
     const int64_t s = shape[i];
@@ -60,9 +60,9 @@ int64_t checked_numel(const std::vector<int64_t>& shape) {
  * Resolves a requested reshape target against an input shape.
  * Supports at most one inferred '-1' dimension and validates total elements.
  */
-std::vector<int64_t> infer_reshape_shape(
-    const std::vector<int64_t>& input_shape,
-    const std::vector<int64_t>& requested_shape) {
+std::vector<int64_t>
+infer_reshape_shape(const std::vector<int64_t> &input_shape,
+                    const std::vector<int64_t> &requested_shape) {
   const int64_t input_numel = checked_numel(input_shape);
 
   int64_t known_numel = 1;
@@ -122,6 +122,83 @@ std::vector<int64_t> infer_reshape_shape(
   std::vector<int64_t> resolved_shape(requested_shape);
   resolved_shape[*inferred_dim_index] = input_numel / known_numel;
   return resolved_shape;
+}
+
+/*
+ * Computes view strides for a target shape if the current layout is viewable
+ * without copying; returns std::nullopt when layout compatibility is not met.
+ */
+std::optional<std::vector<int64_t>>
+infer_view_strides(const std::vector<int64_t> &input_shape,
+                   const std::vector<int64_t> &input_strides,
+                   const std::vector<int64_t> &target_shape) {
+  if (input_shape.size() != input_strides.size()) {
+    return std::nullopt;
+  }
+
+  const int64_t input_numel = checked_numel(input_shape);
+  const int64_t target_numel = checked_numel(target_shape);
+  if (input_numel != target_numel) {
+    return std::nullopt;
+  }
+
+  if (target_shape.empty()) {
+    return std::vector<int64_t>{};
+  }
+
+  if (input_numel == 0) {
+    return contiguous_strides(target_shape);
+  }
+
+  if (input_shape.empty()) {
+    return contiguous_strides(target_shape);
+  }
+
+  std::vector<int64_t> target_strides(target_shape.size(), 0);
+  int64_t target_dim = static_cast<int64_t>(target_shape.size()) - 1;
+  int64_t chunk_base_stride = input_strides.back();
+  int64_t input_chunk_numel = 1;
+  int64_t target_chunk_numel = 1;
+
+  for (int64_t input_dim = static_cast<int64_t>(input_shape.size()) - 1;
+       input_dim >= 0; --input_dim) {
+    input_chunk_numel *= input_shape[static_cast<size_t>(input_dim)];
+
+    const bool is_chunk_boundary =
+        (input_dim == 0) ||
+        ((input_shape[static_cast<size_t>(input_dim - 1)] != 1) &&
+         (input_strides[static_cast<size_t>(input_dim - 1)] !=
+          input_chunk_numel * chunk_base_stride));
+
+    if (!is_chunk_boundary) {
+      continue;
+    }
+
+    while (target_dim >= 0 &&
+           (target_chunk_numel < input_chunk_numel ||
+            target_shape[static_cast<size_t>(target_dim)] == 1)) {
+      target_strides[static_cast<size_t>(target_dim)] =
+          target_chunk_numel * chunk_base_stride;
+      target_chunk_numel *= target_shape[static_cast<size_t>(target_dim)];
+      --target_dim;
+    }
+
+    if (target_chunk_numel != input_chunk_numel) {
+      return std::nullopt;
+    }
+
+    if (input_dim > 0) {
+      chunk_base_stride = input_strides[static_cast<size_t>(input_dim - 1)];
+      input_chunk_numel = 1;
+      target_chunk_numel = 1;
+    }
+  }
+
+  if (target_dim != -1) {
+    return std::nullopt;
+  }
+
+  return target_strides;
 }
 
 } /* namespace bt::detail */
