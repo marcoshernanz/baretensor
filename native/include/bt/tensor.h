@@ -114,6 +114,18 @@ public:
   [[nodiscard]] Tensor transpose(int64_t dim0, int64_t dim1) const;
 
   /*
+   * Returns a 2-D matrix transpose view.
+   * This operation requires ndim() == 2.
+   */
+  [[nodiscard]] Tensor T() const;
+
+  /*
+   * Returns a view with the last two dimensions swapped.
+   * Equivalent to transpose(-2, -1).
+   */
+  [[nodiscard]] Tensor mT() const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

@@ -286,6 +286,40 @@ Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
 }
 
 /*
+ * Returns a 2-D matrix transpose view.
+ * This operation requires ndim() == 2.
+ */
+Tensor Tensor::T() const {
+  validate_copy_metadata(*this, "T");
+
+  if (ndim() != 2) {
+    std::ostringstream oss;
+    oss << "T failed for tensor with shape " << detail::shape_to_string(shape)
+        << ": expected ndim() == 2, but got " << ndim() << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  return transpose(0, 1);
+}
+
+/*
+ * Returns a view with the last two dimensions swapped.
+ * Equivalent to transpose(-2, -1).
+ */
+Tensor Tensor::mT() const {
+  validate_copy_metadata(*this, "mT");
+
+  if (ndim() < 2) {
+    std::ostringstream oss;
+    oss << "mT failed for tensor with shape " << detail::shape_to_string(shape)
+        << ": expected ndim() >= 2, but got " << ndim() << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  return transpose(-2, -1);
+}
+
+/*
  * Creates a tensor filled with a constant value.
  */
 Tensor full(const std::vector<int64_t> &shape, float fill_value) {
