@@ -28,7 +28,7 @@ namespace {
 /*
  * Copies tensor data into a std::vector for Python conversion helpers.
  */
-[[nodiscard]] std::vector<float> tensor_to_vector(const bt::Tensor& t) {
+[[nodiscard]] std::vector<float> tensor_to_vector(const bt::Tensor &t) {
   std::vector<float> out(static_cast<size_t>(t.numel()));
   if (!out.empty()) {
     std::memcpy(out.data(), t.data_ptr(), out.size() * sizeof(float));
@@ -36,7 +36,7 @@ namespace {
   return out;
 }
 
-}  // namespace
+} // namespace
 
 /*
  * Defines module bt._C and binds Tensor and factory functions to Python.
@@ -57,8 +57,9 @@ NB_MODULE(_C, m) {
       .def("contiguous", &bt::Tensor::contiguous)
       .def("view", &bt::Tensor::view, nb::arg("shape"))
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
+      .def("transpose", &bt::Tensor::transpose)
       .def("numpy",
-           [numpy](const bt::Tensor& t) {
+           [numpy](const bt::Tensor &t) {
              const std::vector<float> values = tensor_to_vector(t);
              nb::object array = numpy.attr("array")(
                  nb::cast(values), nb::arg("dtype") = numpy.attr("float32"));
@@ -79,7 +80,7 @@ NB_MODULE(_C, m) {
 
   m.def(
       "tensor",
-      [](const NdArrayF32& a) {
+      [](const NdArrayF32 &a) {
         std::vector<int64_t> shape;
         shape.reserve(a.ndim());
         for (size_t i = 0; i < a.ndim(); ++i) {
