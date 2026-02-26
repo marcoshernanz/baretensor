@@ -32,7 +32,7 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
 
         self.assertEqual(tensor.shape, [])
         self.assertEqual(tensor.strides, [])
-        self.assertEqual(tensor.dim(), 0)
+        self.assertEqual(tensor.ndim(), 0)
         self.assertEqual(tensor.numel(), 1)
         self.assertTrue(tensor.is_contiguous())
         np.testing.assert_allclose(to_numpy(tensor), np.asarray(3.5, dtype=np.float32))
@@ -42,7 +42,7 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
 
         self.assertEqual(tensor.shape, [0, 3])
         self.assertEqual(tensor.strides, [3, 1])
-        self.assertEqual(tensor.dim(), 2)
+        self.assertEqual(tensor.ndim(), 2)
         self.assertEqual(tensor.numel(), 0)
         self.assertTrue(tensor.is_contiguous())
         np.testing.assert_allclose(to_numpy(tensor), np.zeros((0, 3), dtype=np.float32))

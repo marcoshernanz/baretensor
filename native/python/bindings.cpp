@@ -51,7 +51,7 @@ NB_MODULE(_C, m) {
   nb::class_<bt::Tensor>(m, "Tensor")
       .def_ro("shape", &bt::Tensor::shape)
       .def_ro("strides", &bt::Tensor::strides)
-      .def("dim", &bt::Tensor::dim)
+      .def("ndim", &bt::Tensor::ndim)
       .def("numel", &bt::Tensor::numel)
       .def("is_contiguous", &bt::Tensor::is_contiguous)
       .def("contiguous", &bt::Tensor::contiguous)

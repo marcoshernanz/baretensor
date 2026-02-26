@@ -21,12 +21,13 @@ namespace {
  * Applies a tensor-tensor operation by recursively traversing N-D shape space.
  */
 template <class Op>
-void recursive_apply_tt(int dim, int ndim, const std::vector<int64_t>& shape,
-                        const float* a, const float* b, float* out,
-                        const std::vector<int64_t>& stride_a,
-                        const std::vector<int64_t>& stride_b,
-                        const std::vector<int64_t>& stride_out, const Op& op) {
-  if (shape[dim] == 0) return;
+void recursive_apply_tt(int dim, int ndim, const std::vector<int64_t> &shape,
+                        const float *a, const float *b, float *out,
+                        const std::vector<int64_t> &stride_a,
+                        const std::vector<int64_t> &stride_b,
+                        const std::vector<int64_t> &stride_out, const Op &op) {
+  if (shape[dim] == 0)
+    return;
   if (dim == ndim - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
       *out = op(*a, *b);
@@ -50,11 +51,12 @@ void recursive_apply_tt(int dim, int ndim, const std::vector<int64_t>& shape,
  * Applies a tensor-scalar operation by recursively traversing N-D shape space.
  */
 template <class Op>
-void recursive_apply_ts(int dim, int ndim, const std::vector<int64_t>& shape,
-                        const float* a, float s, float* out,
-                        const std::vector<int64_t>& stride_a,
-                        const std::vector<int64_t>& stride_out, const Op& op) {
-  if (shape[dim] == 0) return;
+void recursive_apply_ts(int dim, int ndim, const std::vector<int64_t> &shape,
+                        const float *a, float s, float *out,
+                        const std::vector<int64_t> &stride_a,
+                        const std::vector<int64_t> &stride_out, const Op &op) {
+  if (shape[dim] == 0)
+    return;
   if (dim == ndim - 1) {
     for (int64_t i = 0; i < shape[dim]; ++i) {
       *out = op(*a, s);
@@ -76,27 +78,28 @@ void recursive_apply_ts(int dim, int ndim, const std::vector<int64_t>& shape,
  * Executes a tensor-tensor elementwise operation with broadcasting support.
  */
 template <class Op>
-bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
+bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
   const std::vector<int64_t> out_shape =
       bt::detail::infer_broadcast_shape(a.shape, b.shape);
   bt::Tensor out(out_shape);
 
   const int64_t n = out.numel();
-  if (n == 0) return out;
+  if (n == 0)
+    return out;
 
   const bool no_broadcast = (a.shape == out_shape) && (b.shape == out_shape);
   if (no_broadcast && a.is_contiguous() && b.is_contiguous() &&
       out.is_contiguous()) {
-    const float* a_ptr = a.data_ptr();
-    const float* b_ptr = b.data_ptr();
-    float* out_ptr = out.data_ptr();
+    const float *a_ptr = a.data_ptr();
+    const float *b_ptr = b.data_ptr();
+    float *out_ptr = out.data_ptr();
     for (int64_t i = 0; i < n; ++i) {
       out_ptr[i] = op(a_ptr[i], b_ptr[i]);
     }
     return out;
   }
 
-  const int ndim = out.dim();
+  const int ndim = out.ndim();
   if (ndim == 0) {
     *out.data_ptr() = op(*a.data_ptr(), *b.data_ptr());
     return out;
@@ -115,22 +118,22 @@ bt::Tensor binary_tt(const bt::Tensor& a, const bt::Tensor& b, Op op) {
 /*
  * Executes a tensor-scalar elementwise operation.
  */
-template <class Op>
-bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
+template <class Op> bt::Tensor binary_ts(const bt::Tensor &a, float s, Op op) {
   bt::Tensor out(a.shape);
   const int64_t n = a.numel();
-  if (n == 0) return out;
+  if (n == 0)
+    return out;
 
   if (a.is_contiguous() && out.is_contiguous()) {
-    const float* a_ptr = a.data_ptr();
-    float* out_ptr = out.data_ptr();
+    const float *a_ptr = a.data_ptr();
+    float *out_ptr = out.data_ptr();
     for (int64_t i = 0; i < n; ++i) {
       out_ptr[i] = op(a_ptr[i], s);
     }
     return out;
   }
 
-  const int ndim = a.dim();
+  const int ndim = a.ndim();
   if (ndim == 0) {
     *out.data_ptr() = op(*a.data_ptr(), s);
     return out;
@@ -141,7 +144,7 @@ bt::Tensor binary_ts(const bt::Tensor& a, float s, Op op) {
   return out;
 }
 
-}  // namespace
+} // namespace
 
 /*
  * Namespace: bt
@@ -152,7 +155,7 @@ namespace bt {
 /*
  * Elementwise tensor-tensor addition.
  */
-Tensor Tensor::operator+(const Tensor& rhs) const {
+Tensor Tensor::operator+(const Tensor &rhs) const {
   return binary_tt(*this, rhs, ops::Add{});
 }
 
@@ -166,7 +169,7 @@ Tensor Tensor::operator+(float rhs) const {
 /*
  * Elementwise tensor-tensor subtraction.
  */
-Tensor Tensor::operator-(const Tensor& rhs) const {
+Tensor Tensor::operator-(const Tensor &rhs) const {
   return binary_tt(*this, rhs, ops::Sub{});
 }
 
@@ -180,7 +183,7 @@ Tensor Tensor::operator-(float rhs) const {
 /*
  * Elementwise tensor-tensor multiplication.
  */
-Tensor Tensor::operator*(const Tensor& rhs) const {
+Tensor Tensor::operator*(const Tensor &rhs) const {
   return binary_tt(*this, rhs, ops::Mul{});
 }
 
@@ -194,7 +197,7 @@ Tensor Tensor::operator*(float rhs) const {
 /*
  * Elementwise tensor-tensor division.
  */
-Tensor Tensor::operator/(const Tensor& rhs) const {
+Tensor Tensor::operator/(const Tensor &rhs) const {
   return binary_tt(*this, rhs, ops::Div{});
 }
 
