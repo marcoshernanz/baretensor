@@ -210,20 +210,147 @@ void recursive_batched_matmul(const size_t dim,
   }
 }
 
-float recursive_sum(const size_t dim, const size_t ndim,
-                    const std::vector<int64_t> &shape,
-                    const std::vector<int64_t> &strides, const float *data) {
-  if (dim == ndim) {
-    return *data;
+/*
+ * Stores precomputed metadata for a sum reduction.
+ */
+struct SumReductionPlan {
+  std::vector<bool> reduce_mask;
+  std::vector<int64_t> input_to_output_dim;
+  std::vector<int64_t> output_shape;
+};
+
+/*
+ * Normalizes one reduction dimension using Python-style indexing.
+ */
+[[nodiscard]] int64_t normalize_sum_dim(const bt::Tensor &tensor,
+                                        const int64_t dim,
+                                        const size_t dim_index) {
+  const int64_t rank = static_cast<int64_t>(tensor.shape.size());
+  const int64_t normalized = dim < 0 ? dim + rank : dim;
+  if (normalized >= 0 && normalized < rank) {
+    return normalized;
   }
 
-  float sum = 0;
-  for (int i = 0; i < shape[dim]; i++) {
-    sum += recursive_sum(dim + 1, ndim, shape, strides, data);
-    data += strides[dim];
+  std::ostringstream oss;
+  oss << "sum failed for tensor with shape "
+      << bt::detail::shape_to_string(tensor.shape) << ": dim[" << dim_index
+      << "]=" << dim << " is out of range for rank " << rank << ".";
+  throw std::invalid_argument(oss.str());
+}
+
+/*
+ * Normalizes and validates the reduction dimensions for sum.
+ */
+[[nodiscard]] std::vector<int64_t>
+normalize_sum_dims(const bt::Tensor &tensor, const std::vector<int64_t> &dim) {
+  const int64_t rank = static_cast<int64_t>(tensor.shape.size());
+  std::vector<int64_t> normalized_dims;
+  normalized_dims.reserve(dim.size());
+
+  std::vector<bool> seen(static_cast<size_t>(rank), false);
+  for (size_t i = 0; i < dim.size(); ++i) {
+    const int64_t normalized = normalize_sum_dim(tensor, dim[i], i);
+    if (seen[static_cast<size_t>(normalized)]) {
+      std::ostringstream oss;
+      oss << "sum failed for tensor with shape "
+          << bt::detail::shape_to_string(tensor.shape) << ": dimension "
+          << normalized << " appears more than once in dim.";
+      throw std::invalid_argument(oss.str());
+    }
+    seen[static_cast<size_t>(normalized)] = true;
+    normalized_dims.push_back(normalized);
   }
 
-  return sum;
+  return normalized_dims;
+}
+
+/*
+ * Builds reduction metadata for sum(dim, keepdim).
+ */
+[[nodiscard]] SumReductionPlan
+build_sum_reduction_plan(const bt::Tensor &tensor,
+                         const std::vector<int64_t> &normalized_dims,
+                         const bool keepdim) {
+  const size_t rank = tensor.shape.size();
+  SumReductionPlan plan{
+      .reduce_mask = std::vector<bool>(rank, false),
+      .input_to_output_dim = std::vector<int64_t>(rank, -1),
+      .output_shape = {},
+  };
+
+  for (const int64_t reduced_dim : normalized_dims) {
+    plan.reduce_mask[static_cast<size_t>(reduced_dim)] = true;
+  }
+
+  if (keepdim) {
+    plan.output_shape = tensor.shape;
+    for (size_t dim = 0; dim < rank; ++dim) {
+      if (plan.reduce_mask[dim]) {
+        plan.output_shape[dim] = 1;
+      } else {
+        plan.input_to_output_dim[dim] = static_cast<int64_t>(dim);
+      }
+    }
+    return plan;
+  }
+
+  plan.output_shape.reserve(rank - normalized_dims.size());
+  int64_t out_dim = 0;
+  for (size_t dim = 0; dim < rank; ++dim) {
+    if (plan.reduce_mask[dim]) {
+      continue;
+    }
+    plan.output_shape.push_back(tensor.shape[dim]);
+    plan.input_to_output_dim[dim] = out_dim;
+    ++out_dim;
+  }
+
+  return plan;
+}
+
+/*
+ * Recursively accumulates input values into an output tensor for sum reduction.
+ */
+void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
+                          const std::vector<int64_t> &input_strides,
+                          const std::vector<int64_t> &output_strides,
+                          const std::vector<int64_t> &input_to_output_dim,
+                          const float *input_ptr, float *output_ptr) {
+  if (dim == shape.size()) {
+    *output_ptr += *input_ptr;
+    return;
+  }
+
+  if (shape[dim] == 0) {
+    return;
+  }
+
+  const int64_t out_dim = input_to_output_dim[dim];
+  for (int64_t index = 0; index < shape[dim]; ++index) {
+    const float *next_input_ptr = input_ptr + (index * input_strides[dim]);
+    float *next_output_ptr = output_ptr;
+    if (out_dim >= 0) {
+      next_output_ptr +=
+          index * output_strides[static_cast<size_t>(out_dim)];
+    }
+
+    recursive_sum_reduce(dim + 1, shape, input_strides, output_strides,
+                         input_to_output_dim, next_input_ptr, next_output_ptr);
+  }
+}
+
+/*
+ * Executes sum reduction with a precomputed plan.
+ */
+[[nodiscard]] bt::Tensor sum_with_plan(const bt::Tensor &tensor,
+                                       const SumReductionPlan &plan) {
+  bt::Tensor out(plan.output_shape);
+  out.storage->fill(0.0f);
+
+  recursive_sum_reduce(0, tensor.shape, tensor.strides, out.strides,
+                       plan.input_to_output_dim, tensor.data_ptr(),
+                       out.data_ptr());
+  return out;
 }
 
 } // namespace
@@ -558,17 +685,29 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
 }
 
 /*
- *TODO
+ * Returns the sum of all tensor elements as a scalar tensor.
  */
 Tensor Tensor::sum() const {
-  if (ndim() == 0) {
-    return *this;
-  }
+  return sum(make_axis_order(shape.size()), false);
+}
 
-  Tensor out({});
-  const float sum = recursive_sum(0, ndim(), shape, strides, data_ptr());
-  *out.data_ptr() = sum;
-  return out;
+/*
+ * Returns the sum reduced along one dimension.
+ */
+Tensor Tensor::sum(const int64_t dim, const bool keepdim) const {
+  return sum(std::vector<int64_t>{dim}, keepdim);
+}
+
+/*
+ * Returns the sum reduced along one or more dimensions.
+ */
+Tensor Tensor::sum(const std::vector<int64_t> &dim, const bool keepdim) const {
+  validate_copy_metadata(*this, "sum");
+
+  const std::vector<int64_t> normalized_dims = normalize_sum_dims(*this, dim);
+  const SumReductionPlan plan =
+      build_sum_reduction_plan(*this, normalized_dims, keepdim);
+  return sum_with_plan(*this, plan);
 }
 
 /*

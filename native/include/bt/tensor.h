@@ -144,9 +144,26 @@ public:
   [[nodiscard]] Tensor matmul(const Tensor &tensor2) const;
 
   /*
-   *TODO
+   * Returns the sum of all tensor elements as a scalar tensor.
    */
   [[nodiscard]] Tensor sum() const;
+
+  /*
+   * Returns the sum reduced along one dimension.
+   * Supports negative dimensions using Python-style indexing.
+   * If keepdim is true, the reduced dimension is retained with size 1.
+   */
+  [[nodiscard]] Tensor sum(int64_t dim, bool keepdim = false) const;
+
+  /*
+   * Returns the sum reduced along multiple dimensions.
+   * Supports negative dimensions using Python-style indexing.
+   * If keepdim is true, reduced dimensions are retained with size 1.
+   * An empty dim list performs no reduction and returns a copy-equivalent
+   * tensor with the same shape and values.
+   */
+  [[nodiscard]] Tensor sum(const std::vector<int64_t> &dim,
+                           bool keepdim = false) const;
 
   /*
    * Elementwise tensor-tensor addition.
