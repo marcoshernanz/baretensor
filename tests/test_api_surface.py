@@ -13,6 +13,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertFalse(hasattr(bt, "matmul"))
         self.assertTrue(hasattr(bt.Tensor, "matmul"))
         self.assertTrue(hasattr(bt.Tensor, "sum"))
+        self.assertTrue(hasattr(bt.Tensor, "mean"))
 
 
 if __name__ == "__main__":
