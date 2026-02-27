@@ -26,8 +26,8 @@ namespace {
 /*
  * Throws a detailed broadcast mismatch error for incompatible dimensions.
  */
-[[noreturn]] void throw_broadcast_mismatch(const std::vector<int64_t>& a_shape,
-                                           const std::vector<int64_t>& b_shape,
+[[noreturn]] void throw_broadcast_mismatch(const std::vector<int64_t> &a_shape,
+                                           const std::vector<int64_t> &b_shape,
                                            size_t out_i, int64_t a_dim,
                                            int64_t b_dim) {
   const size_t out_rank = std::max(a_shape.size(), b_shape.size());
@@ -41,13 +41,31 @@ namespace {
   throw std::invalid_argument(oss.str());
 }
 
-}  // namespace
+/*
+ * Resolves one broadcasted dimension or throws when incompatible.
+ */
+[[nodiscard]] int64_t resolve_broadcast_dim(const std::vector<int64_t> &a_shape,
+                                            const std::vector<int64_t> &b_shape,
+                                            const size_t out_i,
+                                            const int64_t a_dim,
+                                            const int64_t b_dim) {
+  if (a_dim == b_dim || b_dim == 1) {
+    return a_dim;
+  }
+  if (a_dim == 1) {
+    return b_dim;
+  }
+  throw_broadcast_mismatch(a_shape, b_shape, out_i, a_dim, b_dim);
+}
+
+} // namespace
 
 /*
  * Infers the broadcasted output shape for two input shapes.
  */
-std::vector<int64_t> infer_broadcast_shape(
-    const std::vector<int64_t>& a_shape, const std::vector<int64_t>& b_shape) {
+std::vector<int64_t>
+infer_broadcast_shape(const std::vector<int64_t> &a_shape,
+                      const std::vector<int64_t> &b_shape) {
   const size_t out_rank = std::max(a_shape.size(), b_shape.size());
   std::vector<int64_t> out(out_rank, 1);
 
@@ -59,15 +77,7 @@ std::vector<int64_t> infer_broadcast_shape(
     const int64_t b_dim =
         (i < b_shape.size()) ? b_shape[b_shape.size() - 1 - i] : int64_t{1};
 
-    if (a_dim == b_dim) {
-      out[out_i] = a_dim;
-    } else if (a_dim == 1) {
-      out[out_i] = b_dim;
-    } else if (b_dim == 1) {
-      out[out_i] = a_dim;
-    } else {
-      throw_broadcast_mismatch(a_shape, b_shape, out_i, a_dim, b_dim);
-    }
+    out[out_i] = resolve_broadcast_dim(a_shape, b_shape, out_i, a_dim, b_dim);
   }
 
   return out;
@@ -76,10 +86,10 @@ std::vector<int64_t> infer_broadcast_shape(
 /*
  * Aligns input strides to an output broadcast shape.
  */
-std::vector<int64_t> aligned_broadcast_strides(
-    const std::vector<int64_t>& in_shape,
-    const std::vector<int64_t>& in_strides,
-    const std::vector<int64_t>& out_shape) {
+std::vector<int64_t>
+aligned_broadcast_strides(const std::vector<int64_t> &in_shape,
+                          const std::vector<int64_t> &in_strides,
+                          const std::vector<int64_t> &out_shape) {
   if (in_shape.size() != in_strides.size()) {
     std::ostringstream oss;
     oss << "Tensor metadata invariant violation: shape rank " << in_shape.size()
@@ -108,8 +118,8 @@ std::vector<int64_t> aligned_broadcast_strides(
       out_strides[out_i] = 0;
     } else {
       std::ostringstream oss;
-      oss << "Internal broadcast stride alignment error: cannot align input "
-          << "shape " << shape_to_string(in_shape) << " with output shape "
+      oss << "Broadcast stride alignment failed: input shape "
+          << shape_to_string(in_shape) << " cannot align to output shape "
           << shape_to_string(out_shape) << " at axis -" << (out_rank - out_i)
           << " (from right), got " << in_dim << " and " << out_dim << ".";
       throw std::invalid_argument(oss.str());
