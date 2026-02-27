@@ -40,6 +40,8 @@ class Tensor:
 
     def __matmul__(self, arg: Tensor, /) -> Tensor: ...
 
+    def exp(self) -> Tensor: ...
+
     def sum(
         self,
         dim: int | Sequence[int] | None = None,
