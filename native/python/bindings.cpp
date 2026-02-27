@@ -37,6 +37,17 @@ namespace {
   return out;
 }
 
+/*
+ * Builds a full reduction-dimension list [0, 1, ..., ndim - 1].
+ */
+[[nodiscard]] std::vector<int64_t> make_all_dims(const bt::Tensor &tensor) {
+  std::vector<int64_t> dims(static_cast<size_t>(tensor.ndim()), 0);
+  for (size_t i = 0; i < dims.size(); ++i) {
+    dims[i] = static_cast<int64_t>(i);
+  }
+  return dims;
+}
+
 } // namespace
 
 /*
@@ -66,7 +77,24 @@ NB_MODULE(_C, m) {
       .def("matmul", &bt::Tensor::matmul, nb::arg("tensor2"))
       .def("__matmul__", [](const bt::Tensor &lhs,
                             const bt::Tensor &rhs) { return lhs.matmul(rhs); })
-      .def("sum", &bt::Tensor::sum)
+      .def(
+          "sum",
+          [](const bt::Tensor &tensor, nb::object dim, const bool keepdim) {
+            if (dim.is_none()) {
+              return tensor.sum(make_all_dims(tensor), keepdim);
+            }
+            if (nb::isinstance<nb::int_>(dim)) {
+              return tensor.sum(nb::cast<int64_t>(dim), keepdim);
+            }
+            try {
+              return tensor.sum(nb::cast<std::vector<int64_t>>(dim), keepdim);
+            } catch (const nb::cast_error &) {
+              throw nb::type_error(
+                  "sum() expected 'dim' to be an int, a sequence of ints, "
+                  "or None.");
+            }
+          },
+          nb::arg("dim") = nb::none(), nb::arg("keepdim") = false)
       .def("numpy",
            [numpy](const bt::Tensor &t) {
              const bt::Tensor contiguous = t.contiguous();
