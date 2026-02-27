@@ -210,6 +210,12 @@ public:
                            bool keepdim = false) const;
 
   /*
+   * Returns a tensor containing the elementwise exponential of this tensor.
+   * For each element x, the output contains exp(x).
+   */
+  [[nodiscard]] Tensor exp() const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

@@ -1,9 +1,11 @@
 /*
  * File: native/include/bt/ops.h
- * Purpose: Declares scalar binary operation functors used by tensor kernels.
+ * Purpose: Declares scalar operation functors used by tensor kernels.
  */
 
 #pragma once
+
+#include <cmath>
 
 /*
  * Namespace: bt::ops
@@ -41,6 +43,14 @@ struct Mul {
  */
 struct Div {
   float operator()(float x, float y) const noexcept { return x / y; }
+};
+
+/*
+ * Functor: Exp
+ * Purpose: Computes exp(x).
+ */
+struct Exp {
+  float operator()(float x) const noexcept { return std::exp(x); }
 };
 
 } /* namespace bt::ops */
