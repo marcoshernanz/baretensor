@@ -53,4 +53,12 @@ struct Exp {
   float operator()(float x) const noexcept { return std::exp(x); }
 };
 
+/*
+ * Functor: Log
+ * Purpose: Computes log(x).
+ */
+struct Log {
+  float operator()(float x) const noexcept { return std::log(x); }
+};
+
 } /* namespace bt::ops */

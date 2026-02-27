@@ -250,4 +250,9 @@ Tensor Tensor::operator/(float rhs) const {
  */
 Tensor Tensor::exp() const { return unary_t(*this, ops::Exp{}); }
 
+/*
+ * Elementwise natural logarithm.
+ */
+Tensor Tensor::log() const { return unary_t(*this, ops::Log{}); }
+
 } /* namespace bt */

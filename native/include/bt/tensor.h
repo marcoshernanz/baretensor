@@ -216,6 +216,12 @@ public:
   [[nodiscard]] Tensor exp() const;
 
   /*
+   * Returns a tensor containing the elementwise natural logarithm of this
+   * tensor. For each element x, the output contains log(x).
+   */
+  [[nodiscard]] Tensor log() const;
+
+  /*
    * Returns a tensor containing softmax values computed along dim.
    * Uses numerically stable normalization by subtracting the per-slice maximum
    * before exponentiation.
