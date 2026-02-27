@@ -64,10 +64,9 @@ NB_MODULE(_C, m) {
       .def_prop_ro("T", &bt::Tensor::T)
       .def_prop_ro("mT", &bt::Tensor::mT)
       .def("matmul", &bt::Tensor::matmul, nb::arg("tensor2"))
-      .def("__matmul__",
-           [](const bt::Tensor &lhs, const bt::Tensor &rhs) {
-             return lhs.matmul(rhs);
-           })
+      .def("__matmul__", [](const bt::Tensor &lhs,
+                            const bt::Tensor &rhs) { return lhs.matmul(rhs); })
+      .def("sum", &bt::Tensor::sum)
       .def("numpy",
            [numpy](const bt::Tensor &t) {
              const bt::Tensor contiguous = t.contiguous();
@@ -88,7 +87,6 @@ NB_MODULE(_C, m) {
   m.def("full", &bt::full, nb::arg("shape"), nb::arg("fill_value"));
   m.def("zeros", &bt::zeros, nb::arg("shape"));
   m.def("ones", &bt::ones, nb::arg("shape"));
-  m.def("matmul", &bt::matmul, nb::arg("input"), nb::arg("other"));
 
   m.def(
       "tensor",
