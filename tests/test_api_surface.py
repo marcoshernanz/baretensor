@@ -12,6 +12,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt, "tensor"))
         self.assertFalse(hasattr(bt, "matmul"))
         self.assertTrue(hasattr(bt.Tensor, "matmul"))
+        self.assertTrue(hasattr(bt.Tensor, "exp"))
         self.assertTrue(hasattr(bt.Tensor, "sum"))
         self.assertTrue(hasattr(bt.Tensor, "mean"))
         self.assertTrue(hasattr(bt.Tensor, "max"))
