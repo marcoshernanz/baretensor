@@ -133,6 +133,11 @@ public:
   [[nodiscard]] Tensor mT() const;
 
   /*
+   * TODO
+   */
+  [[nodiscard]] Tensor matmul(const Tensor &tensor2);
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;
@@ -171,11 +176,6 @@ public:
    * Elementwise tensor-scalar division.
    */
   Tensor operator/(float rhs) const;
-
-  /*
-   * TODO
-   */
-  [[nodiscard]] Tensor matmul(const Tensor &tensor2);
 };
 
 /*

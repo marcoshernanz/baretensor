@@ -335,7 +335,24 @@ Tensor Tensor::matmul(const Tensor &tensor2) {
     throw std::invalid_argument("invalid ndim");
   }
 
-  if (ndim() == 1 || tensor2.ndim() == 1) {
+  if (ndim() == 1 && tensor2.ndim() == 1) {
+    if (shape[0] != tensor2.shape[0]) {
+      throw std::invalid_argument("invalid shapes");
+    }
+
+    Tensor out = bt::zeros({});
+    const float *tensor1_ptr = data_ptr();
+    const float *tensor2_ptr = tensor2.data_ptr();
+    float *out_ptr = out.data_ptr();
+
+    for (int i = 0; i < shape[0]; i++) {
+      *out_ptr += (*tensor1_ptr) * (*tensor2_ptr);
+      tensor1_ptr += strides[0];
+      tensor2_ptr += tensor2.strides[0];
+    }
+
+    return out;
+  } else if (ndim() == 1 || tensor2.ndim() == 1) {
     return (*this) * tensor2;
   } else if (ndim() == 2 && tensor2.ndim() == 2) {
     if (shape[1] != tensor2.shape[0]) {
@@ -343,28 +360,28 @@ Tensor Tensor::matmul(const Tensor &tensor2) {
     }
 
     Tensor out = bt::zeros({shape[0], tensor2.shape[1]});
-    const float *tensor1_ptr = data_ptr() + storage_offset;
-    const float *tensor2_ptr = tensor2.data_ptr() + tensor2.storage_offset;
+    const float *tensor1_ptr = data_ptr();
+    const float *tensor2_ptr = tensor2.data_ptr();
     float *out_ptr = out.data_ptr();
 
     for (int i = 0; i < shape[0]; i++) {
-      for (int j = 0; j < shape[1]; j++) {
-        for (int k = 0; k < tensor2.shape[1]; k++) {
+      for (int j = 0; j < tensor2.shape[1]; j++) {
+        for (int k = 0; k < shape[1]; k++) {
           *out_ptr += (*tensor1_ptr) * (*tensor2_ptr);
           tensor1_ptr += strides[1];
-          tensor2_ptr += strides[0];
+          tensor2_ptr += tensor2.strides[0];
         }
 
         tensor1_ptr -= strides[1] * shape[1];
-        tensor2_ptr -= strides[0] * shape[0];
-        tensor2_ptr += strides[1];
-        out_ptr += strides[1];
+        tensor2_ptr -= tensor2.strides[0] * tensor2.shape[0];
+        tensor2_ptr += tensor2.strides[1];
+        out_ptr += out.strides[1];
       }
 
-      tensor2_ptr -= strides[1] * shape[1];
-      out_ptr -= strides[1] * shape[1];
+      tensor2_ptr -= tensor2.strides[1] * tensor2.shape[1];
+      out_ptr -= out.strides[1] * out.shape[1];
       tensor1_ptr += strides[0];
-      out_ptr += strides[0];
+      out_ptr += out.strides[0];
     }
 
     return out;
