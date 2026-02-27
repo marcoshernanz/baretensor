@@ -6,6 +6,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
+#include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
 #include <cstddef>
@@ -170,6 +171,9 @@ NB_MODULE(_C, m) {
   m.def("full", &bt::full, nb::arg("shape"), nb::arg("fill_value"));
   m.def("zeros", &bt::zeros, nb::arg("shape"));
   m.def("ones", &bt::ones, nb::arg("shape"));
+  m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
+        nb::arg("target"), nb::arg("ignore_index") = -100,
+        nb::arg("reduction") = "mean");
 
   m.def(
       "tensor",
