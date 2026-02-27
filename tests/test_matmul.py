@@ -24,11 +24,9 @@ def _assert_matmul_matches_numpy(
 
     out_method = left_bt.matmul(right_bt)
     out_operator = left_bt @ right_bt
-    out_function = bt.matmul(left_bt, right_bt)
 
     np.testing.assert_allclose(to_numpy(out_method), expected, rtol=1e-6, atol=1e-6)
     np.testing.assert_allclose(to_numpy(out_operator), expected, rtol=1e-6, atol=1e-6)
-    np.testing.assert_allclose(to_numpy(out_function), expected, rtol=1e-6, atol=1e-6)
 
 
 class MatmulTests(unittest.TestCase):

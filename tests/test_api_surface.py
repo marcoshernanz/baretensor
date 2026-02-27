@@ -9,8 +9,10 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt, "full"))
         self.assertTrue(hasattr(bt, "zeros"))
         self.assertTrue(hasattr(bt, "ones"))
-        self.assertTrue(hasattr(bt, "matmul"))
         self.assertTrue(hasattr(bt, "tensor"))
+        self.assertFalse(hasattr(bt, "matmul"))
+        self.assertTrue(hasattr(bt.Tensor, "matmul"))
+        self.assertTrue(hasattr(bt.Tensor, "sum"))
 
 
 if __name__ == "__main__":
