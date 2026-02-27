@@ -132,6 +132,20 @@ NB_MODULE(_C, m) {
                 });
           },
           nb::arg("dim") = nb::none(), nb::arg("keepdim") = false)
+      .def(
+          "max",
+          [](const bt::Tensor &tensor, nb::object dim, const bool keepdim) {
+            return dispatch_reduction_call(
+                tensor, dim, keepdim, "max",
+                [&tensor](const int64_t one_dim, const bool keepdim_inner) {
+                  return tensor.max(one_dim, keepdim_inner);
+                },
+                [&tensor](const std::vector<int64_t> &many_dims,
+                          const bool keepdim_inner) {
+                  return tensor.max(many_dims, keepdim_inner);
+                });
+          },
+          nb::arg("dim") = nb::none(), nb::arg("keepdim") = false)
       .def("numpy",
            [numpy](const bt::Tensor &t) {
              const bt::Tensor contiguous = t.contiguous();

@@ -40,9 +40,23 @@ class Tensor:
 
     def __matmul__(self, arg: Tensor, /) -> Tensor: ...
 
-    def sum(self, dim: object | None = None, keepdim: bool = False) -> Tensor: ...
+    def sum(
+        self,
+        dim: int | Sequence[int] | None = None,
+        keepdim: bool = False,
+    ) -> Tensor: ...
 
-    def mean(self, dim: object | None = None, keepdim: bool = False) -> Tensor: ...
+    def mean(
+        self,
+        dim: int | Sequence[int] | None = None,
+        keepdim: bool = False,
+    ) -> Tensor: ...
+
+    def max(
+        self,
+        dim: int | Sequence[int] | None = None,
+        keepdim: bool = False,
+    ) -> Tensor: ...
 
     def numpy(self) -> object: ...
 
