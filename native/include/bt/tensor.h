@@ -166,6 +166,28 @@ public:
                            bool keepdim = false) const;
 
   /*
+   * Returns the mean of all tensor elements as a scalar tensor.
+   */
+  [[nodiscard]] Tensor mean() const;
+
+  /*
+   * Returns the mean reduced along one dimension.
+   * Supports negative dimensions using Python-style indexing.
+   * If keepdim is true, the reduced dimension is retained with size 1.
+   */
+  [[nodiscard]] Tensor mean(int64_t dim, bool keepdim = false) const;
+
+  /*
+   * Returns the mean reduced along multiple dimensions.
+   * Supports negative dimensions using Python-style indexing.
+   * If keepdim is true, reduced dimensions are retained with size 1.
+   * An empty dim list performs no reduction and returns a copy-equivalent
+   * tensor with the same shape and values.
+   */
+  [[nodiscard]] Tensor mean(const std::vector<int64_t> &dim,
+                            bool keepdim = false) const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

@@ -11,6 +11,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "bt/detail/broadcast.h"
@@ -211,9 +212,9 @@ void recursive_batched_matmul(const size_t dim,
 }
 
 /*
- * Stores precomputed metadata for a sum reduction.
+ * Stores precomputed metadata for a reduction.
  */
-struct SumReductionPlan {
+struct ReductionPlan {
   std::vector<bool> reduce_mask;
   std::vector<int64_t> input_to_output_dim;
   std::vector<int64_t> output_shape;
@@ -222,9 +223,10 @@ struct SumReductionPlan {
 /*
  * Normalizes one reduction dimension using Python-style indexing.
  */
-[[nodiscard]] int64_t normalize_sum_dim(const bt::Tensor &tensor,
-                                        const int64_t dim,
-                                        const size_t dim_index) {
+[[nodiscard]] int64_t
+normalize_reduction_dim(const bt::Tensor &tensor, const int64_t dim,
+                        const size_t dim_index,
+                        const std::string_view operation_name) {
   const int64_t rank = static_cast<int64_t>(tensor.shape.size());
   const int64_t normalized = dim < 0 ? dim + rank : dim;
   if (normalized >= 0 && normalized < rank) {
@@ -232,27 +234,30 @@ struct SumReductionPlan {
   }
 
   std::ostringstream oss;
-  oss << "sum failed for tensor with shape "
+  oss << operation_name << " failed for tensor with shape "
       << bt::detail::shape_to_string(tensor.shape) << ": dim[" << dim_index
       << "]=" << dim << " is out of range for rank " << rank << ".";
   throw std::invalid_argument(oss.str());
 }
 
 /*
- * Normalizes and validates the reduction dimensions for sum.
+ * Normalizes and validates reduction dimensions.
  */
 [[nodiscard]] std::vector<int64_t>
-normalize_sum_dims(const bt::Tensor &tensor, const std::vector<int64_t> &dim) {
+normalize_reduction_dims(const bt::Tensor &tensor,
+                         const std::vector<int64_t> &dim,
+                         const std::string_view operation_name) {
   const int64_t rank = static_cast<int64_t>(tensor.shape.size());
   std::vector<int64_t> normalized_dims;
   normalized_dims.reserve(dim.size());
 
   std::vector<bool> seen(static_cast<size_t>(rank), false);
   for (size_t i = 0; i < dim.size(); ++i) {
-    const int64_t normalized = normalize_sum_dim(tensor, dim[i], i);
+    const int64_t normalized =
+        normalize_reduction_dim(tensor, dim[i], i, operation_name);
     if (seen[static_cast<size_t>(normalized)]) {
       std::ostringstream oss;
-      oss << "sum failed for tensor with shape "
+      oss << operation_name << " failed for tensor with shape "
           << bt::detail::shape_to_string(tensor.shape) << ": dimension "
           << normalized << " appears more than once in dim.";
       throw std::invalid_argument(oss.str());
@@ -265,14 +270,14 @@ normalize_sum_dims(const bt::Tensor &tensor, const std::vector<int64_t> &dim) {
 }
 
 /*
- * Builds reduction metadata for sum(dim, keepdim).
+ * Builds reduction metadata for reduction(dim, keepdim).
  */
-[[nodiscard]] SumReductionPlan
-build_sum_reduction_plan(const bt::Tensor &tensor,
-                         const std::vector<int64_t> &normalized_dims,
-                         const bool keepdim) {
+[[nodiscard]] ReductionPlan
+build_reduction_plan(const bt::Tensor &tensor,
+                     const std::vector<int64_t> &normalized_dims,
+                     const bool keepdim) {
   const size_t rank = tensor.shape.size();
-  SumReductionPlan plan{
+  ReductionPlan plan{
       .reduce_mask = std::vector<bool>(rank, false),
       .input_to_output_dim = std::vector<int64_t>(rank, -1),
       .output_shape = {},
@@ -309,7 +314,7 @@ build_sum_reduction_plan(const bt::Tensor &tensor,
 }
 
 /*
- * Recursively accumulates input values into an output tensor for sum reduction.
+ * Recursively accumulates input values into an output tensor for reduction.
  */
 void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
                           const std::vector<int64_t> &input_strides,
@@ -330,8 +335,7 @@ void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
     const float *next_input_ptr = input_ptr + (index * input_strides[dim]);
     float *next_output_ptr = output_ptr;
     if (out_dim >= 0) {
-      next_output_ptr +=
-          index * output_strides[static_cast<size_t>(out_dim)];
+      next_output_ptr += index * output_strides[static_cast<size_t>(out_dim)];
     }
 
     recursive_sum_reduce(dim + 1, shape, input_strides, output_strides,
@@ -340,10 +344,10 @@ void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
 }
 
 /*
- * Executes sum reduction with a precomputed plan.
+ * Executes additive reduction with a precomputed plan.
  */
 [[nodiscard]] bt::Tensor sum_with_plan(const bt::Tensor &tensor,
-                                       const SumReductionPlan &plan) {
+                                       const ReductionPlan &plan) {
   bt::Tensor out(plan.output_shape);
   out.storage->fill(0.0f);
 
@@ -351,6 +355,19 @@ void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
                        plan.input_to_output_dim, tensor.data_ptr(),
                        out.data_ptr());
   return out;
+}
+
+/*
+ * Computes the number of input elements reduced into each output element.
+ */
+[[nodiscard]] int64_t
+reduction_element_count(const bt::Tensor &tensor,
+                        const std::vector<int64_t> &normalized_dims) {
+  int64_t count = 1;
+  for (const int64_t dim : normalized_dims) {
+    count *= tensor.shape[static_cast<size_t>(dim)];
+  }
+  return count;
 }
 
 } // namespace
@@ -687,9 +704,7 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
 /*
  * Returns the sum of all tensor elements as a scalar tensor.
  */
-Tensor Tensor::sum() const {
-  return sum(make_axis_order(shape.size()), false);
-}
+Tensor Tensor::sum() const { return sum(make_axis_order(shape.size()), false); }
 
 /*
  * Returns the sum reduced along one dimension.
@@ -704,10 +719,41 @@ Tensor Tensor::sum(const int64_t dim, const bool keepdim) const {
 Tensor Tensor::sum(const std::vector<int64_t> &dim, const bool keepdim) const {
   validate_copy_metadata(*this, "sum");
 
-  const std::vector<int64_t> normalized_dims = normalize_sum_dims(*this, dim);
-  const SumReductionPlan plan =
-      build_sum_reduction_plan(*this, normalized_dims, keepdim);
+  const std::vector<int64_t> normalized_dims =
+      normalize_reduction_dims(*this, dim, "sum");
+  const ReductionPlan plan =
+      build_reduction_plan(*this, normalized_dims, keepdim);
   return sum_with_plan(*this, plan);
+}
+
+/*
+ * Returns the mean of all tensor elements as a scalar tensor.
+ */
+Tensor Tensor::mean() const {
+  return mean(make_axis_order(shape.size()), false);
+}
+
+/*
+ * Returns the mean reduced along one dimension.
+ */
+Tensor Tensor::mean(const int64_t dim, const bool keepdim) const {
+  return mean(std::vector<int64_t>{dim}, keepdim);
+}
+
+/*
+ * Returns the mean reduced along one or more dimensions.
+ */
+Tensor Tensor::mean(const std::vector<int64_t> &dim, const bool keepdim) const {
+  validate_copy_metadata(*this, "mean");
+
+  const std::vector<int64_t> normalized_dims =
+      normalize_reduction_dims(*this, dim, "mean");
+  const ReductionPlan plan =
+      build_reduction_plan(*this, normalized_dims, keepdim);
+  const Tensor reduced_sum = sum_with_plan(*this, plan);
+  const int64_t reduced_element_count =
+      reduction_element_count(*this, normalized_dims);
+  return reduced_sum / static_cast<float>(reduced_element_count);
 }
 
 /*
