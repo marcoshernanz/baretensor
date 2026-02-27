@@ -63,6 +63,7 @@ NB_MODULE(_C, m) {
            nb::arg("dim1"))
       .def_prop_ro("T", &bt::Tensor::T)
       .def_prop_ro("mT", &bt::Tensor::mT)
+      .def("matmul", &bt::Tensor::matmul, nb::arg("tensor2"))
       .def("numpy",
            [numpy](const bt::Tensor &t) {
              const bt::Tensor contiguous = t.contiguous();
