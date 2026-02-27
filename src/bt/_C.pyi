@@ -46,6 +46,8 @@ class Tensor:
 
     def softmax(self, dim: int) -> Tensor: ...
 
+    def log_softmax(self, dim: int) -> Tensor: ...
+
     def sum(
         self,
         dim: int | Sequence[int] | None = None,

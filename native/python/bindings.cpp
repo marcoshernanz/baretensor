@@ -107,6 +107,7 @@ NB_MODULE(_C, m) {
       .def("exp", &bt::Tensor::exp)
       .def("log", &bt::Tensor::log)
       .def("softmax", &bt::Tensor::softmax, nb::arg("dim"))
+      .def("log_softmax", &bt::Tensor::log_softmax, nb::arg("dim"))
       .def(
           "sum",
           [](const bt::Tensor &tensor, nb::object dim, const bool keepdim) {
