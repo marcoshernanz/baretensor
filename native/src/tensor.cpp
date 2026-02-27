@@ -218,9 +218,9 @@ float recursive_sum(const size_t dim, const size_t ndim,
   }
 
   float sum = 0;
-  for (int i = 0; i < shape.size(); i++) {
+  for (int i = 0; i < shape[dim]; i++) {
     sum += recursive_sum(dim + 1, ndim, shape, strides, data);
-    data += strides[i];
+    data += strides[dim];
   }
 
   return sum;
@@ -561,6 +561,10 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
  *TODO
  */
 Tensor Tensor::sum() const {
+  if (ndim() == 0) {
+    return *this;
+  }
+
   Tensor out({});
   const float sum = recursive_sum(0, ndim(), shape, strides, data_ptr());
   *out.data_ptr() = sum;
