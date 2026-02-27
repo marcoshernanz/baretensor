@@ -216,6 +216,14 @@ public:
   [[nodiscard]] Tensor exp() const;
 
   /*
+   * Returns a tensor containing softmax values computed along dim.
+   * Uses numerically stable normalization by subtracting the per-slice maximum
+   * before exponentiation.
+   * Supports negative dimensions using Python-style indexing.
+   */
+  [[nodiscard]] Tensor softmax(int64_t dim) const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

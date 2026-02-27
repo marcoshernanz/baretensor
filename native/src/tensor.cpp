@@ -848,6 +848,25 @@ Tensor Tensor::max(const std::vector<int64_t> &dim, const bool keepdim) const {
 }
 
 /*
+ * Returns a tensor containing softmax values computed along dim.
+ */
+Tensor Tensor::softmax(const int64_t dim) const {
+  validate_copy_metadata(*this, "softmax");
+
+  const int64_t normalized_dim =
+      detail::normalize_dim_checked("softmax", shape, dim, "dim");
+  if (shape[static_cast<size_t>(normalized_dim)] == 0) {
+    return exp();
+  }
+
+  const Tensor max_values = max(normalized_dim, true);
+  const Tensor shifted = (*this) - max_values;
+  const Tensor exp_values = shifted.exp();
+  const Tensor normalizer = exp_values.sum(normalized_dim, true);
+  return exp_values / normalizer;
+}
+
+/*
  * Creates a tensor filled with a constant value.
  */
 Tensor full(const std::vector<int64_t> &shape, float fill_value) {
