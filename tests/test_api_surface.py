@@ -10,6 +10,8 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt, "zeros"))
         self.assertTrue(hasattr(bt, "ones"))
         self.assertTrue(hasattr(bt, "tensor"))
+        self.assertTrue(hasattr(bt, "nn"))
+        self.assertTrue(hasattr(bt.nn, "functional"))
         self.assertFalse(hasattr(bt, "matmul"))
         self.assertTrue(hasattr(bt.Tensor, "matmul"))
         self.assertTrue(hasattr(bt.Tensor, "exp"))
@@ -19,6 +21,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt.Tensor, "sum"))
         self.assertTrue(hasattr(bt.Tensor, "mean"))
         self.assertTrue(hasattr(bt.Tensor, "max"))
+        self.assertTrue(hasattr(bt.nn.functional, "cross_entropy"))
 
 
 if __name__ == "__main__":
