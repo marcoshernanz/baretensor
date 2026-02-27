@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "bt/storage.h"
@@ -291,5 +292,17 @@ public:
  * Creates a tensor filled with ones.
  */
 [[nodiscard]] Tensor ones(const std::vector<int64_t> &shape);
+
+/*
+ * Computes cross-entropy loss between logits and class-index targets.
+ * TinyGPT-focused scope:
+ * - input shape must be [N, C]
+ * - target shape must be [N]
+ * - target values must be integer class indices in [0, C) or ignore_index
+ * - reduction supports "none", "mean", and "sum"
+ */
+[[nodiscard]] Tensor cross_entropy(const Tensor &input, const Tensor &target,
+                                   int64_t ignore_index = -100,
+                                   const std::string &reduction = "mean");
 
 } /* namespace bt */

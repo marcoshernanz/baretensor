@@ -5,6 +5,7 @@
 
 #include "bt/tensor.h"
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -882,6 +883,125 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
   const Tensor shifted = (*this) - max_values;
   const Tensor log_normalizer = shifted.exp().sum(normalized_dim, true).log();
   return shifted - log_normalizer;
+}
+
+/*
+ * Computes cross-entropy loss between logits and class-index targets.
+ */
+Tensor cross_entropy(const Tensor &input, const Tensor &target,
+                     const int64_t ignore_index,
+                     const std::string &reduction) {
+  validate_copy_metadata(input, "cross_entropy");
+  validate_copy_metadata(target, "cross_entropy");
+
+  const auto make_error_prefix = [&input, &target]() {
+    return std::string("cross_entropy failed for input shape ") +
+           detail::shape_to_string(input.shape) + " and target shape " +
+           detail::shape_to_string(target.shape) + ": ";
+  };
+
+  if (input.ndim() != 2) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "input must have rank 2 [N, C] for the "
+                                "current TinyGPT-focused implementation.");
+  }
+  if (target.ndim() != 1) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "target must have rank 1 [N] with class "
+                                "indices.");
+  }
+
+  const int64_t batch_size = input.shape[0];
+  const int64_t class_count = input.shape[1];
+  if (target.shape[0] != batch_size) {
+    std::ostringstream oss;
+    oss << make_error_prefix() << "target length must match input batch "
+        << "size N; got target.shape[0]=" << target.shape[0]
+        << " and input.shape[0]=" << batch_size << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  enum class ReductionMode { kNone, kMean, kSum };
+  ReductionMode reduction_mode;
+  if (reduction == "none") {
+    reduction_mode = ReductionMode::kNone;
+  } else if (reduction == "mean") {
+    reduction_mode = ReductionMode::kMean;
+  } else if (reduction == "sum") {
+    reduction_mode = ReductionMode::kSum;
+  } else {
+    throw std::invalid_argument(
+        "cross_entropy() expected 'reduction' to be one of {'none', 'mean', "
+        "'sum'}.");
+  }
+
+  const Tensor log_probs = input.log_softmax(1);
+  Tensor unreduced({batch_size});
+  unreduced.storage->fill(0.0f);
+
+  float total_loss = 0.0f;
+  int64_t valid_count = 0;
+  float *unreduced_ptr = unreduced.data_ptr();
+  const float *target_ptr = target.data_ptr();
+  const float *log_probs_ptr = log_probs.data_ptr();
+
+  for (int64_t n = 0; n < batch_size; ++n) {
+    const float target_value =
+        target_ptr[n * target.strides[0]];
+    if (!std::isfinite(target_value)) {
+      throw std::invalid_argument(
+          make_error_prefix() +
+          "target values must be finite integer class indices.");
+    }
+
+    const float truncated = std::trunc(target_value);
+    if (target_value != truncated) {
+      std::ostringstream oss;
+      oss << make_error_prefix()
+          << "target values must be integer class indices, but target[" << n
+          << "]=" << target_value << ".";
+      throw std::invalid_argument(oss.str());
+    }
+
+    const int64_t class_index = static_cast<int64_t>(truncated);
+    if (class_index == ignore_index) {
+      unreduced_ptr[n] = 0.0f;
+      continue;
+    }
+
+    if (class_index < 0 || class_index >= class_count) {
+      std::ostringstream oss;
+      oss << make_error_prefix() << "target[" << n << "]=" << class_index
+          << " is out of range for " << class_count << " classes.";
+      throw std::invalid_argument(oss.str());
+    }
+
+    const float log_prob =
+        log_probs_ptr[n * log_probs.strides[0] +
+                      class_index * log_probs.strides[1]];
+    const float loss = -log_prob;
+    unreduced_ptr[n] = loss;
+    total_loss += loss;
+    ++valid_count;
+  }
+
+  if (reduction_mode == ReductionMode::kNone) {
+    return unreduced;
+  }
+
+  Tensor reduced({});
+  float *reduced_ptr = reduced.data_ptr();
+  if (reduction_mode == ReductionMode::kSum) {
+    *reduced_ptr = total_loss;
+    return reduced;
+  }
+
+  if (valid_count == 0) {
+    *reduced_ptr = std::numeric_limits<float>::quiet_NaN();
+  } else {
+    *reduced_ptr = total_loss / static_cast<float>(valid_count);
+  }
+  return reduced;
 }
 
 /*
