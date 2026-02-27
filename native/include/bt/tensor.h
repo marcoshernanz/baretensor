@@ -133,9 +133,15 @@ public:
   [[nodiscard]] Tensor mT() const;
 
   /*
-   * TODO
+   * Returns the matrix product of this tensor and tensor2 using PyTorch-style
+   * matmul semantics:
+   * - 1D x 1D -> scalar dot product
+   * - 2D x 2D -> matrix-matrix product
+   * - 1D x 2D or 2D x 1D -> vector/matrix variants with singleton expansion
+   * - N-D cases -> batched matrix multiplication with broadcasted batch dims
+   * Both inputs must be at least 1-D.
    */
-  [[nodiscard]] Tensor matmul(const Tensor &tensor2);
+  [[nodiscard]] Tensor matmul(const Tensor &tensor2) const;
 
   /*
    * Elementwise tensor-tensor addition.
