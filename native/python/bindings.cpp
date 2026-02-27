@@ -12,6 +12,7 @@
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "bt/detail/format.h"
@@ -48,6 +49,32 @@ namespace {
   return dims;
 }
 
+/*
+ * Dispatches a reduction call where dim can be None, int, or sequence[int].
+ */
+template <typename SingleDimReducer, typename MultiDimReducer>
+[[nodiscard]] bt::Tensor
+dispatch_reduction_call(const bt::Tensor &tensor, nb::object dim,
+                        const bool keepdim, const char *operation_name,
+                        const SingleDimReducer &single_dim_reducer,
+                        const MultiDimReducer &multi_dim_reducer) {
+  if (dim.is_none()) {
+    return multi_dim_reducer(make_all_dims(tensor), keepdim);
+  }
+  if (nb::isinstance<nb::int_>(dim)) {
+    return single_dim_reducer(nb::cast<int64_t>(dim), keepdim);
+  }
+
+  try {
+    return multi_dim_reducer(nb::cast<std::vector<int64_t>>(dim), keepdim);
+  } catch (const nb::cast_error &) {
+    const std::string message =
+        std::string(operation_name) +
+        "() expected 'dim' to be an int, a sequence of ints, or None.";
+    throw nb::type_error(message.c_str());
+  }
+}
+
 } // namespace
 
 /*
@@ -80,19 +107,29 @@ NB_MODULE(_C, m) {
       .def(
           "sum",
           [](const bt::Tensor &tensor, nb::object dim, const bool keepdim) {
-            if (dim.is_none()) {
-              return tensor.sum(make_all_dims(tensor), keepdim);
-            }
-            if (nb::isinstance<nb::int_>(dim)) {
-              return tensor.sum(nb::cast<int64_t>(dim), keepdim);
-            }
-            try {
-              return tensor.sum(nb::cast<std::vector<int64_t>>(dim), keepdim);
-            } catch (const nb::cast_error &) {
-              throw nb::type_error(
-                  "sum() expected 'dim' to be an int, a sequence of ints, "
-                  "or None.");
-            }
+            return dispatch_reduction_call(
+                tensor, dim, keepdim, "sum",
+                [&tensor](const int64_t one_dim, const bool keepdim_inner) {
+                  return tensor.sum(one_dim, keepdim_inner);
+                },
+                [&tensor](const std::vector<int64_t> &many_dims,
+                          const bool keepdim_inner) {
+                  return tensor.sum(many_dims, keepdim_inner);
+                });
+          },
+          nb::arg("dim") = nb::none(), nb::arg("keepdim") = false)
+      .def(
+          "mean",
+          [](const bt::Tensor &tensor, nb::object dim, const bool keepdim) {
+            return dispatch_reduction_call(
+                tensor, dim, keepdim, "mean",
+                [&tensor](const int64_t one_dim, const bool keepdim_inner) {
+                  return tensor.mean(one_dim, keepdim_inner);
+                },
+                [&tensor](const std::vector<int64_t> &many_dims,
+                          const bool keepdim_inner) {
+                  return tensor.mean(many_dims, keepdim_inner);
+                });
           },
           nb::arg("dim") = nb::none(), nb::arg("keepdim") = false)
       .def("numpy",
