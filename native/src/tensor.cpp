@@ -328,6 +328,52 @@ Tensor Tensor::mT() const {
 }
 
 /*
+ * TODO
+ */
+Tensor Tensor::matmul(const Tensor &tensor2) {
+  if (ndim() == 0 || tensor2.ndim() == 0) {
+    throw std::invalid_argument("invalid ndim");
+  }
+
+  if (ndim() == 1 || tensor2.ndim() == 1) {
+    return (*this) * tensor2;
+  } else if (ndim() == 2 && tensor2.ndim() == 2) {
+    if (shape[1] != tensor2.shape[0]) {
+      throw std::invalid_argument("invalid dimensions");
+    }
+
+    Tensor out = bt::zeros({shape[0], tensor2.shape[1]});
+    const float *tensor1_ptr = data_ptr() + storage_offset;
+    const float *tensor2_ptr = tensor2.data_ptr() + tensor2.storage_offset;
+    float *out_ptr = out.data_ptr();
+
+    for (int i = 0; i < shape[0]; i++) {
+      for (int j = 0; j < shape[1]; j++) {
+        for (int k = 0; k < tensor2.shape[1]; k++) {
+          *out_ptr += (*tensor1_ptr) * (*tensor2_ptr);
+          tensor1_ptr += strides[1];
+          tensor2_ptr += strides[0];
+        }
+
+        tensor1_ptr -= strides[1] * shape[1];
+        tensor2_ptr -= strides[0] * shape[0];
+        tensor2_ptr += strides[1];
+        out_ptr += strides[1];
+      }
+
+      tensor2_ptr -= strides[1] * shape[1];
+      out_ptr -= strides[1] * shape[1];
+      tensor1_ptr += strides[0];
+      out_ptr += strides[0];
+    }
+
+    return out;
+  }
+
+  throw std::invalid_argument("invalid ndim");
+}
+
+/*
  * Creates a tensor filled with a constant value.
  */
 Tensor full(const std::vector<int64_t> &shape, float fill_value) {

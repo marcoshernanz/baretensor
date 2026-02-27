@@ -171,6 +171,11 @@ public:
    * Elementwise tensor-scalar division.
    */
   Tensor operator/(float rhs) const;
+
+  /*
+   * TODO
+   */
+  [[nodiscard]] Tensor matmul(const Tensor &tensor2);
 };
 
 /*
