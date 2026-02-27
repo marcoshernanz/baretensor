@@ -77,6 +77,17 @@ void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
   }
 }
 
+/*
+ * Builds an identity permutation [0, 1, ..., rank - 1].
+ */
+std::vector<int64_t> make_axis_order(const size_t rank) {
+  std::vector<int64_t> dims(rank, 0);
+  for (size_t i = 0; i < rank; ++i) {
+    dims[i] = static_cast<int64_t>(i);
+  }
+  return dims;
+}
+
 } // namespace
 
 /*
@@ -250,7 +261,7 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
   std::vector<int64_t> target_shape(shape.size(), 0);
   std::vector<int64_t> target_strides(strides.size(), 0);
   for (size_t i = 0; i < normalized_dims.size(); ++i) {
-    const size_t source_dim = detail::dim_to_index(normalized_dims[i]);
+    const size_t source_dim = static_cast<size_t>(normalized_dims[i]);
     target_shape[i] = shape[source_dim];
     target_strides[i] = strides[source_dim];
   }
@@ -274,9 +285,9 @@ Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
     return *this;
   }
 
-  std::vector<int64_t> dims = detail::identity_permutation(shape.size());
-  std::swap(dims[detail::dim_to_index(normalized_dim0)],
-            dims[detail::dim_to_index(normalized_dim1)]);
+  std::vector<int64_t> dims = make_axis_order(shape.size());
+  std::swap(dims[static_cast<size_t>(normalized_dim0)],
+            dims[static_cast<size_t>(normalized_dim1)]);
   return permute(dims);
 }
 
@@ -311,7 +322,7 @@ Tensor Tensor::mT() const {
     throw std::invalid_argument(oss.str());
   }
 
-  std::vector<int64_t> dims = detail::identity_permutation(shape.size());
+  std::vector<int64_t> dims = make_axis_order(shape.size());
   std::swap(dims[dims.size() - 2], dims[dims.size() - 1]);
   return permute(dims);
 }

@@ -33,24 +33,6 @@ namespace {
 } // namespace
 
 /*
- * Converts a signed dimension value to a vector index.
- */
-size_t dim_to_index(const int64_t dim) noexcept {
-  return static_cast<size_t>(dim);
-}
-
-/*
- * Builds an identity permutation [0, 1, ..., rank - 1].
- */
-std::vector<int64_t> identity_permutation(const size_t rank) {
-  std::vector<int64_t> dims(rank, 0);
-  for (size_t i = 0; i < rank; ++i) {
-    dims[i] = static_cast<int64_t>(i);
-  }
-  return dims;
-}
-
-/*
  * Normalizes and validates a single dimension for an operation.
  */
 int64_t normalize_dim_checked(std::string_view operation_name,
@@ -97,7 +79,7 @@ std::vector<int64_t> normalize_permutation_checked(
           << " is out of range for rank " << rank << ".";
       throw std::invalid_argument(oss.str());
     }
-    if (seen[dim_to_index(normalized)]) {
+    if (seen[static_cast<size_t>(normalized)]) {
       std::ostringstream oss;
       oss << operation_name << " failed for tensor with shape "
           << shape_to_string(shape) << ": dimension " << normalized
@@ -105,7 +87,7 @@ std::vector<int64_t> normalize_permutation_checked(
       throw std::invalid_argument(oss.str());
     }
     normalized_dims[i] = normalized;
-    seen[dim_to_index(normalized)] = true;
+    seen[static_cast<size_t>(normalized)] = true;
   }
 
   return normalized_dims;

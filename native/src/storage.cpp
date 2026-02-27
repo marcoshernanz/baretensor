@@ -27,12 +27,13 @@ namespace {
  * Validates a storage element count and converts it to size_t.
  */
 [[nodiscard]] size_t checked_storage_size(int64_t size) {
-  if (size < 0) {
-    std::ostringstream oss;
-    oss << "Invalid storage size " << size << ": size must be non-negative.";
-    throw std::invalid_argument(oss.str());
+  if (size >= 0) {
+    return static_cast<size_t>(size);
   }
-  return static_cast<size_t>(size);
+
+  std::ostringstream oss;
+  oss << "Invalid storage size " << size << ". Size must be non-negative.";
+  throw std::invalid_argument(oss.str());
 }
 
 }  // namespace

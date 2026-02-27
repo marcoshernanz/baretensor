@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -15,16 +14,6 @@
  * Purpose: Internal reusable implementation helpers.
  */
 namespace bt::detail {
-
-/*
- * Converts a signed dimension value to a vector index.
- */
-[[nodiscard]] size_t dim_to_index(int64_t dim) noexcept;
-
-/*
- * Builds an identity permutation [0, 1, ..., rank - 1].
- */
-[[nodiscard]] std::vector<int64_t> identity_permutation(size_t rank);
 
 /*
  * Normalizes and validates a single dimension for an operation.
