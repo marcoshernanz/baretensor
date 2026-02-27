@@ -188,6 +188,28 @@ public:
                             bool keepdim = false) const;
 
   /*
+   * Returns the maximum of all tensor elements as a scalar tensor.
+   */
+  [[nodiscard]] Tensor max() const;
+
+  /*
+   * Returns the maximum reduced along one dimension.
+   * Supports negative dimensions using Python-style indexing.
+   * If keepdim is true, the reduced dimension is retained with size 1.
+   */
+  [[nodiscard]] Tensor max(int64_t dim, bool keepdim = false) const;
+
+  /*
+   * Returns the maximum reduced along multiple dimensions.
+   * Supports negative dimensions using Python-style indexing.
+   * If keepdim is true, reduced dimensions are retained with size 1.
+   * An empty dim list performs no reduction and returns a copy-equivalent
+   * tensor with the same shape and values.
+   */
+  [[nodiscard]] Tensor max(const std::vector<int64_t> &dim,
+                           bool keepdim = false) const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

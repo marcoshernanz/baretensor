@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -368,6 +369,70 @@ reduction_element_count(const bt::Tensor &tensor,
     count *= tensor.shape[static_cast<size_t>(dim)];
   }
   return count;
+}
+
+/*
+ * Recursively propagates maximum values into an output tensor for reduction.
+ */
+void recursive_max_reduce(const size_t dim, const std::vector<int64_t> &shape,
+                          const std::vector<int64_t> &input_strides,
+                          const std::vector<int64_t> &output_strides,
+                          const std::vector<int64_t> &input_to_output_dim,
+                          const float *input_ptr, float *output_ptr) {
+  if (dim == shape.size()) {
+    if (*input_ptr > *output_ptr) {
+      *output_ptr = *input_ptr;
+    }
+    return;
+  }
+
+  if (shape[dim] == 0) {
+    return;
+  }
+
+  const int64_t out_dim = input_to_output_dim[dim];
+  for (int64_t index = 0; index < shape[dim]; ++index) {
+    const float *next_input_ptr = input_ptr + (index * input_strides[dim]);
+    float *next_output_ptr = output_ptr;
+    if (out_dim >= 0) {
+      next_output_ptr += index * output_strides[static_cast<size_t>(out_dim)];
+    }
+
+    recursive_max_reduce(dim + 1, shape, input_strides, output_strides,
+                         input_to_output_dim, next_input_ptr, next_output_ptr);
+  }
+}
+
+/*
+ * Validates that the requested reduction does not reduce over zero elements.
+ */
+void validate_non_empty_reduction(const bt::Tensor &tensor,
+                                  const std::vector<int64_t> &normalized_dims,
+                                  const std::string_view operation_name) {
+  if (reduction_element_count(tensor, normalized_dims) != 0) {
+    return;
+  }
+
+  std::ostringstream oss;
+  oss << operation_name << " failed for tensor with shape "
+      << bt::detail::shape_to_string(tensor.shape) << " and dim "
+      << bt::detail::shape_to_string(normalized_dims)
+      << ": cannot perform reduction over zero elements.";
+  throw std::invalid_argument(oss.str());
+}
+
+/*
+ * Executes max reduction with a precomputed plan.
+ */
+[[nodiscard]] bt::Tensor max_with_plan(const bt::Tensor &tensor,
+                                       const ReductionPlan &plan) {
+  bt::Tensor out(plan.output_shape);
+  out.storage->fill(-std::numeric_limits<float>::infinity());
+
+  recursive_max_reduce(0, tensor.shape, tensor.strides, out.strides,
+                       plan.input_to_output_dim, tensor.data_ptr(),
+                       out.data_ptr());
+  return out;
 }
 
 } // namespace
@@ -754,6 +819,32 @@ Tensor Tensor::mean(const std::vector<int64_t> &dim, const bool keepdim) const {
   const int64_t reduced_element_count =
       reduction_element_count(*this, normalized_dims);
   return reduced_sum / static_cast<float>(reduced_element_count);
+}
+
+/*
+ * Returns the maximum of all tensor elements as a scalar tensor.
+ */
+Tensor Tensor::max() const { return max(make_axis_order(shape.size()), false); }
+
+/*
+ * Returns the maximum reduced along one dimension.
+ */
+Tensor Tensor::max(const int64_t dim, const bool keepdim) const {
+  return max(std::vector<int64_t>{dim}, keepdim);
+}
+
+/*
+ * Returns the maximum reduced along one or more dimensions.
+ */
+Tensor Tensor::max(const std::vector<int64_t> &dim, const bool keepdim) const {
+  validate_copy_metadata(*this, "max");
+
+  const std::vector<int64_t> normalized_dims =
+      normalize_reduction_dims(*this, dim, "max");
+  validate_non_empty_reduction(*this, normalized_dims, "max");
+  const ReductionPlan plan =
+      build_reduction_plan(*this, normalized_dims, keepdim);
+  return max_with_plan(*this, plan);
 }
 
 /*
