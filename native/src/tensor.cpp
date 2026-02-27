@@ -79,8 +79,9 @@ void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
 /*
  * Normalizes transpose dimensions and validates they are within rank bounds.
  */
-std::pair<int64_t, int64_t> normalize_transpose_dims(
-    int64_t dim0, int64_t dim1, const std::vector<int64_t> &shape) {
+std::pair<int64_t, int64_t>
+normalize_transpose_dims(int64_t dim0, int64_t dim1,
+                         const std::vector<int64_t> &shape) {
   const int64_t rank = static_cast<int64_t>(shape.size());
   const auto normalize = [rank](const int64_t dim) -> int64_t {
     return dim < 0 ? dim + rank : dim;
@@ -92,10 +93,9 @@ std::pair<int64_t, int64_t> normalize_transpose_dims(
       normalized_dim1 >= rank) {
     std::ostringstream oss;
     oss << "transpose failed for tensor with shape "
-        << bt::detail::shape_to_string(shape)
-        << ": dim0=" << dim0 << ", dim1=" << dim1
-        << ". Expected each dimension to satisfy -" << rank << " <= dim < "
-        << rank << ".";
+        << bt::detail::shape_to_string(shape) << ": dim0=" << dim0
+        << ", dim1=" << dim1 << ". Expected each dimension to satisfy -" << rank
+        << " <= dim < " << rank << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -260,6 +260,38 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
   }
 
   return contiguous().view(target_shape);
+}
+
+/*
+ * TODO
+ */
+Tensor Tensor::permute(const std::vector<int> &dims) {
+  if (dims.size() != ndim()) {
+    throw std::invalid_argument("invalid number of dimensions");
+  }
+
+  std::vector<int> normalized_dims(dims.size());
+  std::vector<bool> visited(dims.size(), false);
+
+  for (int i = 0; i < dims.size(); i++) {
+    int normalized_dim = dims[i] >= 0 ? dims[i] : dims[i] + dims.size();
+    if (normalized_dim < 0 || normalized_dim >= dims.size()) {
+      throw std::invalid_argument("invalid dimension");
+    }
+
+    normalized_dims[i] = normalized_dim;
+    visited[i] = true;
+  }
+
+  std::vector<int64_t> target_shape(shape.size());
+  std::vector<int64_t> target_strides(strides.size());
+  for (int i = 0; i < dims.size(); i++) {
+    int dim = normalized_dims[i];
+    target_shape[i] = shape[dim];
+    target_strides[i] = strides[dim];
+  }
+
+  return Tensor(storage, storage_offset, target_shape, target_strides);
 }
 
 /*

@@ -108,6 +108,11 @@ public:
   [[nodiscard]] Tensor reshape(const std::vector<int64_t> &shape) const;
 
   /*
+   * TODO
+   */
+  [[nodiscard]] Tensor permute(const std::vector<int> &dims);
+
+  /*
    * Returns a view with dim0 and dim1 swapped.
    * Supports negative dimensions using Python-style indexing.
    */
