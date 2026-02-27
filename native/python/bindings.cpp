@@ -105,6 +105,7 @@ NB_MODULE(_C, m) {
       .def("__matmul__", [](const bt::Tensor &lhs,
                             const bt::Tensor &rhs) { return lhs.matmul(rhs); })
       .def("exp", &bt::Tensor::exp)
+      .def("log", &bt::Tensor::log)
       .def("softmax", &bt::Tensor::softmax, nb::arg("dim"))
       .def(
           "sum",
