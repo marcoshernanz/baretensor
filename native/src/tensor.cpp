@@ -340,14 +340,13 @@ Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
     return *this;
   }
 
-  std::vector<int64_t> target_shape(shape);
-  std::vector<int64_t> target_strides(strides);
-  std::swap(target_shape[static_cast<size_t>(normalized_dim0)],
-            target_shape[static_cast<size_t>(normalized_dim1)]);
-  std::swap(target_strides[static_cast<size_t>(normalized_dim0)],
-            target_strides[static_cast<size_t>(normalized_dim1)]);
-
-  return Tensor(storage, storage_offset, target_shape, target_strides);
+  std::vector<int64_t> dims(shape.size(), 0);
+  for (size_t i = 0; i < dims.size(); ++i) {
+    dims[i] = static_cast<int64_t>(i);
+  }
+  std::swap(dims[static_cast<size_t>(normalized_dim0)],
+            dims[static_cast<size_t>(normalized_dim1)]);
+  return permute(dims);
 }
 
 /*
@@ -364,7 +363,7 @@ Tensor Tensor::T() const {
     throw std::invalid_argument(oss.str());
   }
 
-  return transpose(0, 1);
+  return permute({1, 0});
 }
 
 /*
@@ -381,7 +380,12 @@ Tensor Tensor::mT() const {
     throw std::invalid_argument(oss.str());
   }
 
-  return transpose(-2, -1);
+  std::vector<int64_t> dims(shape.size(), 0);
+  for (size_t i = 0; i < dims.size(); ++i) {
+    dims[i] = static_cast<int64_t>(i);
+  }
+  std::swap(dims[dims.size() - 2], dims[dims.size() - 1]);
+  return permute(dims);
 }
 
 /*

@@ -55,6 +55,17 @@ class PermuteTests(unittest.TestCase):
         ):
             _ = tensor.permute([1, 1, 2])
 
+    def test_permute_matches_transpose_dimension_swap(self) -> None:
+        source = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+        tensor = bt.tensor(source)
+
+        from_permute = tensor.permute([2, 1, 0])
+        from_transpose = tensor.transpose(0, 2)
+
+        self.assertEqual(from_permute.shape, from_transpose.shape)
+        self.assertEqual(from_permute.strides, from_transpose.strides)
+        np.testing.assert_allclose(to_numpy(from_permute), to_numpy(from_transpose))
+
 
 if __name__ == "__main__":
     unittest.main()
