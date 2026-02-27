@@ -58,6 +58,7 @@ NB_MODULE(_C, m) {
       .def("contiguous", &bt::Tensor::contiguous)
       .def("view", &bt::Tensor::view, nb::arg("shape"))
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
+      .def("permute", &bt::Tensor::permute, nb::arg("dims"))
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"),
            nb::arg("dim1"))
       .def_prop_ro("T", &bt::Tensor::T)

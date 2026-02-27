@@ -110,7 +110,7 @@ public:
   /*
    * TODO
    */
-  [[nodiscard]] Tensor permute(const std::vector<int> &dims);
+  [[nodiscard]] Tensor permute(const std::vector<int64_t> &dims);
 
   /*
    * Returns a view with dim0 and dim1 swapped.

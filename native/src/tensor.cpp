@@ -265,7 +265,7 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
 /*
  * TODO
  */
-Tensor Tensor::permute(const std::vector<int> &dims) {
+Tensor Tensor::permute(const std::vector<int64_t> &dims) {
   if (dims.size() != ndim()) {
     throw std::invalid_argument("invalid number of dimensions");
   }
@@ -280,7 +280,7 @@ Tensor Tensor::permute(const std::vector<int> &dims) {
     }
 
     normalized_dims[i] = normalized_dim;
-    visited[i] = true;
+    visited[normalized_dim] = true;
   }
 
   std::vector<int64_t> target_shape(shape.size());
