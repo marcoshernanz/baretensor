@@ -210,6 +210,22 @@ void recursive_batched_matmul(const size_t dim,
   }
 }
 
+float recursive_sum(const size_t dim, const size_t ndim,
+                    const std::vector<int64_t> &shape,
+                    const std::vector<int64_t> &strides, const float *data) {
+  if (dim == ndim) {
+    return *data;
+  }
+
+  float sum = 0;
+  for (int i = 0; i < shape.size(); i++) {
+    sum += recursive_sum(dim + 1, ndim, shape, strides, data);
+    data += strides[i];
+  }
+
+  return sum;
+}
+
 } // namespace
 
 /*
@@ -539,6 +555,16 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
   const std::vector<int64_t> out_shape =
       matmul_result_shape(full_out_shape, lhs.was_1d, rhs.was_1d);
   return out_full.reshape(out_shape);
+}
+
+/*
+ *TODO
+ */
+Tensor Tensor::sum() const {
+  Tensor out({});
+  const float sum = recursive_sum(0, ndim(), shape, strides, data_ptr());
+  *out.data_ptr() = sum;
+  return out;
 }
 
 /*

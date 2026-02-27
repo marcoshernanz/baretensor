@@ -144,6 +144,11 @@ public:
   [[nodiscard]] Tensor matmul(const Tensor &tensor2) const;
 
   /*
+   *TODO
+   */
+  [[nodiscard]] Tensor sum() const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;
