@@ -42,6 +42,8 @@ class Tensor:
 
     def exp(self) -> Tensor: ...
 
+    def softmax(self, dim: int) -> Tensor: ...
+
     def sum(
         self,
         dim: int | Sequence[int] | None = None,
