@@ -230,6 +230,13 @@ public:
   [[nodiscard]] Tensor softmax(int64_t dim) const;
 
   /*
+   * Returns a tensor containing log-softmax values computed along dim.
+   * Uses numerically stable log-sum-exp normalization.
+   * Supports negative dimensions using Python-style indexing.
+   */
+  [[nodiscard]] Tensor log_softmax(int64_t dim) const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

@@ -867,6 +867,24 @@ Tensor Tensor::softmax(const int64_t dim) const {
 }
 
 /*
+ * Returns a tensor containing log-softmax values computed along dim.
+ */
+Tensor Tensor::log_softmax(const int64_t dim) const {
+  validate_copy_metadata(*this, "log_softmax");
+
+  const int64_t normalized_dim =
+      detail::normalize_dim_checked("log_softmax", shape, dim, "dim");
+  if (shape[static_cast<size_t>(normalized_dim)] == 0) {
+    return log();
+  }
+
+  const Tensor max_values = max(normalized_dim, true);
+  const Tensor shifted = (*this) - max_values;
+  const Tensor log_normalizer = shifted.exp().sum(normalized_dim, true).log();
+  return shifted - log_normalizer;
+}
+
+/*
  * Creates a tensor filled with a constant value.
  */
 Tensor full(const std::vector<int64_t> &shape, float fill_value) {
