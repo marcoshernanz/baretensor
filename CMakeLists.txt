@@ -25,6 +25,7 @@ find_package(nanobind CONFIG REQUIRED)
 
 set(BT_DETAIL_SOURCES
   native/src/detail/broadcast.cpp
+  native/src/detail/dims.cpp
   native/src/detail/format.cpp
   native/src/detail/shape.cpp
 )

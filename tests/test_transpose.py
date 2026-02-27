@@ -44,7 +44,7 @@ class TransposeTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            r"transpose failed for tensor with shape \[2, 3, 4\]: dim0=-4, dim1=1\.",
+            r"transpose failed for tensor with shape \[2, 3, 4\]: dim0=-4 is out of range for rank 3",
         ):
             _ = tensor.transpose(-4, 1)
 

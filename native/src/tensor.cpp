@@ -13,6 +13,7 @@
 #include <string>
 #include <utility>
 
+#include "bt/detail/dims.h"
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
 
@@ -74,75 +75,6 @@ void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
     src += src_strides[dim];
     dst += dst_strides[dim];
   }
-}
-
-/*
- * Normalizes transpose dimensions and validates they are within rank bounds.
- */
-std::pair<int64_t, int64_t>
-normalize_transpose_dims(int64_t dim0, int64_t dim1,
-                         const std::vector<int64_t> &shape) {
-  const int64_t rank = static_cast<int64_t>(shape.size());
-  const auto normalize = [rank](const int64_t dim) -> int64_t {
-    return dim < 0 ? dim + rank : dim;
-  };
-
-  const int64_t normalized_dim0 = normalize(dim0);
-  const int64_t normalized_dim1 = normalize(dim1);
-  if (normalized_dim0 < 0 || normalized_dim0 >= rank || normalized_dim1 < 0 ||
-      normalized_dim1 >= rank) {
-    std::ostringstream oss;
-    oss << "transpose failed for tensor with shape "
-        << bt::detail::shape_to_string(shape) << ": dim0=" << dim0
-        << ", dim1=" << dim1 << ". Expected each dimension to satisfy -" << rank
-        << " <= dim < " << rank << ".";
-    throw std::invalid_argument(oss.str());
-  }
-
-  return {normalized_dim0, normalized_dim1};
-}
-
-/*
- * Normalizes permutation dims and validates they form a full permutation.
- */
-std::vector<int64_t> normalize_permute_dims(const std::vector<int64_t> &dims,
-                                            const std::vector<int64_t> &shape) {
-  const int64_t rank = static_cast<int64_t>(shape.size());
-  if (static_cast<int64_t>(dims.size()) != rank) {
-    std::ostringstream oss;
-    oss << "permute failed for tensor with shape "
-        << bt::detail::shape_to_string(shape) << ": expected " << rank
-        << " dims but got " << dims.size() << ".";
-    throw std::invalid_argument(oss.str());
-  }
-
-  std::vector<int64_t> normalized_dims(dims.size(), 0);
-  std::vector<bool> seen(dims.size(), false);
-  for (size_t i = 0; i < dims.size(); ++i) {
-    const int64_t dim = dims[i];
-    const int64_t normalized_dim = dim < 0 ? dim + rank : dim;
-    if (normalized_dim < 0 || normalized_dim >= rank) {
-      std::ostringstream oss;
-      oss << "permute failed for tensor with shape "
-          << bt::detail::shape_to_string(shape) << " and dims "
-          << bt::detail::shape_to_string(dims) << ": dims[" << i << "]=" << dim
-          << " is out of range for rank " << rank << ".";
-      throw std::invalid_argument(oss.str());
-    }
-    if (seen[static_cast<size_t>(normalized_dim)]) {
-      std::ostringstream oss;
-      oss << "permute failed for tensor with shape "
-          << bt::detail::shape_to_string(shape) << " and dims "
-          << bt::detail::shape_to_string(dims) << ": dimension "
-          << normalized_dim << " appears more than once.";
-      throw std::invalid_argument(oss.str());
-    }
-
-    normalized_dims[i] = normalized_dim;
-    seen[static_cast<size_t>(normalized_dim)] = true;
-  }
-
-  return normalized_dims;
 }
 
 } // namespace
@@ -314,11 +246,11 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
   validate_copy_metadata(*this, "permute");
 
   const std::vector<int64_t> normalized_dims =
-      normalize_permute_dims(dims, shape);
+      detail::normalize_permutation_checked("permute", shape, dims);
   std::vector<int64_t> target_shape(shape.size(), 0);
   std::vector<int64_t> target_strides(strides.size(), 0);
   for (size_t i = 0; i < normalized_dims.size(); ++i) {
-    const size_t source_dim = static_cast<size_t>(normalized_dims[i]);
+    const size_t source_dim = detail::dim_to_index(normalized_dims[i]);
     target_shape[i] = shape[source_dim];
     target_strides[i] = strides[source_dim];
   }
@@ -334,18 +266,17 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
 Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
   validate_copy_metadata(*this, "transpose");
 
-  const auto [normalized_dim0, normalized_dim1] =
-      normalize_transpose_dims(dim0, dim1, shape);
+  const int64_t normalized_dim0 =
+      detail::normalize_dim_checked("transpose", shape, dim0, "dim0");
+  const int64_t normalized_dim1 =
+      detail::normalize_dim_checked("transpose", shape, dim1, "dim1");
   if (normalized_dim0 == normalized_dim1) {
     return *this;
   }
 
-  std::vector<int64_t> dims(shape.size(), 0);
-  for (size_t i = 0; i < dims.size(); ++i) {
-    dims[i] = static_cast<int64_t>(i);
-  }
-  std::swap(dims[static_cast<size_t>(normalized_dim0)],
-            dims[static_cast<size_t>(normalized_dim1)]);
+  std::vector<int64_t> dims = detail::identity_permutation(shape.size());
+  std::swap(dims[detail::dim_to_index(normalized_dim0)],
+            dims[detail::dim_to_index(normalized_dim1)]);
   return permute(dims);
 }
 
@@ -380,10 +311,7 @@ Tensor Tensor::mT() const {
     throw std::invalid_argument(oss.str());
   }
 
-  std::vector<int64_t> dims(shape.size(), 0);
-  for (size_t i = 0; i < dims.size(); ++i) {
-    dims[i] = static_cast<int64_t>(i);
-  }
+  std::vector<int64_t> dims = detail::identity_permutation(shape.size());
   std::swap(dims[dims.size() - 2], dims[dims.size() - 1]);
   return permute(dims);
 }

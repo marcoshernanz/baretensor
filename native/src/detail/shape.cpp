@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "bt/detail/dims.h"
 #include "bt/detail/format.h"
 
 /*
@@ -162,12 +163,12 @@ infer_view_strides(const std::vector<int64_t> &input_shape,
 
   for (int64_t input_dim = static_cast<int64_t>(input_shape.size()) - 1;
        input_dim >= 0; --input_dim) {
-    input_chunk_numel *= input_shape[static_cast<size_t>(input_dim)];
+    input_chunk_numel *= input_shape[dim_to_index(input_dim)];
 
     const bool is_chunk_boundary =
         (input_dim == 0) ||
-        ((input_shape[static_cast<size_t>(input_dim - 1)] != 1) &&
-         (input_strides[static_cast<size_t>(input_dim - 1)] !=
+        ((input_shape[dim_to_index(input_dim - 1)] != 1) &&
+         (input_strides[dim_to_index(input_dim - 1)] !=
           input_chunk_numel * chunk_base_stride));
 
     if (!is_chunk_boundary) {
@@ -176,10 +177,10 @@ infer_view_strides(const std::vector<int64_t> &input_shape,
 
     while (target_dim >= 0 &&
            (target_chunk_numel < input_chunk_numel ||
-            target_shape[static_cast<size_t>(target_dim)] == 1)) {
-      target_strides[static_cast<size_t>(target_dim)] =
+            target_shape[dim_to_index(target_dim)] == 1)) {
+      target_strides[dim_to_index(target_dim)] =
           target_chunk_numel * chunk_base_stride;
-      target_chunk_numel *= target_shape[static_cast<size_t>(target_dim)];
+      target_chunk_numel *= target_shape[dim_to_index(target_dim)];
       --target_dim;
     }
 
@@ -188,7 +189,7 @@ infer_view_strides(const std::vector<int64_t> &input_shape,
     }
 
     if (input_dim > 0) {
-      chunk_base_stride = input_strides[static_cast<size_t>(input_dim - 1)];
+      chunk_base_stride = input_strides[dim_to_index(input_dim - 1)];
       input_chunk_numel = 1;
       target_chunk_numel = 1;
     }
