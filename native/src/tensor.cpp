@@ -5,6 +5,7 @@
 
 #include "bt/tensor.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -436,6 +437,54 @@ void validate_non_empty_reduction(const bt::Tensor &tensor,
   return out;
 }
 
+[[nodiscard]] bool should_record_unary(const bt::Tensor &input) {
+  return bt::autograd::is_grad_enabled() && input.requires_grad();
+}
+
+[[nodiscard]] bool should_record_binary(const bt::Tensor &lhs,
+                                        const bt::Tensor &rhs) {
+  return bt::autograd::is_grad_enabled() &&
+         (lhs.requires_grad() || rhs.requires_grad());
+}
+
+void throw_autograd_not_implemented(const std::string_view op_name) {
+  std::ostringstream oss;
+  oss << "Autograd support for " << op_name
+      << " is not implemented yet. Milestone 1 currently supports gradients "
+         "for add, mul, and sum.";
+  throw std::runtime_error(oss.str());
+}
+
+class SumNode final : public bt::Node {
+public:
+  SumNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims,
+          const bool keepdim)
+      : bt::Node({input}), input_shape_(input.shape), keepdim_(keepdim) {
+    reduced_dims_ = reduced_dims;
+    std::sort(reduced_dims_.begin(), reduced_dims_.end());
+  }
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    bt::Tensor grad = out_grad;
+    if (!keepdim_) {
+      std::vector<int64_t> reshape_shape = grad.shape;
+      for (const int64_t dim : reduced_dims_) {
+        reshape_shape.insert(reshape_shape.begin() + dim, 1);
+      }
+      grad = grad.reshape(reshape_shape);
+    }
+
+    const bt::Tensor expanded = grad * bt::ones(input_shape_);
+    return {expanded};
+  }
+
+private:
+  std::vector<int64_t> input_shape_;
+  std::vector<int64_t> reduced_dims_;
+  bool keepdim_ = false;
+};
+
 } // namespace
 
 /*
@@ -527,12 +576,140 @@ float *Tensor::data_ptr() noexcept {
 }
 
 /*
+ * Returns whether autograd is enabled for this tensor.
+ */
+bool Tensor::requires_grad() const noexcept {
+  return autograd_meta != nullptr && autograd_meta->requires_grad;
+}
+
+/*
+ * Sets whether this tensor tracks gradients in autograd.
+ */
+Tensor &Tensor::requires_grad_(const bool requires_grad) {
+  if (!requires_grad) {
+    if (autograd_meta != nullptr) {
+      autograd_meta->requires_grad = false;
+      autograd_meta->is_leaf = true;
+      autograd_meta->grad = std::nullopt;
+      autograd_meta->grad_fn = nullptr;
+    }
+    return *this;
+  }
+
+  if (autograd_meta == nullptr) {
+    autograd_meta = std::make_shared<AutogradMeta>();
+  }
+  autograd_meta->requires_grad = true;
+  if (autograd_meta->grad_fn == nullptr) {
+    autograd_meta->is_leaf = true;
+  }
+  return *this;
+}
+
+/*
+ * Returns whether this tensor is a leaf in the autograd graph.
+ */
+bool Tensor::is_leaf() const noexcept {
+  if (autograd_meta == nullptr) {
+    return true;
+  }
+  return autograd_meta->is_leaf;
+}
+
+/*
+ * Returns the accumulated gradient for this tensor, if available.
+ */
+std::optional<Tensor> Tensor::grad() const {
+  if (autograd_meta == nullptr) {
+    return std::nullopt;
+  }
+  return autograd_meta->grad;
+}
+
+/*
+ * Clears the accumulated gradient buffer for this tensor.
+ */
+void Tensor::zero_grad() {
+  if (autograd_meta == nullptr) {
+    return;
+  }
+  autograd_meta->grad = std::nullopt;
+}
+
+/*
+ * Returns a tensor detached from autograd history.
+ */
+Tensor Tensor::detach() const {
+  return Tensor(storage, storage_offset, shape, strides);
+}
+
+/*
+ * Executes backward from this tensor.
+ */
+void Tensor::backward(const std::optional<Tensor> &gradient) const {
+  autograd::backward(*this, gradient);
+}
+
+/*
+ * Assigns a gradient function node to this tensor.
+ */
+void Tensor::set_grad_fn(const std::shared_ptr<Node> &grad_fn) {
+  if (grad_fn == nullptr) {
+    throw std::invalid_argument("set_grad_fn() expected a non-null node.");
+  }
+  if (autograd_meta == nullptr) {
+    autograd_meta = std::make_shared<AutogradMeta>();
+  }
+  autograd_meta->requires_grad = true;
+  autograd_meta->is_leaf = false;
+  autograd_meta->grad_fn = grad_fn;
+}
+
+/*
+ * Returns this tensor's gradient function node.
+ */
+std::shared_ptr<Node> Tensor::grad_fn() const {
+  if (autograd_meta == nullptr) {
+    return nullptr;
+  }
+  return autograd_meta->grad_fn;
+}
+
+/*
+ * Accumulates a gradient tensor into this tensor's gradient buffer.
+ */
+void Tensor::accumulate_grad(const Tensor &incoming_grad) {
+  if (incoming_grad.shape != shape) {
+    std::ostringstream oss;
+    oss << "accumulate_grad failed for tensor with shape "
+        << detail::shape_to_string(shape) << ": gradient shape "
+        << detail::shape_to_string(incoming_grad.shape)
+        << " does not match tensor shape.";
+    throw std::invalid_argument(oss.str());
+  }
+
+  if (autograd_meta == nullptr) {
+    autograd_meta = std::make_shared<AutogradMeta>();
+  }
+  if (autograd_meta->grad.has_value()) {
+    autograd::NoGradGuard guard;
+    autograd_meta->grad = autograd_meta->grad.value() + incoming_grad;
+    return;
+  }
+
+  autograd_meta->grad = incoming_grad.contiguous();
+}
+
+/*
  * Returns a contiguous tensor with identical logical values and shape.
  * If the tensor is already contiguous, this returns an equivalent tensor
  * referencing the same storage.
  */
 Tensor Tensor::contiguous() const {
   validate_copy_metadata(*this, "contiguous");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("contiguous");
+  }
 
   if (is_contiguous()) {
     return *this;
@@ -560,6 +737,9 @@ Tensor Tensor::contiguous() const {
  */
 Tensor Tensor::view(const std::vector<int64_t> &shape) const {
   validate_copy_metadata(*this, "view");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("view");
+  }
 
   std::vector<int64_t> target_shape =
       detail::infer_reshape_shape(this->shape, shape);
@@ -584,6 +764,9 @@ Tensor Tensor::view(const std::vector<int64_t> &shape) const {
  */
 Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
   validate_copy_metadata(*this, "reshape");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("reshape");
+  }
 
   std::vector<int64_t> target_shape =
       detail::infer_reshape_shape(this->shape, shape);
@@ -603,6 +786,9 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
  */
 Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
   validate_copy_metadata(*this, "permute");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("permute");
+  }
 
   const std::vector<int64_t> normalized_dims =
       detail::normalize_permutation_checked("permute", shape, dims);
@@ -624,6 +810,9 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
  */
 Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
   validate_copy_metadata(*this, "transpose");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("transpose");
+  }
 
   const int64_t normalized_dim0 =
       detail::normalize_dim_checked("transpose", shape, dim0, "dim0");
@@ -645,6 +834,9 @@ Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
  */
 Tensor Tensor::T() const {
   validate_copy_metadata(*this, "T");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("T");
+  }
 
   if (ndim() != 2) {
     std::ostringstream oss;
@@ -662,6 +854,9 @@ Tensor Tensor::T() const {
  */
 Tensor Tensor::mT() const {
   validate_copy_metadata(*this, "mT");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("mT");
+  }
 
   if (ndim() < 2) {
     std::ostringstream oss;
@@ -682,6 +877,9 @@ Tensor Tensor::mT() const {
 Tensor Tensor::matmul(const Tensor &tensor2) const {
   validate_copy_metadata(*this, "matmul");
   validate_copy_metadata(tensor2, "matmul");
+  if (should_record_binary(*this, tensor2)) {
+    throw_autograd_not_implemented("matmul");
+  }
 
   if (ndim() == 0 || tensor2.ndim() == 0) {
     std::ostringstream oss;
@@ -789,7 +987,11 @@ Tensor Tensor::sum(const std::vector<int64_t> &dim, const bool keepdim) const {
       normalize_reduction_dims(*this, dim, "sum");
   const ReductionPlan plan =
       build_reduction_plan(*this, normalized_dims, keepdim);
-  return sum_with_plan(*this, plan);
+  Tensor out = sum_with_plan(*this, plan);
+  if (should_record_unary(*this)) {
+    out.set_grad_fn(std::make_shared<SumNode>(*this, normalized_dims, keepdim));
+  }
+  return out;
 }
 
 /*
@@ -811,6 +1013,9 @@ Tensor Tensor::mean(const int64_t dim, const bool keepdim) const {
  */
 Tensor Tensor::mean(const std::vector<int64_t> &dim, const bool keepdim) const {
   validate_copy_metadata(*this, "mean");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("mean");
+  }
 
   const std::vector<int64_t> normalized_dims =
       normalize_reduction_dims(*this, dim, "mean");
@@ -839,6 +1044,9 @@ Tensor Tensor::max(const int64_t dim, const bool keepdim) const {
  */
 Tensor Tensor::max(const std::vector<int64_t> &dim, const bool keepdim) const {
   validate_copy_metadata(*this, "max");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("max");
+  }
 
   const std::vector<int64_t> normalized_dims =
       normalize_reduction_dims(*this, dim, "max");
@@ -853,6 +1061,9 @@ Tensor Tensor::max(const std::vector<int64_t> &dim, const bool keepdim) const {
  */
 Tensor Tensor::softmax(const int64_t dim) const {
   validate_copy_metadata(*this, "softmax");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("softmax");
+  }
 
   const int64_t normalized_dim =
       detail::normalize_dim_checked("softmax", shape, dim, "dim");
@@ -872,6 +1083,9 @@ Tensor Tensor::softmax(const int64_t dim) const {
  */
 Tensor Tensor::log_softmax(const int64_t dim) const {
   validate_copy_metadata(*this, "log_softmax");
+  if (should_record_unary(*this)) {
+    throw_autograd_not_implemented("log_softmax");
+  }
 
   const int64_t normalized_dim =
       detail::normalize_dim_checked("log_softmax", shape, dim, "dim");
@@ -893,6 +1107,11 @@ Tensor layer_norm(const Tensor &input,
                   const std::optional<Tensor> &weight,
                   const std::optional<Tensor> &bias, const float eps) {
   validate_copy_metadata(input, "layer_norm");
+  if (should_record_unary(input) ||
+      (weight.has_value() && should_record_unary(*weight)) ||
+      (bias.has_value() && should_record_unary(*bias))) {
+    throw_autograd_not_implemented("layer_norm");
+  }
   if (weight.has_value()) {
     validate_copy_metadata(*weight, "layer_norm");
   }
@@ -1037,6 +1256,9 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
                      const int64_t ignore_index, const std::string &reduction) {
   validate_copy_metadata(input, "cross_entropy");
   validate_copy_metadata(target, "cross_entropy");
+  if (should_record_binary(input, target)) {
+    throw_autograd_not_implemented("cross_entropy");
+  }
 
   const auto make_error_prefix = [&input, &target]() {
     return std::string("cross_entropy failed for input shape ") +
@@ -1201,6 +1423,9 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 Tensor embedding(const Tensor &input, const Tensor &weight) {
   validate_copy_metadata(input, "embedding");
   validate_copy_metadata(weight, "embedding");
+  if (should_record_binary(input, weight)) {
+    throw_autograd_not_implemented("embedding");
+  }
 
   const auto make_error_prefix = [&input, &weight]() {
     return std::string("embedding failed for input shape ") +
@@ -1292,20 +1517,28 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
 /*
  * Creates a tensor filled with a constant value.
  */
-Tensor full(const std::vector<int64_t> &shape, float fill_value) {
+Tensor full(const std::vector<int64_t> &shape, const float fill_value,
+            const bool requires_grad) {
   Tensor tensor(shape);
   tensor.storage->fill(fill_value);
+  if (requires_grad) {
+    tensor.requires_grad_(true);
+  }
   return tensor;
 }
 
 /*
  * Creates a tensor filled with zeros.
  */
-Tensor zeros(const std::vector<int64_t> &shape) { return full(shape, 0.0f); }
+Tensor zeros(const std::vector<int64_t> &shape, const bool requires_grad) {
+  return full(shape, 0.0f, requires_grad);
+}
 
 /*
  * Creates a tensor filled with ones.
  */
-Tensor ones(const std::vector<int64_t> &shape) { return full(shape, 1.0f); }
+Tensor ones(const std::vector<int64_t> &shape, const bool requires_grad) {
+  return full(shape, 1.0f, requires_grad);
+}
 
 } /* namespace bt */

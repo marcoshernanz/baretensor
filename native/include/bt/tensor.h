@@ -18,6 +18,8 @@
  * Purpose: Public BareTensor C++ API surface.
  */
 namespace bt {
+class Node;
+struct AutogradMeta;
 
 /*
  * Class: Tensor
@@ -44,6 +46,11 @@ public:
    * Tensor strides in elements per dimension.
    */
   std::vector<int64_t> strides;
+
+  /*
+   * Shared autograd metadata for this tensor handle.
+   */
+  std::shared_ptr<AutogradMeta> autograd_meta;
 
   /*
    * Constructs a tensor with allocated storage for the given shape.
@@ -87,6 +94,56 @@ public:
    * Returns a mutable data pointer at the tensor offset.
    */
   [[nodiscard]] float *data_ptr() noexcept;
+
+  /*
+   * Returns whether autograd is enabled for this tensor.
+   */
+  [[nodiscard]] bool requires_grad() const noexcept;
+
+  /*
+   * Sets whether this tensor tracks gradients in autograd.
+   */
+  Tensor &requires_grad_(bool requires_grad);
+
+  /*
+   * Returns whether this tensor is a leaf in the autograd graph.
+   */
+  [[nodiscard]] bool is_leaf() const noexcept;
+
+  /*
+   * Returns the accumulated gradient for this tensor, if available.
+   */
+  [[nodiscard]] std::optional<Tensor> grad() const;
+
+  /*
+   * Clears the accumulated gradient buffer for this tensor.
+   */
+  void zero_grad();
+
+  /*
+   * Returns a tensor sharing storage but detached from autograd history.
+   */
+  [[nodiscard]] Tensor detach() const;
+
+  /*
+   * Runs reverse-mode automatic differentiation from this tensor.
+   */
+  void backward(const std::optional<Tensor> &gradient = std::nullopt) const;
+
+  /*
+   * Assigns a gradient function node to this tensor.
+   */
+  void set_grad_fn(const std::shared_ptr<Node> &grad_fn);
+
+  /*
+   * Returns this tensor's gradient function node.
+   */
+  [[nodiscard]] std::shared_ptr<Node> grad_fn() const;
+
+  /*
+   * Accumulates a gradient tensor into this tensor's grad buffer.
+   */
+  void accumulate_grad(const Tensor &incoming_grad);
 
   /*
    * Returns a contiguous tensor with identical logical values and shape.
@@ -280,19 +337,97 @@ public:
 };
 
 /*
+ * Class: Node
+ * Purpose: Represents a backward function in the autograd graph.
+ */
+class Node {
+public:
+  explicit Node(std::vector<Tensor> inputs);
+  virtual ~Node() = default;
+
+  /*
+   * Returns the input tensors connected to this node.
+   */
+  [[nodiscard]] const std::vector<Tensor> &inputs() const noexcept;
+
+  /*
+   * Computes gradients for each input tensor from an output gradient.
+   */
+  [[nodiscard]] virtual std::vector<Tensor>
+  backward(const Tensor &out_grad) const = 0;
+
+private:
+  std::vector<Tensor> inputs_;
+};
+
+/*
+ * Struct: AutogradMeta
+ * Purpose: Stores gradient tracking data shared across tensor aliases.
+ */
+struct AutogradMeta {
+  bool requires_grad = false;
+  bool is_leaf = true;
+  std::optional<Tensor> grad = std::nullopt;
+  std::shared_ptr<Node> grad_fn = nullptr;
+};
+
+/*
+ * Namespace: autograd
+ * Purpose: Runtime utilities for dynamic-graph differentiation.
+ */
+namespace autograd {
+
+/*
+ * Returns whether gradient recording is currently enabled.
+ */
+[[nodiscard]] bool is_grad_enabled() noexcept;
+
+/*
+ * RAII guard that disables gradient recording within a scope.
+ */
+class NoGradGuard {
+public:
+  NoGradGuard();
+  ~NoGradGuard();
+
+  NoGradGuard(const NoGradGuard &) = delete;
+  NoGradGuard &operator=(const NoGradGuard &) = delete;
+
+private:
+  bool previous_state_ = true;
+};
+
+/*
+ * Sums broadcasted gradient dimensions to match a target input shape.
+ */
+[[nodiscard]] Tensor reduce_sum_to_shape(const Tensor &grad,
+                                         const std::vector<int64_t> &shape);
+
+/*
+ * Executes reverse-mode automatic differentiation from the output tensor.
+ */
+void backward(const Tensor &output,
+              const std::optional<Tensor> &gradient = std::nullopt);
+
+} // namespace autograd
+
+/*
  * Creates a tensor filled with a constant value.
  */
-[[nodiscard]] Tensor full(const std::vector<int64_t> &shape, float fill_value);
+[[nodiscard]] Tensor full(const std::vector<int64_t> &shape, float fill_value,
+                          bool requires_grad = false);
 
 /*
  * Creates a tensor filled with zeros.
  */
-[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape);
+[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape,
+                           bool requires_grad = false);
 
 /*
  * Creates a tensor filled with ones.
  */
-[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape);
+[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape,
+                          bool requires_grad = false);
 
 /*
  * Computes cross-entropy loss between logits and class-index targets.
@@ -316,8 +451,7 @@ public:
 [[nodiscard]] Tensor
 layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_shape,
            const std::optional<Tensor> &weight = std::nullopt,
-           const std::optional<Tensor> &bias = std::nullopt,
-           float eps = 1e-5f);
+           const std::optional<Tensor> &bias = std::nullopt, float eps = 1e-5f);
 
 /*
  * Computes embedding lookup for integer index tensors.
