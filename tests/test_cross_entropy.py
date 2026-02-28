@@ -18,15 +18,18 @@ def _expected_losses(
     logits: np.ndarray, target: np.ndarray, ignore_index: int
 ) -> tuple[np.ndarray, float, int]:
     log_probs = _stable_log_softmax_expected(logits)
-    losses = np.zeros((target.shape[0],), dtype=np.float32)
+    losses = np.zeros(target.shape, dtype=np.float32)
     total = 0.0
     valid = 0
-    for n, target_value in enumerate(target):
+    for index in np.ndindex(target.shape):
+        target_value = target[index]
         class_index = int(target_value)
         if class_index == ignore_index:
             continue
-        loss = float(-log_probs[n, class_index])
-        losses[n] = np.float32(loss)
+
+        log_prob_index = (index[0], class_index, *index[1:])
+        loss = float(-log_probs[log_prob_index])
+        losses[index] = np.float32(loss)
         total += loss
         valid += 1
     return losses, float(total), valid
@@ -43,9 +46,33 @@ class CrossEntropyTests(unittest.TestCase):
         expected = np.asarray(total / valid, dtype=np.float32)
         np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
 
-    def test_cross_entropy_none_with_ignore_index(self) -> None:
-        logits = np.asarray([[2.0, 0.0, -1.0], [1.0, 1.5, -2.0], [0.2, 0.7, 0.1]], dtype=np.float32)
-        target = np.asarray([0.0, -100.0, 1.0], dtype=np.float32)
+    def test_cross_entropy_mean_matches_numpy_for_sequence_logits(self) -> None:
+        logits = np.asarray(
+            [
+                [[3.0, 2.0, 1.0, 0.0], [0.5, 0.1, 0.2, 0.3], [-1.0, -2.0, -3.0, -4.0]],
+                [[0.0, 1.0, 2.0, 3.0], [2.0, 1.0, 0.0, -1.0], [-0.2, -0.1, 0.0, 0.1]],
+            ],
+            dtype=np.float32,
+        )
+        target = np.asarray([[0.0, 1.0, 2.0, 1.0], [2.0, 0.0, 1.0, 0.0]], dtype=np.float32)
+
+        out = F.cross_entropy(bt.tensor(logits), bt.tensor(target))
+
+        _, total, valid = _expected_losses(logits, target, ignore_index=-100)
+        expected = np.asarray(total / valid, dtype=np.float32)
+        np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
+
+    def test_cross_entropy_none_with_ignore_index_for_sequence_logits(self) -> None:
+        logits = np.asarray(
+            [
+                [[2.0, 0.0, -1.0, 0.5], [1.0, 1.5, -2.0, 1.0], [0.2, 0.7, 0.1, 0.3]],
+                [[1.0, 0.5, 0.2, -0.1], [0.0, -0.5, -1.0, -1.5], [2.0, 2.5, 3.0, 3.5]],
+            ],
+            dtype=np.float32,
+        )
+        target = np.asarray(
+            [[0.0, -100.0, 1.0, 2.0], [2.0, 2.0, -100.0, 1.0]], dtype=np.float32
+        )
 
         out = F.cross_entropy(
             bt.tensor(logits),
@@ -55,6 +82,7 @@ class CrossEntropyTests(unittest.TestCase):
         )
 
         expected, _, _ = _expected_losses(logits, target, ignore_index=-100)
+        self.assertEqual(out.shape, [2, 4])
         np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
 
     def test_cross_entropy_sum_with_ignore_index(self) -> None:
@@ -73,21 +101,21 @@ class CrossEntropyTests(unittest.TestCase):
         np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
 
     def test_cross_entropy_all_ignored_mean_is_nan(self) -> None:
-        logits = np.asarray([[1.0, 0.0], [2.0, -3.0]], dtype=np.float32)
-        target = np.asarray([-100.0, -100.0], dtype=np.float32)
+        logits = np.asarray([[[1.0, 0.0], [2.0, -3.0]]], dtype=np.float32)
+        target = np.asarray([[-100.0, -100.0]], dtype=np.float32)
 
         out = F.cross_entropy(bt.tensor(logits), bt.tensor(target), reduction="mean")
 
         self.assertTrue(np.isnan(to_numpy(out)).item())
 
-    def test_cross_entropy_non_contiguous_input(self) -> None:
-        source = np.asarray(np.arange(12, dtype=np.float32).reshape(3, 4), dtype=np.float32)
-        logits = bt.tensor(source).transpose(0, 1)
-        target = np.asarray([0.0, 1.0, 2.0, 1.0], dtype=np.float32)
+    def test_cross_entropy_non_contiguous_sequence_input(self) -> None:
+        source = np.asarray(np.arange(2 * 4 * 3, dtype=np.float32).reshape(2, 4, 3), dtype=np.float32)
+        logits = bt.tensor(source).transpose(1, 2)
+        target = np.asarray([[0.0, 1.0, 2.0, 1.0], [2.0, 0.0, 1.0, 2.0]], dtype=np.float32)
 
         out = F.cross_entropy(logits, bt.tensor(target))
 
-        expected_logits = np.transpose(source, (1, 0))
+        expected_logits = np.transpose(source, (0, 2, 1))
         _, total, valid = _expected_losses(expected_logits, target, ignore_index=-100)
         expected = np.asarray(total / valid, dtype=np.float32)
         np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
@@ -109,7 +137,7 @@ class CrossEntropyTests(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"cross_entropy failed for input shape \[2, 2\] and target shape \[2\]: "
-            r"target values must be integer class indices, but target\[1\]=1.5\.",
+            r"target values must be integer class indices\.",
         ):
             _ = F.cross_entropy(logits, target)
 
@@ -120,18 +148,40 @@ class CrossEntropyTests(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"cross_entropy failed for input shape \[2, 2\] and target shape \[2\]: "
-            r"target\[1\]=2 is out of range for 2 classes\.",
+            r"target class index 2 is out of range for 2 classes\.",
         ):
             _ = F.cross_entropy(logits, target)
 
-    def test_cross_entropy_rejects_shape_mismatch(self) -> None:
-        logits = bt.tensor(np.asarray([[0.1, 0.2], [0.4, 0.3]], dtype=np.float32))
+    def test_cross_entropy_rejects_target_shape_mismatch(self) -> None:
+        logits = bt.tensor(np.asarray(np.zeros((2, 3, 4), dtype=np.float32), dtype=np.float32))
+        target = bt.tensor(np.asarray(np.zeros((2, 3), dtype=np.float32), dtype=np.float32))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"cross_entropy failed for input shape \[2, 3, 4\] and target shape \[2, 3\]: "
+            r"target shape must be \[2, 4\] to match input shape \[N, C, \.\.\.\]\.",
+        ):
+            _ = F.cross_entropy(logits, target)
+
+    def test_cross_entropy_rejects_input_rank_below_two(self) -> None:
+        logits = bt.tensor(np.asarray([0.1, 0.2, 0.3], dtype=np.float32))
         target = bt.tensor(np.asarray([0.0], dtype=np.float32))
 
         with self.assertRaisesRegex(
             ValueError,
-            r"cross_entropy failed for input shape \[2, 2\] and target shape \[1\]: "
-            r"target length must match input batch size N; got target\.shape\[0\]=1 and input\.shape\[0\]=2\.",
+            r"cross_entropy failed for input shape \[3\] and target shape \[1\]: "
+            r"input must have rank >= 2 with shape \[N, C, \.\.\.\]\.",
+        ):
+            _ = F.cross_entropy(logits, target)
+
+    def test_cross_entropy_rejects_non_positive_class_count(self) -> None:
+        logits = bt.zeros([2, 0, 4])
+        target = bt.tensor(np.asarray(np.zeros((2, 4), dtype=np.float32), dtype=np.float32))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"cross_entropy failed for input shape \[2, 0, 4\] and target shape \[2, 4\]: "
+            r"input\.shape\[1\] \(number of classes\) must be positive, got 0\.",
         ):
             _ = F.cross_entropy(logits, target)
 

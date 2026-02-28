@@ -296,8 +296,8 @@ public:
 /*
  * Computes cross-entropy loss between logits and class-index targets.
  * TinyGPT-focused scope:
- * - input shape must be [N, C]
- * - target shape must be [N]
+ * - input shape must be [N, C, d1, ..., dK] with K >= 0
+ * - target shape must be [N, d1, ..., dK]
  * - target values must be integer class indices in [0, C) or ignore_index
  * - reduction supports "none", "mean", and "sum"
  */

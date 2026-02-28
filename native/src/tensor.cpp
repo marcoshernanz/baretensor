@@ -900,24 +900,31 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
            detail::shape_to_string(target.shape) + ": ";
   };
 
-  if (input.ndim() != 2) {
+  if (input.ndim() < 2) {
     throw std::invalid_argument(make_error_prefix() +
-                                "input must have rank 2 [N, C] for the "
-                                "current TinyGPT-focused implementation.");
-  }
-  if (target.ndim() != 1) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "target must have rank 1 [N] with class "
-                                "indices.");
+                                "input must have rank >= 2 with shape "
+                                "[N, C, ...].");
   }
 
-  const int64_t batch_size = input.shape[0];
   const int64_t class_count = input.shape[1];
-  if (target.shape[0] != batch_size) {
+  if (class_count <= 0) {
     std::ostringstream oss;
-    oss << make_error_prefix() << "target length must match input batch "
-        << "size N; got target.shape[0]=" << target.shape[0]
-        << " and input.shape[0]=" << batch_size << ".";
+    oss << make_error_prefix()
+        << "input.shape[1] (number of classes) must be positive, got "
+        << class_count << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  std::vector<int64_t> expected_target_shape;
+  expected_target_shape.reserve(input.shape.size() - 1);
+  expected_target_shape.push_back(input.shape[0]);
+  expected_target_shape.insert(expected_target_shape.end(), input.shape.begin() + 2,
+                               input.shape.end());
+  if (target.shape != expected_target_shape) {
+    std::ostringstream oss;
+    oss << make_error_prefix() << "target shape must be "
+        << detail::shape_to_string(expected_target_shape)
+        << " to match input shape [N, C, ...].";
     throw std::invalid_argument(oss.str());
   }
 
@@ -936,7 +943,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   }
 
   const Tensor log_probs = input.log_softmax(1);
-  Tensor unreduced({batch_size});
+  Tensor unreduced(target.shape);
   unreduced.storage->fill(0.0f);
 
   float total_loss = 0.0f;
@@ -945,9 +952,20 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   const float *target_ptr = target.data_ptr();
   const float *log_probs_ptr = log_probs.data_ptr();
 
-  for (int64_t n = 0; n < batch_size; ++n) {
-    const float target_value =
-        target_ptr[n * target.strides[0]];
+  std::vector<int64_t> log_probs_target_strides(target.shape.size(), 0);
+  for (size_t target_dim = 0; target_dim < target.shape.size(); ++target_dim) {
+    const size_t input_dim = target_dim == 0 ? 0 : target_dim + 1;
+    log_probs_target_strides[target_dim] = log_probs.strides[input_dim];
+  }
+
+  const int64_t target_numel = target.numel();
+  std::vector<int64_t> coord(target.shape.size(), 0);
+  int64_t target_offset = 0;
+  int64_t unreduced_offset = 0;
+  int64_t log_probs_base_offset = 0;
+
+  for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
+    const float target_value = target_ptr[target_offset];
     if (!std::isfinite(target_value)) {
       throw std::invalid_argument(
           make_error_prefix() +
@@ -958,31 +976,50 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
     if (target_value != truncated) {
       std::ostringstream oss;
       oss << make_error_prefix()
-          << "target values must be integer class indices, but target[" << n
-          << "]=" << target_value << ".";
+          << "target values must be integer class indices.";
       throw std::invalid_argument(oss.str());
     }
 
     const int64_t class_index = static_cast<int64_t>(truncated);
     if (class_index == ignore_index) {
-      unreduced_ptr[n] = 0.0f;
+      unreduced_ptr[unreduced_offset] = 0.0f;
+    } else {
+      if (class_index < 0 || class_index >= class_count) {
+        std::ostringstream oss;
+        oss << make_error_prefix() << "target class index " << class_index
+            << " is out of range for " << class_count << " classes.";
+        throw std::invalid_argument(oss.str());
+      }
+
+      const float log_prob =
+          log_probs_ptr[log_probs_base_offset +
+                        class_index * log_probs.strides[1]];
+      const float loss = -log_prob;
+      unreduced_ptr[unreduced_offset] = loss;
+      total_loss += loss;
+      ++valid_count;
+    }
+
+    if (target.shape.empty()) {
       continue;
     }
 
-    if (class_index < 0 || class_index >= class_count) {
-      std::ostringstream oss;
-      oss << make_error_prefix() << "target[" << n << "]=" << class_index
-          << " is out of range for " << class_count << " classes.";
-      throw std::invalid_argument(oss.str());
-    }
+    for (int64_t dim = static_cast<int64_t>(target.shape.size()) - 1; dim >= 0;
+         --dim) {
+      const size_t dim_index = static_cast<size_t>(dim);
+      ++coord[dim_index];
+      target_offset += target.strides[dim_index];
+      unreduced_offset += unreduced.strides[dim_index];
+      log_probs_base_offset += log_probs_target_strides[dim_index];
+      if (coord[dim_index] < target.shape[dim_index]) {
+        break;
+      }
 
-    const float log_prob =
-        log_probs_ptr[n * log_probs.strides[0] +
-                      class_index * log_probs.strides[1]];
-    const float loss = -log_prob;
-    unreduced_ptr[n] = loss;
-    total_loss += loss;
-    ++valid_count;
+      target_offset -= coord[dim_index] * target.strides[dim_index];
+      unreduced_offset -= coord[dim_index] * unreduced.strides[dim_index];
+      log_probs_base_offset -= coord[dim_index] * log_probs_target_strides[dim_index];
+      coord[dim_index] = 0;
+    }
   }
 
   if (reduction_mode == ReductionMode::kNone) {
