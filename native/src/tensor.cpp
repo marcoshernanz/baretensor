@@ -900,31 +900,35 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
            detail::shape_to_string(target.shape) + ": ";
   };
 
-  if (input.ndim() < 2) {
+  if (input.ndim() < 1) {
     throw std::invalid_argument(make_error_prefix() +
-                                "input must have rank >= 2 with shape "
+                                "input must have rank >= 1 with shape [C] or "
                                 "[N, C, ...].");
   }
 
-  const int64_t class_count = input.shape[1];
+  const int64_t class_dim = input.ndim() == 1 ? 0 : 1;
+  const int64_t class_count = input.shape[static_cast<size_t>(class_dim)];
   if (class_count <= 0) {
     std::ostringstream oss;
     oss << make_error_prefix()
-        << "input.shape[1] (number of classes) must be positive, got "
+        << "input class dimension size must be positive, got "
         << class_count << ".";
     throw std::invalid_argument(oss.str());
   }
 
   std::vector<int64_t> expected_target_shape;
   expected_target_shape.reserve(input.shape.size() - 1);
-  expected_target_shape.push_back(input.shape[0]);
-  expected_target_shape.insert(expected_target_shape.end(), input.shape.begin() + 2,
-                               input.shape.end());
+  for (size_t input_dim = 0; input_dim < input.shape.size(); ++input_dim) {
+    if (static_cast<int64_t>(input_dim) == class_dim) {
+      continue;
+    }
+    expected_target_shape.push_back(input.shape[input_dim]);
+  }
   if (target.shape != expected_target_shape) {
     std::ostringstream oss;
     oss << make_error_prefix() << "target shape must be "
         << detail::shape_to_string(expected_target_shape)
-        << " to match input shape [N, C, ...].";
+        << " to match input by removing the class dimension.";
     throw std::invalid_argument(oss.str());
   }
 
@@ -942,7 +946,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
         "'sum'}.");
   }
 
-  const Tensor log_probs = input.log_softmax(1);
+  const Tensor log_probs = input.log_softmax(class_dim);
   Tensor unreduced(target.shape);
   unreduced.storage->fill(0.0f);
 
@@ -953,9 +957,13 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   const float *log_probs_ptr = log_probs.data_ptr();
 
   std::vector<int64_t> log_probs_target_strides(target.shape.size(), 0);
-  for (size_t target_dim = 0; target_dim < target.shape.size(); ++target_dim) {
-    const size_t input_dim = target_dim == 0 ? 0 : target_dim + 1;
+  size_t target_dim = 0;
+  for (size_t input_dim = 0; input_dim < input.shape.size(); ++input_dim) {
+    if (static_cast<int64_t>(input_dim) == class_dim) {
+      continue;
+    }
     log_probs_target_strides[target_dim] = log_probs.strides[input_dim];
+    ++target_dim;
   }
 
   const int64_t target_numel = target.numel();
@@ -993,7 +1001,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
       const float log_prob =
           log_probs_ptr[log_probs_base_offset +
-                        class_index * log_probs.strides[1]];
+                        class_index * log_probs.strides[static_cast<size_t>(class_dim)]];
       const float loss = -log_prob;
       unreduced_ptr[unreduced_offset] = loss;
       total_loss += loss;

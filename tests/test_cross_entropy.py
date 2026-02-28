@@ -9,8 +9,9 @@ from tests.utils import to_numpy
 
 
 def _stable_log_softmax_expected(logits: np.ndarray) -> np.ndarray:
-    shifted = logits - np.max(logits, axis=1, keepdims=True)
-    log_denom = np.log(np.sum(np.exp(shifted), axis=1, keepdims=True))
+    class_dim = 0 if logits.ndim == 1 else 1
+    shifted = logits - np.max(logits, axis=class_dim, keepdims=True)
+    log_denom = np.log(np.sum(np.exp(shifted), axis=class_dim, keepdims=True))
     return np.asarray(shifted - log_denom, dtype=np.float32)
 
 
@@ -18,6 +19,7 @@ def _expected_losses(
     logits: np.ndarray, target: np.ndarray, ignore_index: int
 ) -> tuple[np.ndarray, float, int]:
     log_probs = _stable_log_softmax_expected(logits)
+    class_dim = 0 if logits.ndim == 1 else 1
     losses = np.zeros(target.shape, dtype=np.float32)
     total = 0.0
     valid = 0
@@ -27,7 +29,10 @@ def _expected_losses(
         if class_index == ignore_index:
             continue
 
-        log_prob_index = (index[0], class_index, *index[1:])
+        if class_dim == 0:
+            log_prob_index = (class_index,)
+        else:
+            log_prob_index = (index[0], class_index, *index[1:])
         loss = float(-log_probs[log_prob_index])
         losses[index] = np.float32(loss)
         total += loss
@@ -36,6 +41,38 @@ def _expected_losses(
 
 
 class CrossEntropyTests(unittest.TestCase):
+    def test_cross_entropy_unbatched_mean_matches_numpy(self) -> None:
+        logits = np.asarray([2.0, 0.0, -1.0], dtype=np.float32)
+        target = np.asarray(0.0, dtype=np.float32)
+
+        out = F.cross_entropy(bt.tensor(logits), bt.tensor(target))
+
+        _, total, valid = _expected_losses(logits, target, ignore_index=-100)
+        expected = np.asarray(total / valid, dtype=np.float32)
+        np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
+
+    def test_cross_entropy_unbatched_none_returns_scalar(self) -> None:
+        logits = np.asarray([2.0, 0.0, -1.0], dtype=np.float32)
+        target = np.asarray(0.0, dtype=np.float32)
+
+        out = F.cross_entropy(bt.tensor(logits), bt.tensor(target), reduction="none")
+
+        self.assertEqual(out.shape, [])
+        expected, _, _ = _expected_losses(logits, target, ignore_index=-100)
+        np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
+
+    def test_cross_entropy_unbatched_ignore_index_mean_is_nan(self) -> None:
+        logits = np.asarray([1.0, 0.0], dtype=np.float32)
+        target = np.asarray(-100.0, dtype=np.float32)
+
+        out = F.cross_entropy(
+            bt.tensor(logits),
+            bt.tensor(target),
+            ignore_index=-100,
+            reduction="mean",
+        )
+        self.assertTrue(np.isnan(to_numpy(out)).item())
+
     def test_cross_entropy_mean_matches_numpy(self) -> None:
         logits = np.asarray([[2.0, 0.0, -1.0], [0.1, 0.2, 3.0]], dtype=np.float32)
         target = np.asarray([0.0, 2.0], dtype=np.float32)
@@ -159,18 +196,18 @@ class CrossEntropyTests(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"cross_entropy failed for input shape \[2, 3, 4\] and target shape \[2, 3\]: "
-            r"target shape must be \[2, 4\] to match input shape \[N, C, \.\.\.\]\.",
+            r"target shape must be \[2, 4\] to match input by removing the class dimension\.",
         ):
             _ = F.cross_entropy(logits, target)
 
-    def test_cross_entropy_rejects_input_rank_below_two(self) -> None:
-        logits = bt.tensor(np.asarray([0.1, 0.2, 0.3], dtype=np.float32))
-        target = bt.tensor(np.asarray([0.0], dtype=np.float32))
+    def test_cross_entropy_rejects_input_rank_below_one(self) -> None:
+        logits = bt.tensor(np.asarray(1.0, dtype=np.float32))
+        target = bt.tensor(np.asarray(0.0, dtype=np.float32))
 
         with self.assertRaisesRegex(
             ValueError,
-            r"cross_entropy failed for input shape \[3\] and target shape \[1\]: "
-            r"input must have rank >= 2 with shape \[N, C, \.\.\.\]\.",
+            r"cross_entropy failed for input shape \[\] and target shape \[\]: "
+            r"input must have rank >= 1 with shape \[C\] or \[N, C, \.\.\.\]\.",
         ):
             _ = F.cross_entropy(logits, target)
 
@@ -181,7 +218,7 @@ class CrossEntropyTests(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"cross_entropy failed for input shape \[2, 0, 4\] and target shape \[2, 4\]: "
-            r"input\.shape\[1\] \(number of classes\) must be positive, got 0\.",
+            r"input class dimension size must be positive, got 0\.",
         ):
             _ = F.cross_entropy(logits, target)
 

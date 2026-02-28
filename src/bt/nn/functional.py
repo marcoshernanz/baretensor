@@ -19,6 +19,7 @@ def cross_entropy(
     Compute cross-entropy loss for TinyGPT-style class-index targets.
 
     Current supported shapes:
+    - input: [C] logits, target: [] scalar class index
     - input: [N, C, d1, ..., dK] logits
     - target: [N, d1, ..., dK] class indices (integer-valued float32)
     """

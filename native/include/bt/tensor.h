@@ -296,6 +296,7 @@ public:
 /*
  * Computes cross-entropy loss between logits and class-index targets.
  * TinyGPT-focused scope:
+ * - input shape [C] is supported with scalar target []
  * - input shape must be [N, C, d1, ..., dK] with K >= 0
  * - target shape must be [N, d1, ..., dK]
  * - target values must be integer class indices in [0, C) or ignore_index
