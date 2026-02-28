@@ -174,6 +174,7 @@ NB_MODULE(_C, m) {
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
         nb::arg("target"), nb::arg("ignore_index") = -100,
         nb::arg("reduction") = "mean");
+  m.def("embedding", &bt::embedding, nb::arg("input"), nb::arg("weight"));
 
   m.def(
       "tensor",
