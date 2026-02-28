@@ -22,6 +22,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt.Tensor, "mean"))
         self.assertTrue(hasattr(bt.Tensor, "max"))
         self.assertTrue(hasattr(bt.nn.functional, "cross_entropy"))
+        self.assertTrue(hasattr(bt.nn.functional, "embedding"))
 
 
 if __name__ == "__main__":
