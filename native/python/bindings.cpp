@@ -95,6 +95,17 @@ NB_MODULE(_C, m) {
       .def_ro("strides", &bt::Tensor::strides)
       .def("ndim", &bt::Tensor::ndim)
       .def("numel", &bt::Tensor::numel)
+      .def_prop_ro("requires_grad", &bt::Tensor::requires_grad)
+      .def(
+          "requires_grad_",
+          &bt::Tensor::requires_grad_,
+          nb::arg("requires_grad") = true, nb::rv_policy::reference_internal)
+      .def_prop_ro("is_leaf", &bt::Tensor::is_leaf)
+      .def_prop_ro("grad", &bt::Tensor::grad)
+      .def("zero_grad", &bt::Tensor::zero_grad)
+      .def("detach", &bt::Tensor::detach)
+      .def("backward", &bt::Tensor::backward,
+           nb::arg("gradient") = std::nullopt)
       .def("is_contiguous", &bt::Tensor::is_contiguous)
       .def("contiguous", &bt::Tensor::contiguous)
       .def("view", &bt::Tensor::view, nb::arg("shape"))
@@ -170,9 +181,12 @@ NB_MODULE(_C, m) {
       .def(nb::self / nb::self)
       .def(nb::self / float());
 
-  m.def("full", &bt::full, nb::arg("shape"), nb::arg("fill_value"));
-  m.def("zeros", &bt::zeros, nb::arg("shape"));
-  m.def("ones", &bt::ones, nb::arg("shape"));
+  m.def("full", &bt::full, nb::arg("shape"), nb::arg("fill_value"),
+        nb::arg("requires_grad") = false);
+  m.def("zeros", &bt::zeros, nb::arg("shape"),
+        nb::arg("requires_grad") = false);
+  m.def("ones", &bt::ones, nb::arg("shape"),
+        nb::arg("requires_grad") = false);
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
         nb::arg("target"), nb::arg("ignore_index") = -100,
         nb::arg("reduction") = "mean");
@@ -183,7 +197,7 @@ NB_MODULE(_C, m) {
 
   m.def(
       "tensor",
-      [](const NdArrayF32 &a) {
+      [](const NdArrayF32 &a, const bool requires_grad) {
         std::vector<int64_t> shape;
         shape.reserve(a.ndim());
         for (size_t i = 0; i < a.ndim(); ++i) {
@@ -203,7 +217,10 @@ NB_MODULE(_C, m) {
         if (a.nbytes() != 0) {
           std::memcpy(t.data_ptr(), a.data(), a.nbytes());
         }
+        if (requires_grad) {
+          t.requires_grad_(true);
+        }
         return t;
       },
-      nb::arg("array"));
+      nb::arg("array"), nb::arg("requires_grad") = false);
 }

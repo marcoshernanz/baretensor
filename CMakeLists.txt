@@ -31,6 +31,7 @@ set(BT_DETAIL_SOURCES
 )
 
 set(BT_CORE_SOURCES
+  native/src/autograd.cpp
   native/src/ops.cpp
   native/src/storage.cpp
   native/src/tensor.cpp
