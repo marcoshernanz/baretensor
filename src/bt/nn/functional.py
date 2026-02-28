@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, cast
+from typing import Literal
 
 from bt._C import (
     Tensor,
@@ -64,29 +64,9 @@ def embedding(
     return _embedding(input=input, weight=weight)
 
 
-def _normalize_layer_norm_shape(normalized_shape: int | Sequence[int]) -> list[int]:
-    if isinstance(normalized_shape, bool):
-        raise TypeError("layer_norm() expected 'normalized_shape' to be an int or a sequence of ints.")
-
-    if isinstance(normalized_shape, int):
-        return [normalized_shape]
-
-    try:
-        dims = list(normalized_shape)
-    except TypeError as exc:
-        raise TypeError(
-            "layer_norm() expected 'normalized_shape' to be an int or a sequence of ints."
-        ) from exc
-
-    dims_any: list[object] = list(dims)
-    if any(isinstance(dim, bool) or not isinstance(dim, int) for dim in dims_any):
-        raise TypeError("layer_norm() expected 'normalized_shape' to contain only ints.")
-    return cast(list[int], dims_any)
-
-
 def layer_norm(
     input: Tensor,
-    normalized_shape: int | Sequence[int],
+    normalized_shape: Sequence[int],
     weight: Tensor | None = None,
     bias: Tensor | None = None,
     eps: float = 1e-5,
@@ -96,13 +76,12 @@ def layer_norm(
 
     TinyGPT scope:
     - input: arbitrary rank tensor
-    - normalized_shape: int or sequence[int], matching trailing input dims
+    - normalized_shape: sequence[int], matching trailing input dims
     - optional affine parameters weight and bias with shape normalized_shape
     """
-    normalized_shape_list = _normalize_layer_norm_shape(normalized_shape)
     return _layer_norm(
         input=input,
-        normalized_shape=normalized_shape_list,
+        normalized_shape=list(normalized_shape),
         weight=weight,
         bias=bias,
         eps=eps,
