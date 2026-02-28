@@ -306,4 +306,12 @@ public:
                                    int64_t ignore_index = -100,
                                    const std::string &reduction = "mean");
 
+/*
+ * Computes embedding lookup for integer index tensors.
+ * - input shape can be arbitrary and stores class indices
+ * - weight shape must be [V, embedding_dim]
+ * - output shape is input.shape + [embedding_dim]
+ */
+[[nodiscard]] Tensor embedding(const Tensor &input, const Tensor &weight);
+
 } /* namespace bt */

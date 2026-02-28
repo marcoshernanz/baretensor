@@ -889,8 +889,7 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
  * Computes cross-entropy loss between logits and class-index targets.
  */
 Tensor cross_entropy(const Tensor &input, const Tensor &target,
-                     const int64_t ignore_index,
-                     const std::string &reduction) {
+                     const int64_t ignore_index, const std::string &reduction) {
   validate_copy_metadata(input, "cross_entropy");
   validate_copy_metadata(target, "cross_entropy");
 
@@ -911,8 +910,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   if (class_count <= 0) {
     std::ostringstream oss;
     oss << make_error_prefix()
-        << "input class dimension size must be positive, got "
-        << class_count << ".";
+        << "input class dimension size must be positive, got " << class_count
+        << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -1001,7 +1000,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
       const float log_prob =
           log_probs_ptr[log_probs_base_offset +
-                        class_index * log_probs.strides[static_cast<size_t>(class_dim)]];
+                        class_index *
+                            log_probs.strides[static_cast<size_t>(class_dim)]];
       const float loss = -log_prob;
       unreduced_ptr[unreduced_offset] = loss;
       total_loss += loss;
@@ -1025,7 +1025,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
       target_offset -= coord[dim_index] * target.strides[dim_index];
       unreduced_offset -= coord[dim_index] * unreduced.strides[dim_index];
-      log_probs_base_offset -= coord[dim_index] * log_probs_target_strides[dim_index];
+      log_probs_base_offset -=
+          coord[dim_index] * log_probs_target_strides[dim_index];
       coord[dim_index] = 0;
     }
   }
@@ -1047,6 +1048,100 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
     *reduced_ptr = total_loss / static_cast<float>(valid_count);
   }
   return reduced;
+}
+
+/*
+ * Computes embedding lookup for integer index tensors.
+ */
+Tensor embedding(const Tensor &input, const Tensor &weight) {
+  validate_copy_metadata(input, "embedding");
+  validate_copy_metadata(weight, "embedding");
+
+  const auto make_error_prefix = [&input, &weight]() {
+    return std::string("embedding failed for input shape ") +
+           detail::shape_to_string(input.shape) + " and weight shape " +
+           detail::shape_to_string(weight.shape) + ": ";
+  };
+
+  if (weight.ndim() != 2) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "weight must have rank 2 with shape [V, D].");
+  }
+
+  const int64_t vocab_size = weight.shape[0];
+  const int64_t embedding_dim = weight.shape[1];
+  if (vocab_size <= 0) {
+    std::ostringstream oss;
+    oss << make_error_prefix()
+        << "weight.shape[0] (vocab size) must be positive, got " << vocab_size
+        << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  std::vector<int64_t> output_shape = input.shape;
+  output_shape.push_back(embedding_dim);
+  Tensor output(output_shape);
+  if (input.numel() == 0) {
+    return output;
+  }
+
+  const float *input_ptr = input.data_ptr();
+  const float *weight_ptr = weight.data_ptr();
+  float *output_ptr = output.data_ptr();
+
+  const int64_t input_rank = static_cast<int64_t>(input.shape.size());
+  const int64_t input_numel = input.numel();
+  std::vector<int64_t> coord(input.shape.size(), 0);
+  int64_t input_offset = 0;
+  int64_t output_offset = 0;
+
+  for (int64_t linear_idx = 0; linear_idx < input_numel; ++linear_idx) {
+    const float index_value = input_ptr[input_offset];
+    if (!std::isfinite(index_value)) {
+      throw std::invalid_argument(make_error_prefix() +
+                                  "input indices must be finite integers.");
+    }
+
+    const float truncated = std::trunc(index_value);
+    if (index_value != truncated) {
+      throw std::invalid_argument(make_error_prefix() +
+                                  "input indices must be integer-valued.");
+    }
+
+    const int64_t row_index = static_cast<int64_t>(truncated);
+    if (row_index < 0 || row_index >= vocab_size) {
+      std::ostringstream oss;
+      oss << make_error_prefix() << "index " << row_index
+          << " is out of range for vocab size " << vocab_size << ".";
+      throw std::invalid_argument(oss.str());
+    }
+
+    const int64_t row_base_offset = row_index * weight.strides[0];
+    for (int64_t d = 0; d < embedding_dim; ++d) {
+      output_ptr[output_offset + (d * output.strides.back())] =
+          weight_ptr[row_base_offset + (d * weight.strides[1])];
+    }
+
+    if (input_rank == 0) {
+      continue;
+    }
+
+    for (int64_t dim = input_rank - 1; dim >= 0; --dim) {
+      const size_t dim_index = static_cast<size_t>(dim);
+      ++coord[dim_index];
+      input_offset += input.strides[dim_index];
+      output_offset += output.strides[dim_index];
+      if (coord[dim_index] < input.shape[dim_index]) {
+        break;
+      }
+
+      input_offset -= coord[dim_index] * input.strides[dim_index];
+      output_offset -= coord[dim_index] * output.strides[dim_index];
+      coord[dim_index] = 0;
+    }
+  }
+
+  return output;
 }
 
 /*
