@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -305,6 +306,18 @@ public:
 [[nodiscard]] Tensor cross_entropy(const Tensor &input, const Tensor &target,
                                    int64_t ignore_index = -100,
                                    const std::string &reduction = "mean");
+
+/*
+ * Applies layer normalization over the trailing normalized_shape dimensions.
+ * - normalized_shape must match the input tail dimensions exactly
+ * - weight and bias, when provided, must have shape normalized_shape
+ * - eps must be finite and greater than zero
+ */
+[[nodiscard]] Tensor
+layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_shape,
+           const std::optional<Tensor> &weight = std::nullopt,
+           const std::optional<Tensor> &bias = std::nullopt,
+           float eps = 1e-5f);
 
 /*
  * Computes embedding lookup for integer index tensors.

@@ -886,6 +886,151 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
 }
 
 /*
+ * Applies layer normalization over the trailing normalized_shape dimensions.
+ */
+Tensor layer_norm(const Tensor &input,
+                  const std::vector<int64_t> &normalized_shape,
+                  const std::optional<Tensor> &weight,
+                  const std::optional<Tensor> &bias, const float eps) {
+  validate_copy_metadata(input, "layer_norm");
+  if (weight.has_value()) {
+    validate_copy_metadata(*weight, "layer_norm");
+  }
+  if (bias.has_value()) {
+    validate_copy_metadata(*bias, "layer_norm");
+  }
+
+  const auto make_error_prefix = [&input, &normalized_shape]() {
+    return std::string("layer_norm failed for input shape ") +
+           detail::shape_to_string(input.shape) + " and normalized_shape " +
+           detail::shape_to_string(normalized_shape) + ": ";
+  };
+
+  if (normalized_shape.empty()) {
+    throw std::invalid_argument(
+        make_error_prefix() +
+        "normalized_shape must contain at least one dimension.");
+  }
+
+  for (size_t dim = 0; dim < normalized_shape.size(); ++dim) {
+    if (normalized_shape[dim] > 0) {
+      continue;
+    }
+
+    std::ostringstream oss;
+    oss << make_error_prefix() << "normalized_shape[" << dim
+        << "] must be positive, got " << normalized_shape[dim] << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  if (!std::isfinite(eps) || eps <= 0.0f) {
+    std::ostringstream oss;
+    oss << make_error_prefix() << "eps must be a finite value > 0, got " << eps
+        << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  const size_t normalized_rank = normalized_shape.size();
+  const size_t input_rank = input.shape.size();
+  if (normalized_rank > input_rank) {
+    std::ostringstream oss;
+    oss << make_error_prefix()
+        << "normalized_shape rank must be <= input rank, got "
+        << normalized_rank << " and " << input_rank << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  const size_t tail_start = input_rank - normalized_rank;
+  for (size_t dim = 0; dim < normalized_rank; ++dim) {
+    const int64_t input_tail_dim = input.shape[tail_start + dim];
+    if (input_tail_dim == normalized_shape[dim]) {
+      continue;
+    }
+
+    std::ostringstream oss;
+    oss << make_error_prefix() << "input tail dimensions "
+        << detail::shape_to_string(std::vector<int64_t>(
+               input.shape.begin() + tail_start, input.shape.end()))
+        << " must match normalized_shape.";
+    throw std::invalid_argument(oss.str());
+  }
+
+  if (weight.has_value() && weight->shape != normalized_shape) {
+    std::ostringstream oss;
+    oss << make_error_prefix() << "weight shape "
+        << detail::shape_to_string(weight->shape)
+        << " must match normalized_shape.";
+    throw std::invalid_argument(oss.str());
+  }
+  if (bias.has_value() && bias->shape != normalized_shape) {
+    std::ostringstream oss;
+    oss << make_error_prefix() << "bias shape "
+        << detail::shape_to_string(bias->shape)
+        << " must match normalized_shape.";
+    throw std::invalid_argument(oss.str());
+  }
+
+  const int64_t normalized_numel = detail::checked_numel(normalized_shape);
+  if (normalized_numel <= 0) {
+    throw std::invalid_argument(
+        make_error_prefix() +
+        "cannot normalize over zero elements in normalized_shape.");
+  }
+
+  const Tensor input_contiguous = input.contiguous();
+  Tensor output(input.shape);
+
+  std::optional<Tensor> weight_contiguous;
+  std::optional<Tensor> bias_contiguous;
+  const float *weight_ptr = nullptr;
+  const float *bias_ptr = nullptr;
+
+  if (weight.has_value()) {
+    weight_contiguous = weight->contiguous();
+    weight_ptr = weight_contiguous->data_ptr();
+  }
+  if (bias.has_value()) {
+    bias_contiguous = bias->contiguous();
+    bias_ptr = bias_contiguous->data_ptr();
+  }
+
+  const float *input_ptr = input_contiguous.data_ptr();
+  float *output_ptr = output.data_ptr();
+  const int64_t outer_numel = input.numel() / normalized_numel;
+
+  for (int64_t outer_idx = 0; outer_idx < outer_numel; ++outer_idx) {
+    const int64_t base = outer_idx * normalized_numel;
+
+    float sum = 0.0f;
+    for (int64_t i = 0; i < normalized_numel; ++i) {
+      sum += input_ptr[base + i];
+    }
+    const float mean = sum / static_cast<float>(normalized_numel);
+
+    float squared_sum = 0.0f;
+    for (int64_t i = 0; i < normalized_numel; ++i) {
+      const float centered = input_ptr[base + i] - mean;
+      squared_sum += centered * centered;
+    }
+    const float variance = squared_sum / static_cast<float>(normalized_numel);
+    const float inv_std = 1.0f / std::sqrt(variance + eps);
+
+    for (int64_t i = 0; i < normalized_numel; ++i) {
+      float value = (input_ptr[base + i] - mean) * inv_std;
+      if (weight_ptr != nullptr) {
+        value *= weight_ptr[i];
+      }
+      if (bias_ptr != nullptr) {
+        value += bias_ptr[i];
+      }
+      output_ptr[base + i] = value;
+    }
+  }
+
+  return output;
+}
+
+/*
  * Computes cross-entropy loss between logits and class-index targets.
  */
 Tensor cross_entropy(const Tensor &input, const Tensor &target,
