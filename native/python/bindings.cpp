@@ -6,11 +6,13 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
 #include <cstddef>
 #include <cstring>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -174,6 +176,9 @@ NB_MODULE(_C, m) {
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
         nb::arg("target"), nb::arg("ignore_index") = -100,
         nb::arg("reduction") = "mean");
+  m.def("layer_norm", &bt::layer_norm, nb::arg("input"),
+        nb::arg("normalized_shape"), nb::arg("weight") = std::nullopt,
+        nb::arg("bias") = std::nullopt, nb::arg("eps") = 1e-5f);
   m.def("embedding", &bt::embedding, nb::arg("input"), nb::arg("weight"));
 
   m.def(
