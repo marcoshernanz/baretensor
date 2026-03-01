@@ -1,6 +1,6 @@
 /*
- * File: native/src/tensor_nn.cpp
- * Purpose: Implements NN-oriented tensor ops and their autograd nodes.
+ * File: native/src/tensor_nn_ops.cpp
+ * Purpose: Implements NN-oriented tensor forward ops.
  */
 
 #include "bt/tensor.h"
@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -20,6 +19,7 @@
 #include "bt/detail/dims.h"
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
+#include "bt/detail/tensor_nn_autograd.h"
 #include "bt/detail/tensor_validation.h"
 
 /*
@@ -29,381 +29,24 @@
 namespace {
 
 /*
- * Encodes supported cross-entropy reduction modes.
- */
-enum class CrossEntropyReductionMode { kNone, kMean, kSum };
-
-/*
  * Parses cross-entropy reduction mode from a user-facing string.
  */
-[[nodiscard]] CrossEntropyReductionMode
+[[nodiscard]] bt::detail::CrossEntropyReductionMode
 parse_cross_entropy_reduction(const std::string &reduction) {
   if (reduction == "none") {
-    return CrossEntropyReductionMode::kNone;
+    return bt::detail::CrossEntropyReductionMode::kNone;
   }
   if (reduction == "mean") {
-    return CrossEntropyReductionMode::kMean;
+    return bt::detail::CrossEntropyReductionMode::kMean;
   }
   if (reduction == "sum") {
-    return CrossEntropyReductionMode::kSum;
+    return bt::detail::CrossEntropyReductionMode::kSum;
   }
 
   throw std::invalid_argument(
       "cross_entropy() expected 'reduction' to be one of {'none', 'mean', "
       "'sum'}.");
 }
-
-/*
- * Class: SoftmaxNode
- * Purpose: Backward formula for Tensor::softmax(dim).
- */
-class SoftmaxNode final : public bt::Node {
-public:
-  SoftmaxNode(const bt::Tensor &input, const int64_t dim)
-      : bt::Node({input}), dim_(dim) {}
-
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
-    const bt::Tensor probs = this->inputs()[0].softmax(dim_);
-    const bt::Tensor weighted_sum = (out_grad * probs).sum(dim_, true);
-    return {probs * (out_grad - weighted_sum)};
-  }
-
-private:
-  int64_t dim_ = 0;
-};
-
-/*
- * Class: LogSoftmaxNode
- * Purpose: Backward formula for Tensor::log_softmax(dim).
- */
-class LogSoftmaxNode final : public bt::Node {
-public:
-  LogSoftmaxNode(const bt::Tensor &input, const int64_t dim)
-      : bt::Node({input}), dim_(dim) {}
-
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
-    const bt::Tensor probs = this->inputs()[0].softmax(dim_);
-    const bt::Tensor out_grad_sum = out_grad.sum(dim_, true);
-    return {out_grad - (probs * out_grad_sum)};
-  }
-
-private:
-  int64_t dim_ = 0;
-};
-
-/*
- * Class: LayerNormNode
- * Purpose: Backward formula for layer normalization with optional affine params.
- */
-class LayerNormNode final : public bt::Node {
-public:
-  LayerNormNode(std::vector<bt::Tensor> inputs,
-                std::vector<int64_t> normalized_shape, const float eps,
-                const bool has_weight, const bool has_bias)
-      : bt::Node(std::move(inputs)),
-        normalized_shape_(std::move(normalized_shape)),
-        normalized_numel_(bt::detail::checked_numel(normalized_shape_)),
-        eps_(eps), has_weight_(has_weight), has_bias_(has_bias) {}
-
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
-    const std::vector<bt::Tensor> &inputs = this->inputs();
-    const bt::Tensor input_contiguous = inputs[0].contiguous();
-    const bt::Tensor out_grad_contiguous = out_grad.contiguous();
-
-    std::optional<bt::Tensor> weight_contiguous;
-    const float *weight_ptr = nullptr;
-    if (has_weight_) {
-      weight_contiguous = inputs[1].contiguous();
-      weight_ptr = weight_contiguous->data_ptr();
-    }
-
-    bt::Tensor input_grad = bt::full(inputs[0].shape, 0.0f);
-
-    std::optional<bt::Tensor> weight_grad;
-    float *weight_grad_ptr = nullptr;
-    if (has_weight_) {
-      weight_grad = bt::zeros(normalized_shape_);
-      weight_grad_ptr = weight_grad->data_ptr();
-    }
-
-    std::optional<bt::Tensor> bias_grad;
-    float *bias_grad_ptr = nullptr;
-    if (has_bias_) {
-      bias_grad = bt::zeros(normalized_shape_);
-      bias_grad_ptr = bias_grad->data_ptr();
-    }
-
-    const float *input_ptr = input_contiguous.data_ptr();
-    const float *out_grad_ptr = out_grad_contiguous.data_ptr();
-    float *input_grad_ptr = input_grad.data_ptr();
-
-    const int64_t outer_numel = input_contiguous.numel() / normalized_numel_;
-    const float inv_normalized_numel =
-        1.0f / static_cast<float>(normalized_numel_);
-    for (int64_t outer_idx = 0; outer_idx < outer_numel; ++outer_idx) {
-      const int64_t base = outer_idx * normalized_numel_;
-
-      float sum = 0.0f;
-      for (int64_t i = 0; i < normalized_numel_; ++i) {
-        sum += input_ptr[base + i];
-      }
-      const float mean = sum * inv_normalized_numel;
-
-      float sq_sum = 0.0f;
-      for (int64_t i = 0; i < normalized_numel_; ++i) {
-        const float centered = input_ptr[base + i] - mean;
-        sq_sum += centered * centered;
-      }
-      const float variance = sq_sum * inv_normalized_numel;
-      const float inv_std = 1.0f / std::sqrt(variance + eps_);
-
-      float dx_hat_sum = 0.0f;
-      float dx_hat_xhat_sum = 0.0f;
-      for (int64_t i = 0; i < normalized_numel_; ++i) {
-        const float x_hat = (input_ptr[base + i] - mean) * inv_std;
-        const float dout = out_grad_ptr[base + i];
-        const float dx_hat =
-            weight_ptr != nullptr ? (dout * weight_ptr[i]) : dout;
-
-        dx_hat_sum += dx_hat;
-        dx_hat_xhat_sum += dx_hat * x_hat;
-
-        if (weight_grad_ptr != nullptr) {
-          weight_grad_ptr[i] += dout * x_hat;
-        }
-        if (bias_grad_ptr != nullptr) {
-          bias_grad_ptr[i] += dout;
-        }
-      }
-
-      for (int64_t i = 0; i < normalized_numel_; ++i) {
-        const float x_hat = (input_ptr[base + i] - mean) * inv_std;
-        const float dout = out_grad_ptr[base + i];
-        const float dx_hat =
-            weight_ptr != nullptr ? (dout * weight_ptr[i]) : dout;
-        const float dx = inv_std * inv_normalized_numel *
-                         (static_cast<float>(normalized_numel_) * dx_hat -
-                          dx_hat_sum - (x_hat * dx_hat_xhat_sum));
-        input_grad_ptr[base + i] = dx;
-      }
-    }
-
-    std::vector<bt::Tensor> grads;
-    grads.reserve(1 + static_cast<size_t>(has_weight_) +
-                  static_cast<size_t>(has_bias_));
-    grads.push_back(input_grad);
-    if (has_weight_) {
-      grads.push_back(*weight_grad);
-    }
-    if (has_bias_) {
-      grads.push_back(*bias_grad);
-    }
-    return grads;
-  }
-
-private:
-  std::vector<int64_t> normalized_shape_;
-  int64_t normalized_numel_ = 1;
-  float eps_ = 1e-5f;
-  bool has_weight_ = false;
-  bool has_bias_ = false;
-};
-
-/*
- * Class: CrossEntropyNode
- * Purpose: Backward formula for cross-entropy loss on class-index targets.
- */
-class CrossEntropyNode final : public bt::Node {
-public:
-  CrossEntropyNode(const bt::Tensor &input, const bt::Tensor &target,
-                   const int64_t class_dim, const int64_t ignore_index,
-                   const CrossEntropyReductionMode reduction_mode)
-      : bt::Node({input, target}), class_dim_(class_dim),
-        ignore_index_(ignore_index), reduction_mode_(reduction_mode) {}
-
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
-    const std::vector<bt::Tensor> &inputs = this->inputs();
-    const bt::Tensor &input = inputs[0];
-    const bt::Tensor target_contiguous = inputs[1].contiguous();
-    const bt::Tensor probs_contiguous = input.softmax(class_dim_).contiguous();
-
-    bt::Tensor input_grad = bt::full(input.shape, 0.0f);
-    bt::Tensor target_grad = bt::zeros(inputs[1].shape);
-
-    const int64_t class_count = input.shape[static_cast<size_t>(class_dim_)];
-    const int64_t class_stride =
-        probs_contiguous.strides[static_cast<size_t>(class_dim_)];
-    const int64_t target_numel = target_contiguous.numel();
-
-    const float *target_ptr = target_contiguous.data_ptr();
-    const float *probs_ptr = probs_contiguous.data_ptr();
-    float *input_grad_ptr = input_grad.data_ptr();
-
-    int64_t valid_count = 0;
-    if (reduction_mode_ == CrossEntropyReductionMode::kMean) {
-      for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
-        const float target_value = target_ptr[linear_idx];
-        if (!std::isfinite(target_value) ||
-            target_value != std::trunc(target_value)) {
-          throw std::runtime_error(
-              "cross_entropy backward received invalid non-integer target "
-              "value.");
-        }
-
-        const int64_t class_index = static_cast<int64_t>(target_value);
-        if (class_index == ignore_index_) {
-          continue;
-        }
-        if (class_index < 0 || class_index >= class_count) {
-          throw std::runtime_error(
-              "cross_entropy backward received out-of-range target class "
-              "index.");
-        }
-        ++valid_count;
-      }
-    }
-
-    const bt::Tensor out_grad_contiguous = out_grad.contiguous();
-    const float *out_grad_ptr = out_grad_contiguous.data_ptr();
-
-    float reduced_grad_scale = 0.0f;
-    if (reduction_mode_ == CrossEntropyReductionMode::kSum) {
-      reduced_grad_scale = out_grad_ptr[0];
-    } else if (reduction_mode_ == CrossEntropyReductionMode::kMean) {
-      if (valid_count == 0) {
-        return {input_grad, target_grad};
-      }
-      reduced_grad_scale = out_grad_ptr[0] / static_cast<float>(valid_count);
-    }
-
-    std::vector<int64_t> probs_target_strides(target_contiguous.shape.size(),
-                                              0);
-    size_t target_dim = 0;
-    for (size_t input_dim = 0; input_dim < input.shape.size(); ++input_dim) {
-      if (static_cast<int64_t>(input_dim) == class_dim_) {
-        continue;
-      }
-      probs_target_strides[target_dim] = probs_contiguous.strides[input_dim];
-      ++target_dim;
-    }
-
-    std::vector<int64_t> coord(target_contiguous.shape.size(), 0);
-    int64_t probs_base_offset = 0;
-
-    for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
-      const float target_value = target_ptr[linear_idx];
-      if (!std::isfinite(target_value) ||
-          target_value != std::trunc(target_value)) {
-        throw std::runtime_error("cross_entropy backward received invalid "
-                                 "non-integer target value.");
-      }
-      const int64_t class_index = static_cast<int64_t>(target_value);
-      if (class_index != ignore_index_) {
-        if (class_index < 0 || class_index >= class_count) {
-          throw std::runtime_error(
-              "cross_entropy backward received out-of-range target class "
-              "index.");
-        }
-
-        const float grad_scale =
-            reduction_mode_ == CrossEntropyReductionMode::kNone
-                ? out_grad_ptr[linear_idx]
-                : reduced_grad_scale;
-
-        for (int64_t class_idx = 0; class_idx < class_count; ++class_idx) {
-          const int64_t offset = probs_base_offset + (class_idx * class_stride);
-          input_grad_ptr[offset] += grad_scale * probs_ptr[offset];
-        }
-        input_grad_ptr[probs_base_offset + (class_index * class_stride)] -=
-            grad_scale;
-      }
-
-      if (target_contiguous.shape.empty()) {
-        continue;
-      }
-
-      for (int64_t dim =
-               static_cast<int64_t>(target_contiguous.shape.size()) - 1;
-           dim >= 0; --dim) {
-        const size_t dim_index = static_cast<size_t>(dim);
-        ++coord[dim_index];
-        probs_base_offset += probs_target_strides[dim_index];
-        if (coord[dim_index] < target_contiguous.shape[dim_index]) {
-          break;
-        }
-
-        probs_base_offset -= coord[dim_index] * probs_target_strides[dim_index];
-        coord[dim_index] = 0;
-      }
-    }
-
-    return {input_grad, target_grad};
-  }
-
-private:
-  int64_t class_dim_ = 1;
-  int64_t ignore_index_ = -100;
-  CrossEntropyReductionMode reduction_mode_ = CrossEntropyReductionMode::kMean;
-};
-
-/*
- * Class: EmbeddingNode
- * Purpose: Backward scatter-add into embedding weights.
- */
-class EmbeddingNode final : public bt::Node {
-public:
-  EmbeddingNode(const bt::Tensor &input, const bt::Tensor &weight)
-      : bt::Node({input, weight}), embedding_dim_(weight.shape[1]) {}
-
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
-    const std::vector<bt::Tensor> &inputs = this->inputs();
-    const bt::Tensor input_contiguous = inputs[0].contiguous();
-    const bt::Tensor out_grad_contiguous = out_grad.contiguous();
-
-    bt::Tensor input_grad = bt::zeros(inputs[0].shape);
-    bt::Tensor weight_grad = bt::zeros(inputs[1].shape);
-
-    const int64_t vocab_size = inputs[1].shape[0];
-    const int64_t input_numel = input_contiguous.numel();
-
-    const float *input_ptr = input_contiguous.data_ptr();
-    const float *out_grad_ptr = out_grad_contiguous.data_ptr();
-    float *weight_grad_ptr = weight_grad.data_ptr();
-
-    for (int64_t linear_idx = 0; linear_idx < input_numel; ++linear_idx) {
-      const float index_value = input_ptr[linear_idx];
-      if (!std::isfinite(index_value) ||
-          index_value != std::trunc(index_value)) {
-        throw std::runtime_error(
-            "embedding backward received invalid non-integer index value.");
-      }
-
-      const int64_t row_index = static_cast<int64_t>(index_value);
-      if (row_index < 0 || row_index >= vocab_size) {
-        throw std::runtime_error(
-            "embedding backward received out-of-range index value.");
-      }
-
-      const int64_t weight_row_offset = row_index * weight_grad.strides[0];
-      const int64_t out_grad_offset = linear_idx * embedding_dim_;
-      for (int64_t d = 0; d < embedding_dim_; ++d) {
-        weight_grad_ptr[weight_row_offset + (d * weight_grad.strides[1])] +=
-            out_grad_ptr[out_grad_offset +
-                         (d * out_grad_contiguous.strides.back())];
-      }
-    }
-
-    return {input_grad, weight_grad};
-  }
-
-private:
-  int64_t embedding_dim_ = 0;
-};
 
 } // namespace
 
@@ -425,7 +68,7 @@ Tensor Tensor::softmax(const int64_t dim) const {
   if (shape[static_cast<size_t>(normalized_dim)] == 0) {
     Tensor out = exp();
     if (should_record) {
-      out.set_grad_fn(std::make_shared<SoftmaxNode>(*this, normalized_dim));
+      out.set_grad_fn(bt::detail::make_softmax_node(*this, normalized_dim));
     }
     return out;
   }
@@ -436,7 +79,7 @@ Tensor Tensor::softmax(const int64_t dim) const {
   const Tensor normalizer = exp_values.sum(normalized_dim, true);
   Tensor out = exp_values / normalizer;
   if (should_record) {
-    out.set_grad_fn(std::make_shared<SoftmaxNode>(*this, normalized_dim));
+    out.set_grad_fn(bt::detail::make_softmax_node(*this, normalized_dim));
   }
   return out;
 }
@@ -453,7 +96,7 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
   if (shape[static_cast<size_t>(normalized_dim)] == 0) {
     Tensor out = log();
     if (should_record) {
-      out.set_grad_fn(std::make_shared<LogSoftmaxNode>(*this, normalized_dim));
+      out.set_grad_fn(bt::detail::make_log_softmax_node(*this, normalized_dim));
     }
     return out;
   }
@@ -463,7 +106,7 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
   const Tensor log_normalizer = shifted.exp().sum(normalized_dim, true).log();
   Tensor out = shifted - log_normalizer;
   if (should_record) {
-    out.set_grad_fn(std::make_shared<LogSoftmaxNode>(*this, normalized_dim));
+    out.set_grad_fn(bt::detail::make_log_softmax_node(*this, normalized_dim));
   }
   return out;
 }
@@ -622,7 +265,7 @@ Tensor layer_norm(const Tensor &input,
     if (bias.has_value()) {
       node_inputs.push_back(*bias);
     }
-    output.set_grad_fn(std::make_shared<LayerNormNode>(
+    output.set_grad_fn(bt::detail::make_layer_norm_node(
         std::move(node_inputs), normalized_shape, eps, weight.has_value(),
         bias.has_value()));
   }
@@ -677,7 +320,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
     throw std::invalid_argument(oss.str());
   }
 
-  const CrossEntropyReductionMode reduction_mode =
+  const bt::detail::CrossEntropyReductionMode reduction_mode =
       parse_cross_entropy_reduction(reduction);
 
   const Tensor log_probs = input.log_softmax(class_dim);
@@ -765,9 +408,9 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
     }
   }
 
-  if (reduction_mode == CrossEntropyReductionMode::kNone) {
+  if (reduction_mode == bt::detail::CrossEntropyReductionMode::kNone) {
     if (should_record) {
-      unreduced.set_grad_fn(std::make_shared<CrossEntropyNode>(
+      unreduced.set_grad_fn(bt::detail::make_cross_entropy_node(
           input, target, class_dim, ignore_index, reduction_mode));
     }
     return unreduced;
@@ -775,10 +418,10 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
   Tensor reduced({});
   float *reduced_ptr = reduced.data_ptr();
-  if (reduction_mode == CrossEntropyReductionMode::kSum) {
+  if (reduction_mode == bt::detail::CrossEntropyReductionMode::kSum) {
     *reduced_ptr = total_loss;
     if (should_record) {
-      reduced.set_grad_fn(std::make_shared<CrossEntropyNode>(
+      reduced.set_grad_fn(bt::detail::make_cross_entropy_node(
           input, target, class_dim, ignore_index, reduction_mode));
     }
     return reduced;
@@ -790,7 +433,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
     *reduced_ptr = total_loss / static_cast<float>(valid_count);
   }
   if (should_record) {
-    reduced.set_grad_fn(std::make_shared<CrossEntropyNode>(
+    reduced.set_grad_fn(bt::detail::make_cross_entropy_node(
         input, target, class_dim, ignore_index, reduction_mode));
   }
   return reduced;
@@ -830,7 +473,7 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
   Tensor output(output_shape);
   if (input.numel() == 0) {
     if (should_record) {
-      output.set_grad_fn(std::make_shared<EmbeddingNode>(input, weight));
+      output.set_grad_fn(bt::detail::make_embedding_node(input, weight));
     }
     return output;
   }
@@ -892,7 +535,7 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
   }
 
   if (should_record) {
-    output.set_grad_fn(std::make_shared<EmbeddingNode>(input, weight));
+    output.set_grad_fn(bt::detail::make_embedding_node(input, weight));
   }
   return output;
 }

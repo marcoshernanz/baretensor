@@ -39,7 +39,8 @@ set(BT_CORE_SOURCES
   native/src/tensor_reductions.cpp
   native/src/tensor_linalg.cpp
   native/src/tensor_factories.cpp
-  native/src/tensor_nn.cpp
+  native/src/tensor_nn_ops.cpp
+  native/src/tensor_nn_autograd.cpp
 )
 
 nanobind_add_module(

@@ -114,7 +114,7 @@ Milestone 1 snapshot (`2026-03-01 20:55:50 CET`):
   - `make lint` passed.
   - `make typecheck` passed.
 
-### Milestone 2: NN Split (`tensor_nn.cpp`)
+### Milestone 2: NN Split (`tensor_nn.cpp`) (completed)
 
 - Move forward APIs into `tensor_nn_ops.cpp`.
 - Move node classes/backward kernels into `tensor_nn_autograd.cpp`.
@@ -123,6 +123,21 @@ Milestone 1 snapshot (`2026-03-01 20:55:50 CET`):
 Acceptance:
 - Full suite green.
 - Both NN files are focused and easier to navigate.
+
+Milestone 2 snapshot (`2026-03-01 21:05:23 CET`):
+- `native/src/tensor_nn.cpp` removed.
+- New split files:
+  - `native/src/tensor_nn_ops.cpp`: `543` lines
+  - `native/src/tensor_nn_autograd.cpp`: `418` lines
+- Added shared NN autograd node-factory declarations:
+  - `native/include/bt/detail/tensor_nn_autograd.h`
+- `CMakeLists.txt` now builds the split NN sources instead of
+  `native/src/tensor_nn.cpp`.
+- Validation:
+  - `cmake --build --preset dev` passed.
+  - `make test` passed (`198` tests).
+  - `make lint` passed.
+  - `make typecheck` passed.
 
 ### Milestone 3: Utility Consolidation
 
