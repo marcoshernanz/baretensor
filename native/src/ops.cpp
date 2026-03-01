@@ -208,8 +208,10 @@ public:
 
   [[nodiscard]] std::vector<bt::Tensor>
   backward(const bt::Tensor &out_grad) const override {
-    bt::Tensor lhs_grad = bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
-    bt::Tensor rhs_grad = bt::autograd::reduce_sum_to_shape(out_grad, rhs_shape_);
+    bt::Tensor lhs_grad =
+        bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
+    bt::Tensor rhs_grad =
+        bt::autograd::reduce_sum_to_shape(out_grad, rhs_shape_);
     return {lhs_grad, rhs_grad};
   }
 
@@ -262,6 +264,95 @@ private:
   float scalar_ = 1.0f;
 };
 
+class SubTensorNode final : public bt::Node {
+public:
+  SubTensorNode(const bt::Tensor &lhs, const bt::Tensor &rhs)
+      : bt::Node({lhs, rhs}), lhs_shape_(lhs.shape), rhs_shape_(rhs.shape) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    bt::Tensor lhs_grad =
+        bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
+    bt::Tensor rhs_grad =
+        bt::autograd::reduce_sum_to_shape(out_grad * -1.0f, rhs_shape_);
+    return {lhs_grad, rhs_grad};
+  }
+
+private:
+  std::vector<int64_t> lhs_shape_;
+  std::vector<int64_t> rhs_shape_;
+};
+
+class SubScalarNode final : public bt::Node {
+public:
+  explicit SubScalarNode(const bt::Tensor &lhs) : bt::Node({lhs}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    return {out_grad};
+  }
+};
+
+class DivTensorNode final : public bt::Node {
+public:
+  DivTensorNode(const bt::Tensor &lhs, const bt::Tensor &rhs)
+      : bt::Node({lhs, rhs}), lhs_shape_(lhs.shape), rhs_shape_(rhs.shape) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    const std::vector<bt::Tensor> &inputs = this->inputs();
+    const bt::Tensor rhs_sq = inputs[1] * inputs[1];
+
+    bt::Tensor lhs_grad = out_grad / inputs[1];
+    bt::Tensor rhs_grad = (out_grad * inputs[0]) / rhs_sq;
+    rhs_grad = rhs_grad * -1.0f;
+
+    lhs_grad = bt::autograd::reduce_sum_to_shape(lhs_grad, lhs_shape_);
+    rhs_grad = bt::autograd::reduce_sum_to_shape(rhs_grad, rhs_shape_);
+    return {lhs_grad, rhs_grad};
+  }
+
+private:
+  std::vector<int64_t> lhs_shape_;
+  std::vector<int64_t> rhs_shape_;
+};
+
+class DivScalarNode final : public bt::Node {
+public:
+  DivScalarNode(const bt::Tensor &lhs, const float scalar)
+      : bt::Node({lhs}), scalar_(scalar) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    return {out_grad / scalar_};
+  }
+
+private:
+  float scalar_ = 1.0f;
+};
+
+class ExpNode final : public bt::Node {
+public:
+  explicit ExpNode(const bt::Tensor &input) : bt::Node({input}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    const bt::Tensor &input = this->inputs()[0];
+    return {out_grad * input.exp()};
+  }
+};
+
+class LogNode final : public bt::Node {
+public:
+  explicit LogNode(const bt::Tensor &input) : bt::Node({input}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    const bt::Tensor &input = this->inputs()[0];
+    return {out_grad / input};
+  }
+};
+
 } // namespace
 
 /*
@@ -296,20 +387,22 @@ Tensor Tensor::operator+(float rhs) const {
  * Elementwise tensor-tensor subtraction.
  */
 Tensor Tensor::operator-(const Tensor &rhs) const {
+  Tensor out = binary_tt(*this, rhs, ops::Sub{});
   if (should_record_binary(*this, rhs)) {
-    throw_autograd_not_implemented("tensor-tensor subtraction");
+    out.set_grad_fn(std::make_shared<SubTensorNode>(*this, rhs));
   }
-  return binary_tt(*this, rhs, ops::Sub{});
+  return out;
 }
 
 /*
  * Elementwise tensor-scalar subtraction.
  */
 Tensor Tensor::operator-(float rhs) const {
+  Tensor out = binary_ts(*this, rhs, ops::Sub{});
   if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("tensor-scalar subtraction");
+    out.set_grad_fn(std::make_shared<SubScalarNode>(*this));
   }
-  return binary_ts(*this, rhs, ops::Sub{});
+  return out;
 }
 
 /*
@@ -338,40 +431,44 @@ Tensor Tensor::operator*(float rhs) const {
  * Elementwise tensor-tensor division.
  */
 Tensor Tensor::operator/(const Tensor &rhs) const {
+  Tensor out = binary_tt(*this, rhs, ops::Div{});
   if (should_record_binary(*this, rhs)) {
-    throw_autograd_not_implemented("tensor-tensor division");
+    out.set_grad_fn(std::make_shared<DivTensorNode>(*this, rhs));
   }
-  return binary_tt(*this, rhs, ops::Div{});
+  return out;
 }
 
 /*
  * Elementwise tensor-scalar division.
  */
 Tensor Tensor::operator/(float rhs) const {
+  Tensor out = binary_ts(*this, rhs, ops::Div{});
   if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("tensor-scalar division");
+    out.set_grad_fn(std::make_shared<DivScalarNode>(*this, rhs));
   }
-  return binary_ts(*this, rhs, ops::Div{});
+  return out;
 }
 
 /*
  * Elementwise exponential.
  */
 Tensor Tensor::exp() const {
+  Tensor out = unary_t(*this, ops::Exp{});
   if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("exp");
+    out.set_grad_fn(std::make_shared<ExpNode>(*this));
   }
-  return unary_t(*this, ops::Exp{});
+  return out;
 }
 
 /*
  * Elementwise natural logarithm.
  */
 Tensor Tensor::log() const {
+  Tensor out = unary_t(*this, ops::Log{});
   if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("log");
+    out.set_grad_fn(std::make_shared<LogNode>(*this));
   }
-  return unary_t(*this, ops::Log{});
+  return out;
 }
 
 } /* namespace bt */

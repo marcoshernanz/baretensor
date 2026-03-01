@@ -41,7 +41,7 @@ Scope:
 Acceptance criteria:
 - `matmul` gradients pass finite-difference gradcheck on tiny tensors.
 
-### Milestone 4: Core Unary + Reductions
+### Milestone 4: Core Unary + Reductions (completed)
 
 Scope:
 - `sub`, `div`, `exp`, `log`, `mean`, `max` (as needed for TinyGPT path).
