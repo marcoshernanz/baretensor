@@ -64,7 +64,8 @@ private:
 
 /*
  * Class: LayerNormNode
- * Purpose: Backward formula for layer normalization with optional affine params.
+ * Purpose: Backward formula for layer normalization with optional affine
+ * params.
  */
 class LayerNormNode final : public bt::Node {
 public:
@@ -426,8 +427,8 @@ make_cross_entropy_node(const Tensor &input, const Tensor &target,
 /*
  * Creates a backward node for embedding().
  */
-[[nodiscard]] std::shared_ptr<Node>
-make_embedding_node(const Tensor &input, const Tensor &weight) {
+[[nodiscard]] std::shared_ptr<Node> make_embedding_node(const Tensor &input,
+                                                        const Tensor &weight) {
   return std::make_shared<EmbeddingNode>(input, weight);
 }
 
