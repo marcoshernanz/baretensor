@@ -103,7 +103,7 @@ public:
   /*
    * Sets whether this tensor tracks gradients in autograd.
    */
-  Tensor &requires_grad_(bool requires_grad);
+  Tensor &set_requires_grad(bool requires_grad);
 
   /*
    * Returns whether this tensor is a leaf in the autograd graph.

@@ -105,7 +105,9 @@ const float *Tensor::data_ptr() const noexcept {
 /*
  * Returns a mutable pointer to tensor data at storage offset.
  */
-float *Tensor::data_ptr() noexcept { return storage->data_ptr() + storage_offset; }
+float *Tensor::data_ptr() noexcept {
+  return storage->data_ptr() + storage_offset;
+}
 
 /*
  * Returns whether autograd is enabled for this tensor.
@@ -117,7 +119,7 @@ bool Tensor::requires_grad() const noexcept {
 /*
  * Sets whether this tensor tracks gradients in autograd.
  */
-Tensor &Tensor::requires_grad_(const bool requires_grad) {
+Tensor &Tensor::set_requires_grad(const bool requires_grad) {
   if (!requires_grad) {
     if (autograd_meta != nullptr) {
       autograd_meta->requires_grad = false;

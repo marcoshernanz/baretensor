@@ -22,7 +22,7 @@ Tensor full(const std::vector<int64_t> &shape, const float fill_value,
   Tensor tensor(shape);
   tensor.storage->fill(fill_value);
   if (requires_grad) {
-    tensor.requires_grad_(true);
+    tensor.set_requires_grad(true);
   }
   return tensor;
 }

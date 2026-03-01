@@ -1,5 +1,4 @@
 import unittest
-from typing import Any, cast
 
 import numpy as np
 
@@ -14,6 +13,32 @@ def _require_grad(tensor: bt.Tensor) -> bt.Tensor:
 
 
 class AutogradStateAndEdgeCaseTests(unittest.TestCase):
+    def test_requires_grad_property_assignment_toggles_tracking(self) -> None:
+        x = bt.tensor(np.asarray([1.0, -2.0, 3.0], dtype=np.float32))
+        self.assertFalse(x.requires_grad)
+
+        x.requires_grad = True
+        self.assertTrue(x.requires_grad)
+
+        (x * 2.0).sum().backward()
+        np.testing.assert_allclose(
+            to_numpy(_require_grad(x)),
+            np.asarray([2.0, 2.0, 2.0], dtype=np.float32),
+            rtol=1e-6,
+            atol=1e-6,
+        )
+
+    def test_set_requires_grad_method_toggles_tracking(self) -> None:
+        x = bt.tensor(np.asarray([0.5, -1.0], dtype=np.float32))
+        self.assertFalse(x.requires_grad)
+
+        returned = x.set_requires_grad(True)
+        self.assertTrue(returned.requires_grad)
+        self.assertTrue(x.requires_grad)
+
+        x.set_requires_grad(False)
+        self.assertFalse(x.requires_grad)
+
     def test_is_leaf_transitions_for_leaf_nonleaf_and_detach(self) -> None:
         x = bt.tensor(np.asarray([1.0, -2.0, 3.0], dtype=np.float32), requires_grad=True)
         y = x * 2.0
@@ -27,7 +52,7 @@ class AutogradStateAndEdgeCaseTests(unittest.TestCase):
     def test_requires_grad_false_blocks_history_for_existing_nonleaf(self) -> None:
         x = bt.tensor(np.asarray([1.0, 2.0], dtype=np.float32), requires_grad=True)
         y = x * 3.0
-        cast(Any, y).requires_grad_(False)
+        y.set_requires_grad(False)
 
         self.assertFalse(y.requires_grad)
         self.assertTrue(y.is_leaf)

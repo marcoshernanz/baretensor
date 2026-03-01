@@ -78,6 +78,13 @@ dispatch_reduction_call(const bt::Tensor &tensor, nb::object dim,
   }
 }
 
+/*
+ * Sets requires_grad on a tensor and returns the same tensor handle.
+ */
+bt::Tensor &set_requires_grad(bt::Tensor &tensor, const bool requires_grad) {
+  return tensor.set_requires_grad(requires_grad);
+}
+
 } // namespace
 
 /*
@@ -95,11 +102,14 @@ NB_MODULE(_C, m) {
       .def_ro("strides", &bt::Tensor::strides)
       .def("ndim", &bt::Tensor::ndim)
       .def("numel", &bt::Tensor::numel)
-      .def_prop_ro("requires_grad", &bt::Tensor::requires_grad)
-      .def(
-          "requires_grad_",
-          &bt::Tensor::requires_grad_,
-          nb::arg("requires_grad") = true, nb::rv_policy::reference_internal)
+      .def_prop_rw(
+          "requires_grad", &bt::Tensor::requires_grad,
+          [](bt::Tensor &tensor, const bool requires_grad) {
+            set_requires_grad(tensor, requires_grad);
+          },
+          "Whether this tensor tracks gradients in autograd.")
+      .def("set_requires_grad", &set_requires_grad, nb::arg("requires_grad"),
+           nb::rv_policy::reference_internal)
       .def_prop_ro("is_leaf", &bt::Tensor::is_leaf)
       .def_prop_ro("grad", &bt::Tensor::grad)
       .def("zero_grad", &bt::Tensor::zero_grad)
@@ -185,8 +195,7 @@ NB_MODULE(_C, m) {
         nb::arg("requires_grad") = false);
   m.def("zeros", &bt::zeros, nb::arg("shape"),
         nb::arg("requires_grad") = false);
-  m.def("ones", &bt::ones, nb::arg("shape"),
-        nb::arg("requires_grad") = false);
+  m.def("ones", &bt::ones, nb::arg("shape"), nb::arg("requires_grad") = false);
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
         nb::arg("target"), nb::arg("ignore_index") = -100,
         nb::arg("reduction") = "mean");
@@ -218,7 +227,7 @@ NB_MODULE(_C, m) {
           std::memcpy(t.data_ptr(), a.data(), a.nbytes());
         }
         if (requires_grad) {
-          t.requires_grad_(true);
+          t.set_requires_grad(true);
         }
         return t;
       },
