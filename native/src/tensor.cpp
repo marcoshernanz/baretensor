@@ -569,9 +569,9 @@ public:
     const bt::Tensor out_grad_canonical = out_grad.reshape(full_out_shape);
 
     bt::Tensor lhs_grad_canonical =
-        out_grad_canonical.matmul(rhs_canonical.transpose(-1, -2));
+        out_grad_canonical.matmul(rhs_canonical.mT());
     bt::Tensor rhs_grad_canonical =
-        lhs_canonical.transpose(-1, -2).matmul(out_grad_canonical);
+        lhs_canonical.mT().matmul(out_grad_canonical);
 
     bt::Tensor lhs_grad = bt::autograd::reduce_sum_to_shape(
         lhs_grad_canonical, lhs_canonical_meta.shape);
