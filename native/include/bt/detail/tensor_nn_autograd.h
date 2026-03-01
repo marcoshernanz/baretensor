@@ -11,6 +11,10 @@
 
 #include "bt/tensor.h"
 
+/*
+ * Namespace: bt::detail
+ * Purpose: Internal reusable implementation helpers.
+ */
 namespace bt::detail {
 
 /*

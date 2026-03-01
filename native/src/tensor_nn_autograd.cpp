@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "bt/detail/shape.h"
@@ -383,16 +384,25 @@ private:
  */
 namespace bt::detail {
 
+/*
+ * Creates a backward node for Tensor::softmax(dim).
+ */
 [[nodiscard]] std::shared_ptr<Node> make_softmax_node(const Tensor &input,
                                                       const int64_t dim) {
   return std::make_shared<SoftmaxNode>(input, dim);
 }
 
+/*
+ * Creates a backward node for Tensor::log_softmax(dim).
+ */
 [[nodiscard]] std::shared_ptr<Node> make_log_softmax_node(const Tensor &input,
                                                           const int64_t dim) {
   return std::make_shared<LogSoftmaxNode>(input, dim);
 }
 
+/*
+ * Creates a backward node for layer_norm().
+ */
 [[nodiscard]] std::shared_ptr<Node>
 make_layer_norm_node(std::vector<Tensor> inputs,
                      std::vector<int64_t> normalized_shape, const float eps,
@@ -402,6 +412,9 @@ make_layer_norm_node(std::vector<Tensor> inputs,
                                          has_weight, has_bias);
 }
 
+/*
+ * Creates a backward node for cross_entropy().
+ */
 [[nodiscard]] std::shared_ptr<Node>
 make_cross_entropy_node(const Tensor &input, const Tensor &target,
                         const int64_t class_dim, const int64_t ignore_index,
@@ -410,6 +423,9 @@ make_cross_entropy_node(const Tensor &input, const Tensor &target,
                                             ignore_index, reduction_mode);
 }
 
+/*
+ * Creates a backward node for embedding().
+ */
 [[nodiscard]] std::shared_ptr<Node>
 make_embedding_node(const Tensor &input, const Tensor &weight) {
   return std::make_shared<EmbeddingNode>(input, weight);

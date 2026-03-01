@@ -166,7 +166,7 @@ Milestone 3 snapshot (`2026-03-01 21:12:47 CET`):
   - `make lint` passed.
   - `make typecheck` passed.
 
-### Milestone 4: Documentation and Include Hygiene
+### Milestone 4: Documentation and Include Hygiene (completed)
 
 - Ensure each file has:
   - file header
@@ -177,6 +177,23 @@ Milestone 3 snapshot (`2026-03-01 21:12:47 CET`):
 Acceptance:
 - Consistent documentation style across all new files.
 - Clean build with no missing/implicit include reliance.
+
+Milestone 4 snapshot (`2026-03-01 21:18:06 CET`):
+- Added missing namespace/file-level documentation:
+  - `native/include/bt/detail/tensor_nn_autograd.h`
+- Added missing function-level documentation for NN node factory
+  implementations:
+  - `native/src/tensor_nn_autograd.cpp`
+- Improved translation-unit self-sufficiency by adding explicit include
+  dependencies where needed (`std::move`, `size_t`, `std::to_string` usage):
+  - `native/src/tensor_nn_ops.cpp`
+  - `native/src/tensor_nn_autograd.cpp`
+  - `native/src/tensor_core.cpp`
+- Validation:
+  - `cmake --build --preset dev` passed.
+  - `make test` passed (`198` tests).
+  - `make lint` passed.
+  - `make typecheck` passed.
 
 ### Milestone 5: Final Validation and Regression Guard
 
