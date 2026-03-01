@@ -33,7 +33,7 @@ Scope:
 Acceptance criteria:
 - Gradients through view chains match PyTorch on small reference cases.
 
-### Milestone 3: Linear Algebra
+### Milestone 3: Linear Algebra (completed)
 
 Scope:
 - `matmul` backward with batched + broadcasted semantics.

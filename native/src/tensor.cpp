@@ -530,6 +530,65 @@ public:
   }
 };
 
+class MatmulNode final : public bt::Node {
+public:
+  MatmulNode(const bt::Tensor &lhs, const bt::Tensor &rhs)
+      : bt::Node({lhs, rhs}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    const std::vector<bt::Tensor> &inputs = this->inputs();
+    const bt::Tensor &lhs = inputs[0];
+    const bt::Tensor &rhs = inputs[1];
+
+    const MatmulCanonicalInput lhs_canonical_meta =
+        canonicalize_matmul_input(lhs, true);
+    const MatmulCanonicalInput rhs_canonical_meta =
+        canonicalize_matmul_input(rhs, false);
+
+    const bt::Tensor lhs_canonical(lhs.storage, lhs.storage_offset,
+                                   lhs_canonical_meta.shape,
+                                   lhs_canonical_meta.strides);
+    const bt::Tensor rhs_canonical(rhs.storage, rhs.storage_offset,
+                                   rhs_canonical_meta.shape,
+                                   rhs_canonical_meta.strides);
+
+    const std::vector<int64_t> lhs_batch_shape(
+        lhs_canonical_meta.shape.begin(), lhs_canonical_meta.shape.end() - 2);
+    const std::vector<int64_t> rhs_batch_shape(
+        rhs_canonical_meta.shape.begin(), rhs_canonical_meta.shape.end() - 2);
+    const std::vector<int64_t> batch_shape =
+        bt::detail::infer_broadcast_shape(lhs_batch_shape, rhs_batch_shape);
+
+    std::vector<int64_t> full_out_shape = batch_shape;
+    full_out_shape.push_back(
+        lhs_canonical_meta.shape[lhs_canonical_meta.shape.size() - 2]);
+    full_out_shape.push_back(
+        rhs_canonical_meta.shape[rhs_canonical_meta.shape.size() - 1]);
+
+    const bt::Tensor out_grad_canonical = out_grad.reshape(full_out_shape);
+
+    bt::Tensor lhs_grad_canonical =
+        out_grad_canonical.matmul(rhs_canonical.transpose(-1, -2));
+    bt::Tensor rhs_grad_canonical =
+        lhs_canonical.transpose(-1, -2).matmul(out_grad_canonical);
+
+    bt::Tensor lhs_grad = bt::autograd::reduce_sum_to_shape(
+        lhs_grad_canonical, lhs_canonical_meta.shape);
+    bt::Tensor rhs_grad = bt::autograd::reduce_sum_to_shape(
+        rhs_grad_canonical, rhs_canonical_meta.shape);
+
+    if (lhs_canonical_meta.was_1d) {
+      lhs_grad = lhs_grad.reshape(lhs.shape);
+    }
+    if (rhs_canonical_meta.was_1d) {
+      rhs_grad = rhs_grad.reshape(rhs.shape);
+    }
+
+    return {lhs_grad, rhs_grad};
+  }
+};
+
 } // namespace
 
 /*
@@ -848,8 +907,8 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
   Tensor out(storage, storage_offset, std::move(target_shape),
              std::move(target_strides));
   if (should_record_unary(*this)) {
-    out.set_grad_fn(
-        std::make_shared<PermuteNode>(*this, invert_permutation(normalized_dims)));
+    out.set_grad_fn(std::make_shared<PermuteNode>(
+        *this, invert_permutation(normalized_dims)));
   }
   return out;
 }
@@ -918,9 +977,6 @@ Tensor Tensor::mT() const {
 Tensor Tensor::matmul(const Tensor &tensor2) const {
   validate_copy_metadata(*this, "matmul");
   validate_copy_metadata(tensor2, "matmul");
-  if (should_record_binary(*this, tensor2)) {
-    throw_autograd_not_implemented("matmul");
-  }
 
   if (ndim() == 0 || tensor2.ndim() == 0) {
     std::ostringstream oss;
@@ -1003,7 +1059,11 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
 
   const std::vector<int64_t> out_shape =
       matmul_result_shape(full_out_shape, lhs.was_1d, rhs.was_1d);
-  return out_full.reshape(out_shape);
+  Tensor out = out_full.reshape(out_shape);
+  if (should_record_binary(*this, tensor2)) {
+    out.set_grad_fn(std::make_shared<MatmulNode>(*this, tensor2));
+  }
+  return out;
 }
 
 /*
