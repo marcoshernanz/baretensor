@@ -84,7 +84,7 @@ Baseline snapshot (`2026-03-01 20:49:03 CET`):
   - `native/src/tensor_nn.cpp`: NN forward ops and NN autograd nodes.
   - `native/src/ops.cpp`: elementwise ops and elementwise autograd nodes.
 
-### Milestone 1: Core File Split (`tensor.cpp`)
+### Milestone 1: Core File Split (`tensor.cpp`) (completed)
 
 - Move code from `tensor.cpp` into:
   - `tensor_core.cpp`
@@ -98,6 +98,21 @@ Baseline snapshot (`2026-03-01 20:49:03 CET`):
 Acceptance:
 - Full suite green.
 - `tensor.cpp` removed or reduced to minimal compatibility wrapper.
+
+Milestone 1 snapshot (`2026-03-01 20:55:50 CET`):
+- `native/src/tensor.cpp` removed.
+- New split files:
+  - `native/src/tensor_core.cpp`: `233` lines
+  - `native/src/tensor_views.cpp`: `304` lines
+  - `native/src/tensor_reductions.cpp`: `580` lines
+  - `native/src/tensor_linalg.cpp`: `314` lines
+  - `native/src/tensor_factories.cpp`: `44` lines
+- `CMakeLists.txt` now builds split tensor sources instead of `native/src/tensor.cpp`.
+- Validation:
+  - `cmake --build --preset dev` passed.
+  - `make test` passed (`198` tests).
+  - `make lint` passed.
+  - `make typecheck` passed.
 
 ### Milestone 2: NN Split (`tensor_nn.cpp`)
 

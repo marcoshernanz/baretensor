@@ -34,7 +34,11 @@ set(BT_CORE_SOURCES
   native/src/autograd.cpp
   native/src/ops.cpp
   native/src/storage.cpp
-  native/src/tensor.cpp
+  native/src/tensor_core.cpp
+  native/src/tensor_views.cpp
+  native/src/tensor_reductions.cpp
+  native/src/tensor_linalg.cpp
+  native/src/tensor_factories.cpp
   native/src/tensor_nn.cpp
 )
 
