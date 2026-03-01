@@ -7,11 +7,9 @@
 
 #include <cstdint>
 #include <memory>
-#include <sstream>
-#include <stdexcept>
-#include <string_view>
 #include <vector>
 
+#include "bt/detail/autograd_record.h"
 #include "bt/detail/broadcast.h"
 #include "bt/tensor.h"
 
@@ -185,22 +183,6 @@ template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
   return out;
 }
 
-[[nodiscard]] bool should_record_binary(const bt::Tensor &lhs,
-                                        const bt::Tensor &rhs) {
-  return bt::autograd::is_grad_enabled() &&
-         (lhs.requires_grad() || rhs.requires_grad());
-}
-
-[[nodiscard]] bool should_record_unary(const bt::Tensor &input) {
-  return bt::autograd::is_grad_enabled() && input.requires_grad();
-}
-
-void throw_autograd_not_implemented(const std::string_view op_name) {
-  std::ostringstream oss;
-  oss << "Autograd support for " << op_name << " is not implemented yet.";
-  throw std::runtime_error(oss.str());
-}
-
 class AddTensorNode final : public bt::Node {
 public:
   AddTensorNode(const bt::Tensor &lhs, const bt::Tensor &rhs)
@@ -366,7 +348,7 @@ namespace bt {
  */
 Tensor Tensor::operator+(const Tensor &rhs) const {
   Tensor out = binary_tt(*this, rhs, ops::Add{});
-  if (should_record_binary(*this, rhs)) {
+  if (bt::detail::should_record_binary(*this, rhs)) {
     out.set_grad_fn(std::make_shared<AddTensorNode>(*this, rhs));
   }
   return out;
@@ -377,7 +359,7 @@ Tensor Tensor::operator+(const Tensor &rhs) const {
  */
 Tensor Tensor::operator+(float rhs) const {
   Tensor out = binary_ts(*this, rhs, ops::Add{});
-  if (should_record_unary(*this)) {
+  if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<AddScalarNode>(*this));
   }
   return out;
@@ -388,7 +370,7 @@ Tensor Tensor::operator+(float rhs) const {
  */
 Tensor Tensor::operator-(const Tensor &rhs) const {
   Tensor out = binary_tt(*this, rhs, ops::Sub{});
-  if (should_record_binary(*this, rhs)) {
+  if (bt::detail::should_record_binary(*this, rhs)) {
     out.set_grad_fn(std::make_shared<SubTensorNode>(*this, rhs));
   }
   return out;
@@ -399,7 +381,7 @@ Tensor Tensor::operator-(const Tensor &rhs) const {
  */
 Tensor Tensor::operator-(float rhs) const {
   Tensor out = binary_ts(*this, rhs, ops::Sub{});
-  if (should_record_unary(*this)) {
+  if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<SubScalarNode>(*this));
   }
   return out;
@@ -410,7 +392,7 @@ Tensor Tensor::operator-(float rhs) const {
  */
 Tensor Tensor::operator*(const Tensor &rhs) const {
   Tensor out = binary_tt(*this, rhs, ops::Mul{});
-  if (should_record_binary(*this, rhs)) {
+  if (bt::detail::should_record_binary(*this, rhs)) {
     out.set_grad_fn(std::make_shared<MulTensorNode>(*this, rhs));
   }
   return out;
@@ -421,7 +403,7 @@ Tensor Tensor::operator*(const Tensor &rhs) const {
  */
 Tensor Tensor::operator*(float rhs) const {
   Tensor out = binary_ts(*this, rhs, ops::Mul{});
-  if (should_record_unary(*this)) {
+  if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<MulScalarNode>(*this, rhs));
   }
   return out;
@@ -432,7 +414,7 @@ Tensor Tensor::operator*(float rhs) const {
  */
 Tensor Tensor::operator/(const Tensor &rhs) const {
   Tensor out = binary_tt(*this, rhs, ops::Div{});
-  if (should_record_binary(*this, rhs)) {
+  if (bt::detail::should_record_binary(*this, rhs)) {
     out.set_grad_fn(std::make_shared<DivTensorNode>(*this, rhs));
   }
   return out;
@@ -443,7 +425,7 @@ Tensor Tensor::operator/(const Tensor &rhs) const {
  */
 Tensor Tensor::operator/(float rhs) const {
   Tensor out = binary_ts(*this, rhs, ops::Div{});
-  if (should_record_unary(*this)) {
+  if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<DivScalarNode>(*this, rhs));
   }
   return out;
@@ -454,7 +436,7 @@ Tensor Tensor::operator/(float rhs) const {
  */
 Tensor Tensor::exp() const {
   Tensor out = unary_t(*this, ops::Exp{});
-  if (should_record_unary(*this)) {
+  if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<ExpNode>(*this));
   }
   return out;
@@ -465,7 +447,7 @@ Tensor Tensor::exp() const {
  */
 Tensor Tensor::log() const {
   Tensor out = unary_t(*this, ops::Log{});
-  if (should_record_unary(*this)) {
+  if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<LogNode>(*this));
   }
   return out;

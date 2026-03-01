@@ -35,6 +35,7 @@ set(BT_CORE_SOURCES
   native/src/ops.cpp
   native/src/storage.cpp
   native/src/tensor.cpp
+  native/src/tensor_nn.cpp
 )
 
 nanobind_add_module(
