@@ -476,6 +476,10 @@ private:
   std::vector<int64_t> input_shape_;
 };
 
+[[nodiscard]] bt::Tensor
+expand_reduction_grad(const bt::Tensor &out_grad,
+                      const std::vector<int64_t> &reduced_dims, bool keepdim);
+
 class SumNode final : public bt::Node {
 public:
   SumNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims,
@@ -487,15 +491,8 @@ public:
 
   [[nodiscard]] std::vector<bt::Tensor>
   backward(const bt::Tensor &out_grad) const override {
-    bt::Tensor grad = out_grad;
-    if (!keepdim_) {
-      std::vector<int64_t> reshape_shape = grad.shape;
-      for (const int64_t dim : reduced_dims_) {
-        reshape_shape.insert(reshape_shape.begin() + dim, 1);
-      }
-      grad = grad.reshape(reshape_shape);
-    }
-
+    const bt::Tensor grad =
+        expand_reduction_grad(out_grad, reduced_dims_, keepdim_);
     const bt::Tensor expanded = grad * bt::ones(input_shape_);
     return {expanded};
   }
@@ -643,8 +640,7 @@ public:
     const bt::Tensor max_keepdim = input.max(reduced_dims_, true);
     const bt::Tensor max_keepdim_contiguous = max_keepdim.contiguous();
 
-    bt::Tensor tie_counts(max_keepdim_contiguous.shape);
-    tie_counts.storage->fill(0.0f);
+    bt::Tensor tie_counts = bt::full(max_keepdim_contiguous.shape, 0.0f);
     bt::Tensor input_grad(input.shape);
     input_grad.storage->fill(0.0f);
 
