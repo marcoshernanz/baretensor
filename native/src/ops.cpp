@@ -197,9 +197,7 @@ template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
 
 void throw_autograd_not_implemented(const std::string_view op_name) {
   std::ostringstream oss;
-  oss << "Autograd support for " << op_name
-      << " is not implemented yet. Milestone 1 currently supports gradients "
-         "for add, mul, and sum.";
+  oss << "Autograd support for " << op_name << " is not implemented yet.";
   throw std::runtime_error(oss.str());
 }
 

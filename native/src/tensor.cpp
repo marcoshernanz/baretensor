@@ -449,11 +449,32 @@ void validate_non_empty_reduction(const bt::Tensor &tensor,
 
 void throw_autograd_not_implemented(const std::string_view op_name) {
   std::ostringstream oss;
-  oss << "Autograd support for " << op_name
-      << " is not implemented yet. Milestone 1 currently supports gradients "
-         "for add, mul, and sum.";
+  oss << "Autograd support for " << op_name << " is not implemented yet.";
   throw std::runtime_error(oss.str());
 }
+
+[[nodiscard]] std::vector<int64_t>
+invert_permutation(const std::vector<int64_t> &dims) {
+  std::vector<int64_t> inverse(dims.size(), 0);
+  for (size_t i = 0; i < dims.size(); ++i) {
+    inverse[static_cast<size_t>(dims[i])] = static_cast<int64_t>(i);
+  }
+  return inverse;
+}
+
+class ViewNode final : public bt::Node {
+public:
+  explicit ViewNode(const bt::Tensor &input)
+      : bt::Node({input}), input_shape_(input.shape) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    return {out_grad.reshape(input_shape_)};
+  }
+
+private:
+  std::vector<int64_t> input_shape_;
+};
 
 class SumNode final : public bt::Node {
 public:
@@ -483,6 +504,30 @@ private:
   std::vector<int64_t> input_shape_;
   std::vector<int64_t> reduced_dims_;
   bool keepdim_ = false;
+};
+
+class PermuteNode final : public bt::Node {
+public:
+  PermuteNode(const bt::Tensor &input, const std::vector<int64_t> &inverse_dims)
+      : bt::Node({input}), inverse_dims_(inverse_dims) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    return {out_grad.permute(inverse_dims_)};
+  }
+
+private:
+  std::vector<int64_t> inverse_dims_;
+};
+
+class ContiguousNode final : public bt::Node {
+public:
+  explicit ContiguousNode(const bt::Tensor &input) : bt::Node({input}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    return {out_grad};
+  }
 };
 
 } // namespace
@@ -707,9 +752,6 @@ void Tensor::accumulate_grad(const Tensor &incoming_grad) {
  */
 Tensor Tensor::contiguous() const {
   validate_copy_metadata(*this, "contiguous");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("contiguous");
-  }
 
   if (is_contiguous()) {
     return *this;
@@ -727,6 +769,10 @@ Tensor Tensor::contiguous() const {
   recursive_copy(0, ndim, shape, data_ptr(), out.data_ptr(), strides,
                  out.strides);
 
+  if (should_record_unary(*this)) {
+    out.set_grad_fn(std::make_shared<ContiguousNode>(*this));
+  }
+
   return out;
 }
 
@@ -737,9 +783,6 @@ Tensor Tensor::contiguous() const {
  */
 Tensor Tensor::view(const std::vector<int64_t> &shape) const {
   validate_copy_metadata(*this, "view");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("view");
-  }
 
   std::vector<int64_t> target_shape =
       detail::infer_reshape_shape(this->shape, shape);
@@ -754,7 +797,11 @@ Tensor Tensor::view(const std::vector<int64_t> &shape) const {
         " without copying. Use contiguous() before view().");
   }
 
-  return Tensor(storage, storage_offset, target_shape, *target_strides);
+  Tensor out(storage, storage_offset, target_shape, *target_strides);
+  if (should_record_unary(*this)) {
+    out.set_grad_fn(std::make_shared<ViewNode>(*this));
+  }
+  return out;
 }
 
 /*
@@ -764,16 +811,17 @@ Tensor Tensor::view(const std::vector<int64_t> &shape) const {
  */
 Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
   validate_copy_metadata(*this, "reshape");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("reshape");
-  }
 
   std::vector<int64_t> target_shape =
       detail::infer_reshape_shape(this->shape, shape);
   std::optional<std::vector<int64_t>> target_strides =
       detail::infer_view_strides(this->shape, this->strides, target_shape);
   if (target_strides.has_value()) {
-    return Tensor(storage, storage_offset, target_shape, *target_strides);
+    Tensor out(storage, storage_offset, target_shape, *target_strides);
+    if (should_record_unary(*this)) {
+      out.set_grad_fn(std::make_shared<ViewNode>(*this));
+    }
+    return out;
   }
 
   return contiguous().view(target_shape);
@@ -786,9 +834,6 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
  */
 Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
   validate_copy_metadata(*this, "permute");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("permute");
-  }
 
   const std::vector<int64_t> normalized_dims =
       detail::normalize_permutation_checked("permute", shape, dims);
@@ -800,8 +845,13 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
     target_strides[i] = strides[source_dim];
   }
 
-  return Tensor(storage, storage_offset, std::move(target_shape),
-                std::move(target_strides));
+  Tensor out(storage, storage_offset, std::move(target_shape),
+             std::move(target_strides));
+  if (should_record_unary(*this)) {
+    out.set_grad_fn(
+        std::make_shared<PermuteNode>(*this, invert_permutation(normalized_dims)));
+  }
+  return out;
 }
 
 /*
@@ -810,9 +860,6 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
  */
 Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
   validate_copy_metadata(*this, "transpose");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("transpose");
-  }
 
   const int64_t normalized_dim0 =
       detail::normalize_dim_checked("transpose", shape, dim0, "dim0");
@@ -834,9 +881,6 @@ Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
  */
 Tensor Tensor::T() const {
   validate_copy_metadata(*this, "T");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("T");
-  }
 
   if (ndim() != 2) {
     std::ostringstream oss;
@@ -854,9 +898,6 @@ Tensor Tensor::T() const {
  */
 Tensor Tensor::mT() const {
   validate_copy_metadata(*this, "mT");
-  if (should_record_unary(*this)) {
-    throw_autograd_not_implemented("mT");
-  }
 
   if (ndim() < 2) {
     std::ostringstream oss;

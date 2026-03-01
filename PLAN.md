@@ -8,7 +8,7 @@
 
 ## Milestones
 
-### Milestone 1: Autograd Skeleton (current)
+### Milestone 1: Autograd Skeleton (completed)
 
 Scope:
 - Tensor metadata: `requires_grad`, `grad`, `grad_fn`, `is_leaf`.
@@ -24,7 +24,7 @@ Acceptance criteria:
 - Broadcasted `add`/`mul` gradients are reduced to input shapes.
 - Unsupported autograd ops fail loudly instead of silently returning wrong grads.
 
-### Milestone 2: Views + Shape Ops
+### Milestone 2: Views + Shape Ops (completed)
 
 Scope:
 - `view`, `reshape`, `transpose`, `permute`, `contiguous` backward support.
