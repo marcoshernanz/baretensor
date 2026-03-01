@@ -95,7 +95,7 @@ class AutogradBasicTests(unittest.TestCase):
     def test_unsupported_autograd_op_fails_loudly(self) -> None:
         x = bt.tensor(np.asarray([1.0, 2.0], dtype=np.float32), requires_grad=True)
         with self.assertRaisesRegex(RuntimeError, r"not implemented"):
-            _ = x.exp()
+            _ = x.softmax(0)
 
 
 if __name__ == "__main__":
