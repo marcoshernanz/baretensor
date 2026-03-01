@@ -22,10 +22,20 @@
 #include "bt/detail/shape.h"
 #include "bt/detail/tensor_validation.h"
 
+/*
+ * Namespace: (anonymous)
+ * Purpose: Private implementation details local to this translation unit.
+ */
 namespace {
 
+/*
+ * Encodes supported cross-entropy reduction modes.
+ */
 enum class CrossEntropyReductionMode { kNone, kMean, kSum };
 
+/*
+ * Parses cross-entropy reduction mode from a user-facing string.
+ */
 [[nodiscard]] CrossEntropyReductionMode
 parse_cross_entropy_reduction(const std::string &reduction) {
   if (reduction == "none") {
@@ -43,6 +53,10 @@ parse_cross_entropy_reduction(const std::string &reduction) {
       "'sum'}.");
 }
 
+/*
+ * Class: SoftmaxNode
+ * Purpose: Backward formula for Tensor::softmax(dim).
+ */
 class SoftmaxNode final : public bt::Node {
 public:
   SoftmaxNode(const bt::Tensor &input, const int64_t dim)
@@ -59,6 +73,10 @@ private:
   int64_t dim_ = 0;
 };
 
+/*
+ * Class: LogSoftmaxNode
+ * Purpose: Backward formula for Tensor::log_softmax(dim).
+ */
 class LogSoftmaxNode final : public bt::Node {
 public:
   LogSoftmaxNode(const bt::Tensor &input, const int64_t dim)
@@ -75,6 +93,10 @@ private:
   int64_t dim_ = 0;
 };
 
+/*
+ * Class: LayerNormNode
+ * Purpose: Backward formula for layer normalization with optional affine params.
+ */
 class LayerNormNode final : public bt::Node {
 public:
   LayerNormNode(std::vector<bt::Tensor> inputs,
@@ -190,6 +212,10 @@ private:
   bool has_bias_ = false;
 };
 
+/*
+ * Class: CrossEntropyNode
+ * Purpose: Backward formula for cross-entropy loss on class-index targets.
+ */
 class CrossEntropyNode final : public bt::Node {
 public:
   CrossEntropyNode(const bt::Tensor &input, const bt::Tensor &target,
@@ -324,6 +350,10 @@ private:
   CrossEntropyReductionMode reduction_mode_ = CrossEntropyReductionMode::kMean;
 };
 
+/*
+ * Class: EmbeddingNode
+ * Purpose: Backward scatter-add into embedding weights.
+ */
 class EmbeddingNode final : public bt::Node {
 public:
   EmbeddingNode(const bt::Tensor &input, const bt::Tensor &weight)
@@ -377,8 +407,15 @@ private:
 
 } // namespace
 
+/*
+ * Namespace: bt
+ * Purpose: Public BareTensor C++ API surface.
+ */
 namespace bt {
 
+/*
+ * Returns a tensor containing softmax values computed along dim.
+ */
 Tensor Tensor::softmax(const int64_t dim) const {
   bt::detail::validate_copy_metadata(*this, "softmax");
   const bool should_record = bt::detail::should_record_unary(*this);
@@ -404,6 +441,9 @@ Tensor Tensor::softmax(const int64_t dim) const {
   return out;
 }
 
+/*
+ * Returns a tensor containing log-softmax values computed along dim.
+ */
 Tensor Tensor::log_softmax(const int64_t dim) const {
   bt::detail::validate_copy_metadata(*this, "log_softmax");
   const bool should_record = bt::detail::should_record_unary(*this);
@@ -428,6 +468,9 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
   return out;
 }
 
+/*
+ * Applies layer normalization over the trailing normalized_shape dimensions.
+ */
 Tensor layer_norm(const Tensor &input,
                   const std::vector<int64_t> &normalized_shape,
                   const std::optional<Tensor> &weight,
@@ -587,6 +630,9 @@ Tensor layer_norm(const Tensor &input,
   return output;
 }
 
+/*
+ * Computes cross-entropy loss between logits and class-index targets.
+ */
 Tensor cross_entropy(const Tensor &input, const Tensor &target,
                      const int64_t ignore_index, const std::string &reduction) {
   bt::detail::validate_copy_metadata(input, "cross_entropy");
@@ -750,6 +796,9 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   return reduced;
 }
 
+/*
+ * Computes embedding lookup for integer index tensors.
+ */
 Tensor embedding(const Tensor &input, const Tensor &weight) {
   bt::detail::validate_copy_metadata(input, "embedding");
   bt::detail::validate_copy_metadata(weight, "embedding");

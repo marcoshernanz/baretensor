@@ -1,0 +1,144 @@
+# Refactoring Plan
+
+## Goal
+
+Refactor the native tensor/autograd implementation to keep the codebase scalable, maintainable, and PyTorch-aligned while preserving behavior.
+
+## Current Pain Points
+
+- `native/src/tensor.cpp` is too large (core, views, reductions, linalg, and factories mixed together).
+- `native/src/tensor_nn.cpp` is large and mixes forward NN ops with backward node implementations.
+- Some logic still relies on long anonymous-namespace sections that are hard to navigate.
+- Build and ownership boundaries are not explicit enough for future contributors.
+
+## Refactoring Principles
+
+- No behavior changes during refactor.
+- Keep each step small and testable.
+- Prefer extracting shared utilities over duplicating logic.
+- Keep public API unchanged.
+- Preserve existing error messages unless intentionally improved.
+
+## Target File Layout
+
+### Core tensor files
+
+- `native/src/tensor_core.cpp`
+  - constructors, metadata (`requires_grad`, `grad`, `grad_fn`, `is_leaf`)
+  - `backward`, `detach`, `zero_grad`, `accumulate_grad`
+- `native/src/tensor_views.cpp`
+  - `contiguous`, `view`, `reshape`, `permute`, `transpose`, `T`, `mT`
+  - view/autograd node classes related to shape/layout ops
+- `native/src/tensor_reductions.cpp`
+  - `sum`, `mean`, `max`
+  - reduction plans and reduction helpers
+  - reduction/autograd node classes
+- `native/src/tensor_linalg.cpp`
+  - `matmul`
+  - matmul canonicalization and kernel helpers
+  - matmul backward node
+- `native/src/tensor_factories.cpp`
+  - `full`, `zeros`, `ones`
+
+### NN files
+
+- `native/src/tensor_nn_ops.cpp`
+  - `softmax`, `log_softmax`, `layer_norm`, `cross_entropy`, `embedding` forward
+- `native/src/tensor_nn_autograd.cpp`
+  - NN autograd node classes and shared backward helpers
+
+### Detail helpers
+
+- Keep cross-cutting helpers in `native/include/bt/detail/*` (and `native/src/detail/*` if non-inline):
+  - autograd recording helpers
+  - tensor metadata validation
+  - shape/dim formatting and broadcast helpers
+
+## Execution Milestones
+
+### Milestone 0: Baseline Safety
+
+- Capture current status with:
+  - `cmake --build --preset dev`
+  - `make test`
+  - `make lint`
+  - `make typecheck`
+- Record current file sizes and module responsibilities.
+
+Acceptance:
+- Baseline is green before refactor starts.
+
+### Milestone 1: Core File Split (`tensor.cpp`)
+
+- Move code from `tensor.cpp` into:
+  - `tensor_core.cpp`
+  - `tensor_views.cpp`
+  - `tensor_reductions.cpp`
+  - `tensor_linalg.cpp`
+  - `tensor_factories.cpp`
+- Keep declarations in `native/include/bt/tensor.h` unchanged.
+- Update `CMakeLists.txt` source list.
+
+Acceptance:
+- Full suite green.
+- `tensor.cpp` removed or reduced to minimal compatibility wrapper.
+
+### Milestone 2: NN Split (`tensor_nn.cpp`)
+
+- Move forward APIs into `tensor_nn_ops.cpp`.
+- Move node classes/backward kernels into `tensor_nn_autograd.cpp`.
+- Keep symbols and call paths unchanged.
+
+Acceptance:
+- Full suite green.
+- Both NN files are focused and easier to navigate.
+
+### Milestone 3: Utility Consolidation
+
+- Review remaining duplication in anonymous namespaces.
+- Promote repeated reusable internals into `bt/detail` headers/sources.
+- Remove dead local helpers.
+
+Acceptance:
+- No duplicated core utility logic across tensor modules.
+
+### Milestone 4: Documentation and Include Hygiene
+
+- Ensure each file has:
+  - file header
+  - namespace header
+  - function/class headers where needed
+- Trim unnecessary includes and keep each TU self-sufficient.
+
+Acceptance:
+- Consistent documentation style across all new files.
+- Clean build with no missing/implicit include reliance.
+
+### Milestone 5: Final Validation and Regression Guard
+
+- Run:
+  - `cmake --build --preset dev`
+  - `make test`
+  - `make lint`
+  - `make typecheck`
+- Optional: add a small CI check to cap max TU size (soft guard, not blocker).
+
+Acceptance:
+- All checks green.
+- Refactor merged with zero functional regressions.
+
+## Risks and Mitigations
+
+- Risk: symbol duplication or missing definitions after split.
+  - Mitigation: move in small chunks and rebuild after each chunk.
+- Risk: accidental behavior changes.
+  - Mitigation: keep existing tests green after every milestone.
+- Risk: header/include cycles.
+  - Mitigation: keep helpers in `detail` and avoid cross-including implementation headers.
+
+## Done Criteria
+
+- Tensor/NN implementations are split into focused translation units.
+- Shared helper logic is centralized.
+- Behavior is unchanged (tests and type/lint checks green).
+- New structure is documented and easy to extend with future ops.
