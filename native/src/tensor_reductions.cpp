@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "bt/detail/autograd_record.h"
+#include "bt/detail/dims.h"
 #include "bt/detail/format.h"
 #include "bt/detail/tensor_validation.h"
 
@@ -24,17 +25,6 @@
  * Purpose: Private implementation details local to this translation unit.
  */
 namespace {
-
-/*
- * Builds an identity permutation [0, 1, ..., rank - 1].
- */
-[[nodiscard]] std::vector<int64_t> make_axis_order(const size_t rank) {
-  std::vector<int64_t> dims(rank, 0);
-  for (size_t i = 0; i < rank; ++i) {
-    dims[i] = static_cast<int64_t>(i);
-  }
-  return dims;
-}
 
 /*
  * Struct: ReductionPlan
@@ -486,7 +476,9 @@ namespace bt {
 /*
  * Returns the sum of all tensor elements as a scalar tensor.
  */
-Tensor Tensor::sum() const { return sum(make_axis_order(shape.size()), false); }
+Tensor Tensor::sum() const {
+  return sum(detail::make_axis_order(shape.size()), false);
+}
 
 /*
  * Returns the sum reduced along one dimension.
@@ -516,7 +508,7 @@ Tensor Tensor::sum(const std::vector<int64_t> &dim, const bool keepdim) const {
  * Returns the mean of all tensor elements as a scalar tensor.
  */
 Tensor Tensor::mean() const {
-  return mean(make_axis_order(shape.size()), false);
+  return mean(detail::make_axis_order(shape.size()), false);
 }
 
 /*
@@ -550,7 +542,9 @@ Tensor Tensor::mean(const std::vector<int64_t> &dim, const bool keepdim) const {
 /*
  * Returns the maximum of all tensor elements as a scalar tensor.
  */
-Tensor Tensor::max() const { return max(make_axis_order(shape.size()), false); }
+Tensor Tensor::max() const {
+  return max(detail::make_axis_order(shape.size()), false);
+}
 
 /*
  * Returns the maximum reduced along one dimension.

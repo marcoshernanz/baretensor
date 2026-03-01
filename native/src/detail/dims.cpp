@@ -5,6 +5,7 @@
 
 #include "bt/detail/dims.h"
 
+#include <cstddef>
 #include <sstream>
 #include <stdexcept>
 
@@ -91,6 +92,28 @@ std::vector<int64_t> normalize_permutation_checked(
   }
 
   return normalized_dims;
+}
+
+/*
+ * Builds an identity axis order [0, 1, ..., rank - 1].
+ */
+std::vector<int64_t> make_axis_order(const size_t rank) {
+  std::vector<int64_t> dims(rank, 0);
+  for (size_t i = 0; i < rank; ++i) {
+    dims[i] = static_cast<int64_t>(i);
+  }
+  return dims;
+}
+
+/*
+ * Inverts a permutation so inverse[dims[i]] = i.
+ */
+std::vector<int64_t> invert_permutation(const std::vector<int64_t>& dims) {
+  std::vector<int64_t> inverse(dims.size(), 0);
+  for (size_t i = 0; i < dims.size(); ++i) {
+    inverse[static_cast<size_t>(dims[i])] = static_cast<int64_t>(i);
+  }
+  return inverse;
 }
 
 } /* namespace bt::detail */

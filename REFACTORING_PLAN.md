@@ -139,7 +139,7 @@ Milestone 2 snapshot (`2026-03-01 21:05:23 CET`):
   - `make lint` passed.
   - `make typecheck` passed.
 
-### Milestone 3: Utility Consolidation
+### Milestone 3: Utility Consolidation (completed)
 
 - Review remaining duplication in anonymous namespaces.
 - Promote repeated reusable internals into `bt/detail` headers/sources.
@@ -147,6 +147,24 @@ Milestone 2 snapshot (`2026-03-01 21:05:23 CET`):
 
 Acceptance:
 - No duplicated core utility logic across tensor modules.
+
+Milestone 3 snapshot (`2026-03-01 21:12:47 CET`):
+- Consolidated shared dimension/permutation helpers into
+  `bt/detail/dims`:
+  - `native/include/bt/detail/dims.h`
+  - `native/src/detail/dims.cpp`
+- Added reusable helpers:
+  - `make_axis_order(size_t rank)`
+  - `invert_permutation(const std::vector<int64_t>& dims)`
+- Removed duplicated local implementations from:
+  - `native/src/tensor_views.cpp`
+  - `native/src/tensor_reductions.cpp`
+- Updated tensor modules to call shared `bt::detail` utilities.
+- Validation:
+  - `cmake --build --preset dev` passed.
+  - `make test` passed (`198` tests).
+  - `make lint` passed.
+  - `make typecheck` passed.
 
 ### Milestone 4: Documentation and Include Hygiene
 

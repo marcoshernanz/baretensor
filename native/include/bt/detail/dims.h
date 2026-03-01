@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -27,6 +28,17 @@ namespace bt::detail {
  */
 [[nodiscard]] std::vector<int64_t> normalize_permutation_checked(
     std::string_view operation_name, const std::vector<int64_t>& shape,
+    const std::vector<int64_t>& dims);
+
+/*
+ * Builds an identity axis order [0, 1, ..., rank - 1].
+ */
+[[nodiscard]] std::vector<int64_t> make_axis_order(size_t rank);
+
+/*
+ * Inverts a permutation so inverse[dims[i]] = i.
+ */
+[[nodiscard]] std::vector<int64_t> invert_permutation(
     const std::vector<int64_t>& dims);
 
 } /* namespace bt::detail */

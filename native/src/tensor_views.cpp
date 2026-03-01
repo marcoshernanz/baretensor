@@ -55,29 +55,6 @@ void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
 }
 
 /*
- * Builds an identity permutation [0, 1, ..., rank - 1].
- */
-std::vector<int64_t> make_axis_order(const size_t rank) {
-  std::vector<int64_t> dims(rank, 0);
-  for (size_t i = 0; i < rank; ++i) {
-    dims[i] = static_cast<int64_t>(i);
-  }
-  return dims;
-}
-
-/*
- * Inverts a dimension permutation.
- */
-[[nodiscard]] std::vector<int64_t>
-invert_permutation(const std::vector<int64_t> &dims) {
-  std::vector<int64_t> inverse(dims.size(), 0);
-  for (size_t i = 0; i < dims.size(); ++i) {
-    inverse[static_cast<size_t>(dims[i])] = static_cast<int64_t>(i);
-  }
-  return inverse;
-}
-
-/*
  * Class: ViewNode
  * Purpose: Backward mapping for view/reshape operations.
  */
@@ -239,7 +216,7 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
              std::move(target_strides));
   if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<PermuteNode>(
-        *this, invert_permutation(normalized_dims)));
+        *this, detail::invert_permutation(normalized_dims)));
   }
   return out;
 }
@@ -259,7 +236,7 @@ Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
     return *this;
   }
 
-  std::vector<int64_t> dims = make_axis_order(shape.size());
+  std::vector<int64_t> dims = detail::make_axis_order(shape.size());
   std::swap(dims[static_cast<size_t>(normalized_dim0)],
             dims[static_cast<size_t>(normalized_dim1)]);
   return permute(dims);
@@ -296,7 +273,7 @@ Tensor Tensor::mT() const {
     throw std::invalid_argument(oss.str());
   }
 
-  std::vector<int64_t> dims = make_axis_order(shape.size());
+  std::vector<int64_t> dims = detail::make_axis_order(shape.size());
   std::swap(dims[dims.size() - 2], dims[dims.size() - 1]);
   return permute(dims);
 }
