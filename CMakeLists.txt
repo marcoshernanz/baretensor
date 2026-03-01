@@ -23,32 +23,18 @@ execute_process(
 
 find_package(nanobind CONFIG REQUIRED)
 
-set(BT_DETAIL_SOURCES
-  native/src/detail/broadcast.cpp
-  native/src/detail/dims.cpp
-  native/src/detail/format.cpp
-  native/src/detail/shape.cpp
+# Automatically pick up all C++ implementation files under native/src.
+# CONFIGURE_DEPENDS asks CMake to re-run configure when files are added/removed.
+file(GLOB_RECURSE BT_NATIVE_SOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/native/src/*.cpp"
 )
-
-set(BT_CORE_SOURCES
-  native/src/autograd.cpp
-  native/src/ops.cpp
-  native/src/storage.cpp
-  native/src/tensor_core.cpp
-  native/src/tensor_views.cpp
-  native/src/tensor_reductions.cpp
-  native/src/tensor_linalg.cpp
-  native/src/tensor_factories.cpp
-  native/src/tensor_nn_ops.cpp
-  native/src/tensor_nn_autograd.cpp
-)
+list(SORT BT_NATIVE_SOURCES)
 
 nanobind_add_module(
   _C
   NOMINSIZE
   native/python/bindings.cpp
-  ${BT_DETAIL_SOURCES}
-  ${BT_CORE_SOURCES}
+  ${BT_NATIVE_SOURCES}
 )
 
 target_include_directories(_C PRIVATE
