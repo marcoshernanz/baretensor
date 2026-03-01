@@ -56,7 +56,7 @@ Refactor the native tensor/autograd implementation to keep the codebase scalable
 
 ## Execution Milestones
 
-### Milestone 0: Baseline Safety
+### Milestone 0: Baseline Safety (completed)
 
 - Capture current status with:
   - `cmake --build --preset dev`
@@ -67,6 +67,22 @@ Refactor the native tensor/autograd implementation to keep the codebase scalable
 
 Acceptance:
 - Baseline is green before refactor starts.
+
+Baseline snapshot (`2026-03-01 20:49:03 CET`):
+- Build: `cmake --build --preset dev` passed.
+- Tests: `make test` passed (`198` tests).
+- Lint: `make lint` passed.
+- Typecheck: `make typecheck` passed.
+- Translation unit sizes:
+  - `native/src/tensor.cpp`: `1316` lines
+  - `native/src/tensor_nn.cpp`: `900` lines
+  - `native/src/ops.cpp`: `456` lines
+  - `native/src/autograd.cpp`: `230` lines
+  - `native/src/storage.cpp`: `78` lines
+- Current module responsibilities:
+  - `native/src/tensor.cpp`: tensor core metadata/state, views, reductions, linalg, and factories.
+  - `native/src/tensor_nn.cpp`: NN forward ops and NN autograd nodes.
+  - `native/src/ops.cpp`: elementwise ops and elementwise autograd nodes.
 
 ### Milestone 1: Core File Split (`tensor.cpp`)
 
