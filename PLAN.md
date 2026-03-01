@@ -49,7 +49,7 @@ Scope:
 Acceptance criteria:
 - Stable gradients and parity checks against PyTorch for supported shapes.
 
-### Milestone 5: TinyGPT-Critical NN Ops
+### Milestone 5: TinyGPT-Critical NN Ops (completed)
 
 Scope:
 - `softmax`, `log_softmax`, `cross_entropy`, `layer_norm`, `embedding` backward.

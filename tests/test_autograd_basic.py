@@ -92,10 +92,12 @@ class AutogradBasicTests(unittest.TestCase):
         x.zero_grad()
         self.assertIsNone(x.grad)
 
-    def test_unsupported_autograd_op_fails_loudly(self) -> None:
+    def test_backward_rejects_gradient_shape_mismatch(self) -> None:
         x = bt.tensor(np.asarray([1.0, 2.0], dtype=np.float32), requires_grad=True)
-        with self.assertRaisesRegex(RuntimeError, r"not implemented"):
-            _ = x.softmax(0)
+        y = x * 3.0
+
+        with self.assertRaisesRegex(ValueError, r"gradient shape mismatch"):
+            y.backward(bt.tensor(np.asarray([1.0], dtype=np.float32)))
 
 
 if __name__ == "__main__":
