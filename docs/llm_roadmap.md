@@ -1,130 +1,160 @@
-# Learning-First LLM Roadmap
+# BareTensor LLM Roadmap (End-to-End Stack Mastery)
 
-## Objective
-Learn by building small language models end-to-end, then progressively move ideas into the BareTensor library only when the pain is real.
+## Primary goal
+Build and understand the full AI stack in this repo, from tensor internals to modern architectures.
 
-## Fixed Baseline Rules
-- Keep dataset fixed while comparing milestones.
-- Keep loss fixed to next-token cross-entropy.
-- Log every run in `docs/learning_log.md`.
-- Change one variable per milestone.
+This roadmap is not about using external frameworks long-term. It is about owning:
+- C++ tensor core,
+- autograd,
+- Python API,
+- NN layer abstractions,
+- tokenizer pipeline,
+- CUDA kernels,
+- training/evaluation systems,
+- LLM architecture choices.
 
-## Work Streams
-- `experiments/`: fast learning scripts, one milestone per file.
-- `src/bt/` and `native/`: reusable API and backend work, introduced later.
+## Hard constraints
+- Keep external dependencies minimal (near-zero target).
+- `nanobind` is the required bridge for bindings.
+- BareTensor-native implementations are the default path.
+- Temporary placeholders are allowed only to unblock learning, then must be replaced.
 
-## Stage Plan
+## Project structure intent
+- `native/`: C++ tensor and kernel backend.
+- `src/bt/`: Python API surface.
+- `src/bt/nn/`: high-level NN abstractions.
+- `experiments/`: milestone scripts and quick prototypes.
+- `docs/learning_log.md`: run history and metric tracking.
 
-### Stage 0: Script-Only Learning (now)
-Target milestones:
-1. Bigram.
-2. 1-hidden-layer MLP.
-3. Better sampling and diagnostics.
-4. Checkpoint save/load.
-5. First tiny attention model.
+## Stage-by-stage plan
 
-Where to change code:
-- Only `experiments/*.py` and `docs/learning_log.md`.
+### Stage A: Bare minimum LM loop (current)
+Goal:
+- run simple language-model baselines and understand loss/gradients.
 
-Do not do yet:
-- No `train.py` orchestration framework.
-- No config system.
-- No tokenizer training.
-- No CUDA kernels.
+Milestones:
+1. Bigram LM.
+2. 1-hidden-layer MLP LM.
+3. Train/val split tracking + sample generation.
 
-Why:
-- Maximum learning velocity with minimal abstraction overhead.
+Where to edit:
+- `experiments/` first.
 
-### Stage 1: Introduce Tokenizer (after first attention model is stable)
-Trigger:
-- Char-level model clearly plateaus and you can run stable train/val loops.
+Exit criteria:
+- You can explain every tensor shape and gradient path in your scripts.
+- Baselines produce stable cross-entropy values and samples.
 
-What to add:
-- Start with a simple BPE tokenizer script and frozen artifacts.
-- Keep the same loss and eval process.
+### Stage B: Move baseline logic into BareTensor-first code
+Goal:
+- remove placeholder framework usage from core milestone path.
 
-Where to change code:
-- `scripts/` for tokenizer build script.
-- `artifacts/tokenizer/...` for vocab/merges/tokenizer files.
-- Minimal updates in `experiments/` to use token IDs.
+Milestones:
+1. Port bigram and MLP logic to BareTensor-native training path.
+2. Keep loss fixed: next-token cross-entropy.
+3. Keep dataset fixed while comparing improvements.
 
-Do not do yet:
-- No library-wide `nn` refactor.
-- No CUDA kernel work.
+Where to edit:
+- `experiments/` and `src/bt/` usage paths.
 
-### Stage 2: Add `torch.nn`-like Layer API (when repetition hurts)
-Trigger:
-- You have copied linear/embedding/layernorm/optimizer logic across 3+ experiment files.
+Exit criteria:
+- Baselines run with BareTensor as the core tensor/autograd runtime.
+
+### Stage C: Introduce tokenizer
+When to do it:
+- after the first attention-capable baseline is stable and char-level bottlenecks are visible.
+
+What to implement:
+1. Basic BPE tokenizer training script.
+2. Frozen tokenizer artifacts (vocab/merges/config).
+3. Deterministic encode/decode tests.
+
+Where to edit:
+- `scripts/` for tokenizer tooling.
+- `artifacts/tokenizer/` for frozen tokenizer files.
+- `experiments/` for tokenized training data path.
+
+### Stage D: Build `bt.nn`-style layer API (PyTorch-like ergonomics)
+When to do it:
+- once repeated layer code appears across multiple experiments.
 
 What to implement first:
-- Minimal module abstraction in Python:
-  - `Module`
-  - `Linear`
-  - `Embedding`
-  - `LayerNorm`
-- Keep it tiny and close to PyTorch naming.
+1. `Module` base class.
+2. `Linear`.
+3. `Embedding`.
+4. `LayerNorm`.
+5. Minimal optimizer abstractions.
 
-Where to change code:
-- `src/bt/nn/` (new module/layer files).
-- `tests/` for layer forward/backward parity tests.
-- `experiments/` updated to use these layers.
+Where to edit:
+- `src/bt/nn/`.
+- `tests/` for correctness/parity.
 
-Notes:
-- This is API ergonomics work, not backend optimization work.
+Why here:
+- this is where prototyping turns into reusable architecture code.
 
-### Stage 3: Move to Robust Runner (`train.py` + config)
-Trigger:
-- You run many long experiments and need reproducibility across machines.
-- You keep editing the same boilerplate loop in every script.
+### Stage E: Introduce robust runner (`train.py` + single config format)
+When to do it:
+- after `bt.nn` exists and repeated training boilerplate slows iteration.
 
-What to add:
-- One `train.py` entrypoint.
-- One config format only (TOML).
-- Profiles for `dev-cpu`, `local-2060`, `cloud`.
+What to implement:
+1. One `scripts/train.py` entrypoint.
+2. One config format only (recommended TOML).
+3. Reproducible logging, checkpointing, and profile presets.
 
-Where to change code:
+Where to edit:
 - `scripts/train.py`
 - `configs/*.toml`
-- Reuse model code from `src/bt/nn/` and keep `experiments/` for prototypes.
 
 Rule:
-- Do this only after Stage 2 trigger is reached.
+- Do not add this before Stage D; otherwise infra complexity outpaces learning.
 
-### Stage 4: Custom CUDA Kernels (only after model semantics are stable)
-Trigger:
-- Stable architecture and training stack already exist.
-- Profiling shows clear bottlenecks on RTX 2060.
+### Stage F: Architecture climb (Tiny GPT -> modern blocks)
+Goal:
+- progress from simple models to modern Transformer patterns.
 
-What to implement first:
-1. CUDA matmul baseline.
-2. CUDA softmax/log_softmax.
-3. CUDA layer norm.
+Milestones:
+1. Single-head causal self-attention.
+2. Multi-head attention + residual + LayerNorm.
+3. Stacked decoder-only Transformer.
+4. Positional strategies and improved FFN variants.
+
+Where to edit:
+- primarily `src/bt/nn/` and experiment/train entrypoints.
+
+### Stage G: Custom CUDA kernels
+When to start:
+- only after model/training semantics are stable and profiler shows bottlenecks.
+
+Kernel order:
+1. Matmul baseline.
+2. Softmax/log_softmax.
+3. LayerNorm.
 4. Fused cross-entropy.
+5. Attention-oriented kernels.
 
-Where to change code:
-- `native/src/` and `native/include/`.
-- Python bindings in `native/python/bindings.cpp` if new ops are exposed.
-- Add parity tests under `tests/` against CPU/reference.
+Where to edit:
+- `native/src/`, `native/include/`, `native/python/bindings.cpp`.
+- add CPU/CUDA parity tests in `tests/`.
 
 Rule:
-- Every kernel change must include correctness tests before performance claims.
+- correctness parity first, performance claims second.
 
-## Decision Checklist (quick)
-- Need to learn model ideas quickly? -> stay in `experiments/`.
-- Repeating layer code everywhere? -> Stage 2 (`src/bt/nn`).
-- Repeating training boilerplate everywhere? -> Stage 3 (`train.py` + config).
-- Training is correct but too slow on GPU? -> Stage 4 (CUDA kernels).
-- Char-level quality bottleneck? -> Stage 1 (tokenizer).
+## Transition checklist
+Use these to decide what to do next.
 
-## Practical Sequence For You
-1. Finish bigram and MLP results in `docs/learning_log.md`.
-2. Build first tiny attention script in `experiments/`.
-3. Add tokenizer only after attention baseline is stable.
-4. Add minimal `bt.nn` layers once copy-paste pain is real.
-5. Add `train.py` and TOML configs after `bt.nn` is in place.
-6. Start CUDA kernels last, after profiling identifies bottlenecks.
+- Tokenizer now?
+  - Yes only if char-level has clearly plateaued and you already have a stable attention baseline.
 
-## Start Commands
-- Build extension: `make build`
-- Run bigram: `/Users/marcoshernanz/dev/baretensor/.venv/bin/python experiments/001_bigram_bt.py`
-- Run MLP: `/Users/marcoshernanz/dev/baretensor/.venv/bin/python experiments/002_mlp_1hidden_bt.py`
+- `bt.nn` now?
+  - Yes when copy-paste layer code is frequent and slowing progress.
+
+- `train.py` + config now?
+  - Yes when experiments are numerous and reproducibility overhead is hurting momentum.
+
+- Custom CUDA kernels now?
+  - Yes only with stable model semantics + profiling evidence of hotspots.
+
+## Practical next steps (immediate)
+1. Keep logging baseline runs in `docs/learning_log.md`.
+2. Continue milestone scripts in `experiments/` while porting logic toward BareTensor-native paths.
+3. Add a first tiny attention milestone.
+4. Start Stage D (`bt.nn`) only when repetition is concrete, not hypothetical.
