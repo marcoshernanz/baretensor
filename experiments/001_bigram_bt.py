@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import random
 
 import torch
 
@@ -41,9 +42,17 @@ def main() -> None:
     cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
     perplexity = torch.exp(cross_entropy)
 
+    sample_len = 200
+    sample_id = random.randrange(vocab_size)
+    sample = chars[sample_id]
+    for _ in range(sample_len - 1):
+        sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
+        sample += chars[sample_id]
+
     print(f"vocab_size={vocab_size}")
     print(f"cross_entropy={cross_entropy.item():.6f}")
     print(f"perplexity={perplexity.item():.6f}")
+    print(f'sample="""\n{sample}\n"""')
 
 
 if __name__ == "__main__":
