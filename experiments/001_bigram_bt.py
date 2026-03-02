@@ -1,31 +1,50 @@
-# %%
+"""Milestone 001: smoothed character-level bigram language model."""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 import torch
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
-tokens = DATA_PATH.read_text(encoding="utf-8")
+LAPLACE_SMOOTHING = 1.0
 
-chars = sorted(set(tokens))
 
-ctoi = {c: i for i, c in enumerate(chars)}
-itoc = {i: c for i, c in enumerate(chars)}
-num_tokens = len(ctoi)
+def load_text(path: Path) -> str:
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Dataset not found at {path}. "
+            "Place tinyshakespeare.txt there before running this script."
+        )
+    text = path.read_text(encoding="utf-8")
+    if len(text) < 2:
+        raise ValueError("Dataset is too small. Need at least 2 characters.")
+    return text
 
-encoded = torch.tensor([ctoi[c] for c in tokens], dtype=torch.long)
 
-# %%
-bigram = torch.ones([num_tokens, num_tokens])
+def main() -> None:
+    tokens = load_text(DATA_PATH)
 
-for t1, t2 in zip(encoded, encoded[1:]):
-    bigram[t1, t2] += 1
+    chars = sorted(set(tokens))
+    char_to_id = {char: idx for idx, char in enumerate(chars)}
+    vocab_size = len(char_to_id)
 
-# %%
-row_sums = bigram.sum(1, keepdim=True)
-probs = bigram / row_sums
+    encoded = torch.tensor([char_to_id[ch] for ch in tokens], dtype=torch.long)
 
-t1 = encoded[:-1]
-t2 = encoded[1:]
-loss = -torch.log(probs[t1, t2]).mean()
+    bigram_counts = torch.ones((vocab_size, vocab_size), dtype=torch.float32) * LAPLACE_SMOOTHING
+    for prev_id, next_id in zip(encoded, encoded[1:]):
+        bigram_counts[prev_id, next_id] += 1.0
 
-print(loss.item())
+    probs = bigram_counts / bigram_counts.sum(1, keepdim=True)
+    prev_tokens = encoded[:-1]
+    next_tokens = encoded[1:]
+    cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
+    perplexity = torch.exp(cross_entropy)
+
+    print(f"vocab_size={vocab_size}")
+    print(f"cross_entropy={cross_entropy.item():.6f}")
+    print(f"perplexity={perplexity.item():.6f}")
+
+
+if __name__ == "__main__":
+    main()
