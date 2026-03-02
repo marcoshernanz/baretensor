@@ -9,6 +9,8 @@ import torch
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
+SEED = 1337
+SAMPLE_LEN = 200
 
 
 def load_text(path: Path) -> str:
@@ -23,7 +25,29 @@ def load_text(path: Path) -> str:
     return text
 
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def build_bigram_probs(encoded: torch.Tensor, vocab_size: int) -> torch.Tensor:
+    bigram_counts = torch.ones((vocab_size, vocab_size), dtype=torch.float32) * LAPLACE_SMOOTHING
+    for prev_id, next_id in zip(encoded, encoded[1:]):
+        bigram_counts[prev_id, next_id] += 1.0
+    return bigram_counts / bigram_counts.sum(1, keepdim=True)
+
+
+def sample_text(probs: torch.Tensor, chars: list[str], sample_len: int) -> str:
+    sample_id = random.randrange(len(chars))
+    sample = [chars[sample_id]]
+    for _ in range(sample_len - 1):
+        sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
+        sample.append(chars[sample_id])
+    return "".join(sample)
+
+
 def main() -> None:
+    set_seed(SEED)
     tokens = load_text(DATA_PATH)
 
     chars = sorted(set(tokens))
@@ -31,25 +55,15 @@ def main() -> None:
     vocab_size = len(char_to_id)
 
     encoded = torch.tensor([char_to_id[ch] for ch in tokens], dtype=torch.long)
-
-    bigram_counts = torch.ones((vocab_size, vocab_size), dtype=torch.float32) * LAPLACE_SMOOTHING
-    for prev_id, next_id in zip(encoded, encoded[1:]):
-        bigram_counts[prev_id, next_id] += 1.0
-
-    probs = bigram_counts / bigram_counts.sum(1, keepdim=True)
+    probs = build_bigram_probs(encoded, vocab_size)
     prev_tokens = encoded[:-1]
     next_tokens = encoded[1:]
     cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
     perplexity = torch.exp(cross_entropy)
-
-    sample_len = 200
-    sample_id = random.randrange(vocab_size)
-    sample = chars[sample_id]
-    for _ in range(sample_len - 1):
-        sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
-        sample += chars[sample_id]
+    sample = sample_text(probs, chars, SAMPLE_LEN)
 
     print(f"vocab_size={vocab_size}")
+    print(f"seed={SEED}")
     print(f"cross_entropy={cross_entropy.item():.6f}")
     print(f"perplexity={perplexity.item():.6f}")
     print(f'sample="""\n{sample}\n"""')
