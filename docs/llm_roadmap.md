@@ -242,7 +242,7 @@ A milestone is complete only if all are true:
 - Documented (brief change note with rationale).
 
 ## Immediate next actions
-1. Create `train.py` + `configs/baseline_tinystories.yaml`.
+1. Create `train.py` + `configs/baseline_tinystories.toml`.
 2. Add dataset manifest generation and split freezing scripts.
 3. Add tokenizer freeze script and tokenizer artifact versioning.
 4. Add run profiles (for example `dev-cpu`, `local-2060`, `cloud`) so commands are reproducible across devices.

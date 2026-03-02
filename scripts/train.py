@@ -19,15 +19,11 @@ import platform
 import subprocess
 import sys
 import textwrap
+import tomllib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover
-    tomllib = None  # type: ignore[assignment]
 
 
 @dataclass(slots=True)
@@ -100,64 +96,22 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     """Recursively merge `override` into `base`, returning a new dictionary."""
     merged: dict[str, Any] = copy.deepcopy(base)
     for key, value in override.items():
-        if (
-            key in merged
-            and isinstance(merged[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
             merged[key] = _deep_merge(merged[key], value)
         else:
             merged[key] = copy.deepcopy(value)
     return merged
 
 
-def _load_yaml_or_json(path: Path) -> dict[str, Any]:
-    """Load YAML; fall back to JSON for zero-dependency config support.
-
-    YAML is the preferred format. If `PyYAML` is not installed, a JSON-formatted
-    file with `.yaml`/`.yml` extension is also accepted because JSON is valid
-    YAML syntax.
-    """
-    text = path.read_text(encoding="utf-8")
-
-    try:
-        import yaml  # type: ignore[import-not-found]
-
-        data = yaml.safe_load(text)
-        if not isinstance(data, dict):
-            raise ValueError(f"Expected top-level mapping in {path}.")
-        return data
-    except ModuleNotFoundError:
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as err:
-            raise RuntimeError(
-                "Failed to parse YAML config because PyYAML is not installed, and "
-                "the file is not valid JSON fallback syntax. Install PyYAML or "
-                "convert the file to JSON/TOML."
-            ) from err
-        if not isinstance(data, dict):
-            raise ValueError(f"Expected top-level object in {path}.")
-        return data
-
-
 def load_config_dict(path: Path) -> dict[str, Any]:
-    suffix = path.suffix.lower()
-    if suffix in {".yaml", ".yml"}:
-        return _load_yaml_or_json(path)
-    if suffix == ".json":
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            raise ValueError(f"Expected top-level object in {path}.")
-        return raw
-    if suffix == ".toml":
-        if tomllib is None:  # pragma: no cover
-            raise RuntimeError("Python tomllib is unavailable in this environment.")
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            raise ValueError(f"Expected top-level table in {path}.")
-        return raw
-    raise ValueError(f"Unsupported config extension: {suffix}.")
+    """Load experiment config from TOML only."""
+    if path.suffix.lower() != ".toml":
+        raise ValueError(f"Unsupported config extension: {path.suffix}. Use a .toml config file.")
+
+    raw = tomllib.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"Expected top-level table in {path}.")
+    return raw
 
 
 def resolve_profile(config: dict[str, Any], profile: str | None) -> dict[str, Any]:
@@ -173,9 +127,7 @@ def resolve_profile(config: dict[str, Any], profile: str | None) -> dict[str, An
         return resolved
     if profile not in profiles:
         available = ", ".join(sorted(str(k) for k in profiles.keys()))
-        raise ValueError(
-            f"Unknown profile '{profile}'. Available profiles: [{available}]."
-        )
+        raise ValueError(f"Unknown profile '{profile}'. Available profiles: [{available}].")
 
     override = profiles[profile]
     if not isinstance(override, dict):
@@ -252,9 +204,7 @@ def _validate_config(
     _validate_positive_int("training.micro_batch_size", training.micro_batch_size)
     _validate_positive_int("training.grad_accum_steps", training.grad_accum_steps)
     _validate_positive_int("training.validate_every_steps", training.validate_every_steps)
-    _validate_positive_int(
-        "training.checkpoint_every_steps", training.checkpoint_every_steps
-    )
+    _validate_positive_int("training.checkpoint_every_steps", training.checkpoint_every_steps)
     _validate_positive_int("training.log_every_steps", training.log_every_steps)
 
 
@@ -327,7 +277,7 @@ def _print_summary(config: ExperimentConfig, run_dir: Path, profile: str | None)
         f"""
         BareTensor train.py bootstrap complete.
           run_dir: {run_dir}
-          profile: {profile or '<none>'}
+          profile: {profile or "<none>"}
           device: {config.run.device}
           dataset: {config.dataset.name}
           tokenizer: {config.tokenizer.kind} (vocab={config.tokenizer.vocab_size})
@@ -346,7 +296,7 @@ def parse_args() -> argparse.Namespace:
         "--config",
         type=Path,
         required=True,
-        help="Path to experiment config (.yaml/.yml/.json/.toml).",
+        help="Path to experiment config (.toml only).",
     )
     parser.add_argument(
         "--profile",
