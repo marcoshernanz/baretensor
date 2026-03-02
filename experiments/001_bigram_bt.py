@@ -1,32 +1,31 @@
 # %%
+from pathlib import Path
+
 import torch
 
-tokens = open("../datasets/tinyshakespeare.txt", "r").read()
+DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
+tokens = DATA_PATH.read_text(encoding="utf-8")
 
-ttoi = {c: i for i, c in enumerate(set(tokens))}
-itok = {i: c for i, c in enumerate(set(tokens))}
-num_tokens = len(ttoi)
+chars = sorted(set(tokens))
 
-encoded = torch.tensor([ttoi[c] for c in tokens], dtype=torch.long)
+ctoi = {c: i for i, c in enumerate(chars)}
+itoc = {i: c for i, c in enumerate(chars)}
+num_tokens = len(ctoi)
 
-# %%
-bigram = torch.zeros([num_tokens, num_tokens])
-
-for c1, c2 in zip(encoded, encoded[1:]):
-    bigram[c1, c2] += 1
-
-bigram /= bigram.sum(1, keepdim=True)
+encoded = torch.tensor([ctoi[c] for c in tokens], dtype=torch.long)
 
 # %%
-sum = 0
-total = 0
+bigram = torch.ones([num_tokens, num_tokens])
 
 for t1, t2 in zip(encoded, encoded[1:]):
-    logits = bigram[t1]
-    ce = torch.nn.functional.cross_entropy(logits, t2)
-    sum += ce
-    total += 1
+    bigram[t1, t2] += 1
 
-loss = sum / total
+# %%
+row_sums = bigram.sum(1, keepdim=True)
+probs = bigram / row_sums
 
-print(loss)
+t1 = encoded[:-1]
+t2 = encoded[1:]
+loss = -torch.log(probs[t1, t2]).mean()
+
+print(loss.item())
