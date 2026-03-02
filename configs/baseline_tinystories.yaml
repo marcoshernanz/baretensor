@@ -1,0 +1,82 @@
+{
+  "run": {
+    "name": "baseline-tinystories",
+    "output_dir": "runs",
+    "seed": 1337,
+    "device": "cpu",
+    "dry_run": true
+  },
+  "dataset": {
+    "name": "tinystories",
+    "train_manifest": "data/manifests/tinystories_train.jsonl",
+    "val_manifest": "data/manifests/tinystories_val.jsonl",
+    "test_manifest": "data/manifests/tinystories_test.jsonl",
+    "context_length": 128
+  },
+  "tokenizer": {
+    "kind": "bpe",
+    "vocab_size": 8000,
+    "artifact_path": "artifacts/tokenizer/tinystories-bpe8k"
+  },
+  "model": {
+    "family": "gpt",
+    "n_layers": 4,
+    "n_heads": 4,
+    "d_model": 256,
+    "d_ff": 1024,
+    "dropout_p": 0.0
+  },
+  "optimizer": {
+    "kind": "adamw",
+    "lr": 0.0003,
+    "weight_decay": 0.1,
+    "beta1": 0.9,
+    "beta2": 0.95,
+    "eps": 1e-8,
+    "grad_clip_norm": 1.0
+  },
+  "training": {
+    "max_steps": 20000,
+    "micro_batch_size": 4,
+    "grad_accum_steps": 8,
+    "validate_every_steps": 200,
+    "checkpoint_every_steps": 500,
+    "log_every_steps": 20
+  },
+  "profiles": {
+    "dev-cpu": {
+      "run": {
+        "device": "cpu",
+        "dry_run": true
+      },
+      "training": {
+        "max_steps": 50,
+        "micro_batch_size": 2,
+        "grad_accum_steps": 1,
+        "validate_every_steps": 10,
+        "checkpoint_every_steps": 25,
+        "log_every_steps": 5
+      }
+    },
+    "local-2060": {
+      "run": {
+        "device": "cuda",
+        "dry_run": true
+      },
+      "training": {
+        "micro_batch_size": 4,
+        "grad_accum_steps": 8
+      }
+    },
+    "cloud": {
+      "run": {
+        "device": "cuda",
+        "dry_run": true
+      },
+      "training": {
+        "micro_batch_size": 8,
+        "grad_accum_steps": 4
+      }
+    }
+  }
+}
