@@ -43,6 +43,9 @@ This roadmap is optimized for:
 - Compare model-quality ideas at fixed token budgets (for example: `20M`, `100M`, `300M`, `1B`).
 - Compare systems ideas at fixed model/data and report time-to-target-loss.
 - For claims, run 3 seeds and report mean/std.
+- Keep benchmark device class fixed per leaderboard track:
+  - local GPU track: RTX 2060 SUPER
+  - cloud track: one pinned GPU SKU per experiment family
 
 ## Milestone Ladder
 
@@ -162,11 +165,26 @@ Acceptance criteria:
 ## Compute Plan (Local First, Then Cloud)
 
 ## Hardware assumptions
+- Primary coding machine: MacBook Air M4, 16GB RAM.
 - Local GPU: RTX 2060 SUPER (8GB VRAM).
 - Expect small contexts, small batch sizes, and heavy use of gradient accumulation initially.
 
+## Device roles (recommended)
+- MacBook Air M4:
+  - Default machine for coding, unit tests, docs, data preprocessing, tokenizer tooling, and short CPU debug runs.
+  - Fast feedback loop for non-CUDA milestones (Phases 0-4, except GPU perf validation).
+- RTX 2060 SUPER desktop:
+  - Canonical local benchmark/training device for all GPU-relevant milestones.
+  - Use this device for any run you want to compare historically in the local leaderboard.
+- Cloud GPU:
+  - Use for runs blocked by local VRAM/runtime and for scaling milestones.
+  - Treat cloud as a separate leaderboard track unless hardware is exactly matched.
+
 ## Suggested training allocation
-1. Local bootstrap (`~150-300 GPU hours total`):
+1. MacBook + local desktop bootstrap:
+   - MacBook for daily development and correctness iteration.
+   - RTX 2060 SUPER for benchmarked training.
+   - Total RTX 2060 SUPER budget: `~150-300 GPU hours`.
    - Phases 0-3 and early Phase 4.
    - Many short runs to validate correctness and training behavior.
 2. Cloud burst budget (`$100-$300`):
@@ -227,5 +245,6 @@ A milestone is complete only if all are true:
 1. Create `train.py` + `configs/baseline_tinystories.yaml`.
 2. Add dataset manifest generation and split freezing scripts.
 3. Add tokenizer freeze script and tokenizer artifact versioning.
-4. Implement Phase 0 logging/checkpointing before any architecture changes.
-5. Start milestone tracking table in this file or a separate `docs/llm_leaderboard.md`.
+4. Add run profiles (for example `dev-cpu`, `local-2060`, `cloud`) so commands are reproducible across devices.
+5. Implement Phase 0 logging/checkpointing before any architecture changes.
+6. Start milestone tracking table in this file or a separate `docs/llm_leaderboard.md`.
