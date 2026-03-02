@@ -27,7 +27,7 @@ def load_text(path: Path) -> str:
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    torch.manual_seed(seed)
+    torch.manual_seed(seed)  # type: ignore
 
 
 def build_bigram_probs(encoded: torch.Tensor, vocab_size: int) -> torch.Tensor:
