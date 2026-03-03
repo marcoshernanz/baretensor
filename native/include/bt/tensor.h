@@ -174,6 +174,21 @@ public:
   [[nodiscard]] Tensor permute(const std::vector<int64_t> &dims) const;
 
   /*
+   * Returns a view that selects one index along dim, removing that dimension.
+   * Supports negative dimensions and negative indices using Python-style
+   * indexing.
+   */
+  [[nodiscard]] Tensor select(int64_t dim, int64_t index) const;
+
+  /*
+   * Returns a strided view sliced along dim over [start, stop) with step.
+   * Supports negative dimensions and Python-style slice bound normalization.
+   * Requires step > 0.
+   */
+  [[nodiscard]] Tensor slice(int64_t dim, int64_t start, int64_t stop,
+                             int64_t step = 1) const;
+
+  /*
    * Returns a view with dim0 and dim1 swapped.
    * Supports negative dimensions using Python-style indexing.
    */
