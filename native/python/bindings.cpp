@@ -29,6 +29,157 @@ namespace nb = nanobind;
  */
 namespace {
 
+enum class IndexKind { kInt, kSlice };
+
+struct SliceSpec {
+  std::optional<int64_t> start;
+  std::optional<int64_t> stop;
+  std::optional<int64_t> step;
+};
+
+struct IndexToken {
+  IndexKind kind = IndexKind::kSlice;
+  int64_t int_index = 0;
+  SliceSpec slice{};
+};
+
+[[nodiscard]] IndexToken make_full_slice_token() {
+  return IndexToken{
+      .kind = IndexKind::kSlice,
+      .int_index = 0,
+      .slice = SliceSpec{},
+  };
+}
+
+[[nodiscard]] int64_t cast_index_int(const nb::object &value,
+                                     const char *context) {
+  if (nb::isinstance<nb::bool_>(value)) {
+    throw nb::type_error(
+        (std::string(context) +
+         " does not support boolean indices. Use int indices instead.")
+            .c_str());
+  }
+
+  try {
+    return nb::cast<int64_t>(value);
+  } catch (const nb::cast_error &) {
+    throw nb::type_error(
+        (std::string(context) + " expected integer-valued index components.")
+            .c_str());
+  }
+}
+
+[[nodiscard]] SliceSpec parse_slice_spec(const nb::slice &slice_obj,
+                                         const char *context) {
+  const nb::object start_obj = slice_obj.attr("start");
+  const nb::object stop_obj = slice_obj.attr("stop");
+  const nb::object step_obj = slice_obj.attr("step");
+
+  SliceSpec slice{};
+  if (!start_obj.is_none()) {
+    slice.start = cast_index_int(start_obj, context);
+  }
+  if (!stop_obj.is_none()) {
+    slice.stop = cast_index_int(stop_obj, context);
+  }
+  if (!step_obj.is_none()) {
+    slice.step = cast_index_int(step_obj, context);
+  }
+  return slice;
+}
+
+[[nodiscard]] IndexToken parse_index_token(const nb::object &index_item,
+                                           const char *context) {
+  if (index_item.ptr() == Py_Ellipsis) {
+    throw nb::type_error((std::string(context) +
+                          " does not support ellipsis (...) indexing yet.")
+                             .c_str());
+  }
+  if (nb::isinstance<nb::slice>(index_item)) {
+    return IndexToken{
+        .kind = IndexKind::kSlice,
+        .int_index = 0,
+        .slice = parse_slice_spec(nb::cast<nb::slice>(index_item), context),
+    };
+  }
+  if (index_item.is_none()) {
+    throw nb::type_error(
+        (std::string(context) + " does not support None/newaxis indexing yet.")
+            .c_str());
+  }
+
+  if (PyIndex_Check(index_item.ptr()) != 0) {
+    return IndexToken{
+        .kind = IndexKind::kInt,
+        .int_index = cast_index_int(index_item, context),
+        .slice = SliceSpec{},
+    };
+  }
+
+  throw nb::type_error(
+      (std::string(context) + " only supports int, slice, and tuples thereof.")
+          .c_str());
+}
+
+[[nodiscard]] std::vector<IndexToken>
+normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
+                       const char *context) {
+  std::vector<IndexToken> tokens;
+  if (nb::isinstance<nb::tuple>(index_obj)) {
+    const nb::tuple tuple_index = nb::cast<nb::tuple>(index_obj);
+    tokens.reserve(tuple_index.size());
+    for (size_t i = 0; i < tuple_index.size(); ++i) {
+      tokens.push_back(
+          parse_index_token(nb::borrow<nb::object>(tuple_index[i]), context));
+    }
+  } else {
+    tokens.push_back(parse_index_token(index_obj, context));
+  }
+
+  const int64_t rank = tensor.ndim();
+  if (static_cast<int64_t>(tokens.size()) > rank) {
+    std::ostringstream oss;
+    oss << context << " received too many indices for tensor of dimension "
+        << rank << ".";
+    throw nb::index_error(oss.str().c_str());
+  }
+  std::vector<IndexToken> normalized = tokens;
+  while (static_cast<int64_t>(normalized.size()) < rank) {
+    normalized.push_back(make_full_slice_token());
+  }
+  return normalized;
+}
+
+[[nodiscard]] bt::Tensor tensor_getitem(const bt::Tensor &tensor,
+                                        const nb::object &index_obj) {
+  constexpr const char *kContext = "__getitem__()";
+  const std::vector<IndexToken> normalized_tokens =
+      normalize_index_tokens(tensor, index_obj, kContext);
+
+  bt::Tensor out = tensor;
+  int64_t current_dim = 0;
+  for (const IndexToken &token : normalized_tokens) {
+    if (token.kind == IndexKind::kInt) {
+      out = out.select(current_dim, token.int_index);
+      continue;
+    }
+
+    const bool is_full_slice =
+        !token.slice.start.has_value() && !token.slice.stop.has_value() &&
+        (!token.slice.step.has_value() || token.slice.step.value() == 1);
+    if (!is_full_slice) {
+      const int64_t dim_size = out.shape[static_cast<size_t>(current_dim)];
+      const int64_t start = token.slice.start.value_or(0);
+      const int64_t stop = token.slice.stop.value_or(dim_size);
+      const int64_t step = token.slice.step.value_or(1);
+      out = out.slice(current_dim, start, stop, step);
+    }
+    ++current_dim;
+  }
+
+  return out;
+}
+
 /*
  * Copies contiguous tensor data into a std::vector for Python conversion
  * helpers.
@@ -123,6 +274,7 @@ NB_MODULE(_C, m) {
       .def("permute", &bt::Tensor::permute, nb::arg("dims"))
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"),
            nb::arg("dim1"))
+      .def("__getitem__", &tensor_getitem, nb::arg("index").none())
       .def_prop_ro("T", &bt::Tensor::T)
       .def_prop_ro("mT", &bt::Tensor::mT)
       .def("matmul", &bt::Tensor::matmul, nb::arg("tensor2"))
