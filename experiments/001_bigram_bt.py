@@ -7,6 +7,7 @@ import random
 
 import torch
 import bt
+import numpy as np
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
@@ -31,20 +32,21 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)  # type: ignore
 
 
-def build_bigram_probs(encoded: list[int], vocab_size: int) -> torch.Tensor:
-    bigram_counts = bt.full((vocab_size, vocab_size), LAPLACE_SMOOTHING)
+def build_bigram_probs(encoded: list[int], vocab_size: int) -> bt.Tensor:
+    bigram_counts = [[LAPLACE_SMOOTHING for _ in range(vocab_size)] for _ in range(vocab_size)]
     for prev_id, next_id in zip(encoded, encoded[1:]):
-        bigram_counts[prev_id, next_id] += 1.0
-    return bigram_counts / bigram_counts.sum(1, keepdim=True)
+        bigram_counts[prev_id][next_id] += 1.0
+    counts = bt.tensor(np.array(bigram_counts))
+    return counts / counts.sum(1, keepdim=True)
 
 
-def sample_text(probs: torch.Tensor, chars: list[str], sample_len: int) -> str:
-    sample_id = random.randrange(len(chars))
-    sample = [chars[sample_id]]
-    for _ in range(sample_len - 1):
-        sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
-        sample.append(chars[sample_id])
-    return "".join(sample)
+# def sample_text(probs: bt.Tensor, chars: list[str], sample_len: int) -> str:
+#     sample_id = random.randrange(len(chars))
+#     sample = [chars[sample_id]]
+#     for _ in range(sample_len - 1):
+#         sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
+#         sample.append(chars[sample_id])
+#     return "".join(sample)
 
 
 def main() -> None:
@@ -59,15 +61,15 @@ def main() -> None:
     probs = build_bigram_probs(encoded, vocab_size)
     prev_tokens = encoded[:-1]
     next_tokens = encoded[1:]
-    cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
-    perplexity = torch.exp(cross_entropy)
-    sample = sample_text(probs, chars, SAMPLE_LEN)
+    cross_entropy = -probs[prev_tokens, next_tokens].log().mean()
+    perplexity = cross_entropy.exp()
+    # sample = sample_text(probs, chars, SAMPLE_LEN)
 
     print(f"vocab_size={vocab_size}")
     print(f"seed={SEED}")
     print(f"cross_entropy={cross_entropy.item():.6f}")
     print(f"perplexity={perplexity.item():.6f}")
-    print(f'sample="""\n{sample}\n"""')
+    # print(f'sample="""\n{sample}\n"""')
 
 
 if __name__ == "__main__":
