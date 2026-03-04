@@ -36,6 +36,21 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         self.assertEqual(tensor.numel(), 1)
         self.assertTrue(tensor.is_contiguous())
         np.testing.assert_allclose(to_numpy(tensor), np.asarray(3.5, dtype=np.float32))
+        self.assertAlmostEqual(tensor.item(), 3.5)
+
+    def test_item_accepts_any_tensor_with_single_element(self) -> None:
+        tensor = bt.full([1, 1], 2.25)
+
+        self.assertAlmostEqual(tensor.item(), 2.25)
+
+    def test_item_rejects_tensors_with_more_than_one_element(self) -> None:
+        tensor = bt.zeros([2, 3])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"item\(\) can only be called on tensors with exactly one element",
+        ):
+            _ = tensor.item()
 
     def test_zero_dim_extent_metadata(self) -> None:
         tensor = bt.zeros([0, 3])

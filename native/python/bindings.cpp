@@ -181,6 +181,22 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
 }
 
 /*
+ * Returns the single scalar value from a tensor with exactly one element.
+ */
+[[nodiscard]] float tensor_item(const bt::Tensor &tensor) {
+  const int64_t count = tensor.numel();
+  if (count != 1) {
+    std::ostringstream oss;
+    oss << "item() can only be called on tensors with exactly one element, "
+        << "but got shape " << bt::detail::shape_to_string(tensor.shape)
+        << " (" << count << " elements).";
+    throw nb::value_error(oss.str().c_str());
+  }
+
+  return *tensor.data_ptr();
+}
+
+/*
  * Copies contiguous tensor data into a std::vector for Python conversion
  * helpers.
  */
@@ -275,6 +291,7 @@ NB_MODULE(_C, m) {
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"),
            nb::arg("dim1"))
       .def("__getitem__", &tensor_getitem, nb::arg("index").none())
+      .def("item", &tensor_item)
       .def_prop_ro("T", &bt::Tensor::T)
       .def_prop_ro("mT", &bt::Tensor::mT)
       .def("matmul", &bt::Tensor::matmul, nb::arg("tensor2"))
