@@ -6,7 +6,6 @@ from pathlib import Path
 import random
 
 import torch
-import bt
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
@@ -31,8 +30,8 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)  # type: ignore
 
 
-def build_bigram_probs(encoded: list[int], vocab_size: int) -> torch.Tensor:
-    bigram_counts = bt.full((vocab_size, vocab_size), LAPLACE_SMOOTHING)
+def build_bigram_probs(encoded: torch.Tensor, vocab_size: int) -> torch.Tensor:
+    bigram_counts = torch.ones((vocab_size, vocab_size), dtype=torch.float32) * LAPLACE_SMOOTHING
     for prev_id, next_id in zip(encoded, encoded[1:]):
         bigram_counts[prev_id, next_id] += 1.0
     return bigram_counts / bigram_counts.sum(1, keepdim=True)
@@ -55,7 +54,7 @@ def main() -> None:
     char_to_id = {char: idx for idx, char in enumerate(chars)}
     vocab_size = len(char_to_id)
 
-    encoded = [char_to_id[ch] for ch in tokens]
+    encoded = torch.tensor([char_to_id[ch] for ch in tokens], dtype=torch.long)
     probs = build_bigram_probs(encoded, vocab_size)
     prev_tokens = encoded[:-1]
     next_tokens = encoded[1:]
