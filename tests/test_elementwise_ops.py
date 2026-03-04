@@ -59,6 +59,16 @@ def _make_arange(shape: Shape, *, start: float = 0.0) -> ArrayF32:
 
 
 class ElementwiseOpsTests(unittest.TestCase):
+    def test_unary_neg_matches_numpy(self) -> None:
+        a_np: ArrayF32 = np.asarray(np.arange(12, dtype=np.float32).reshape(3, 4), dtype=np.float32)
+        a = bt.tensor(a_np)
+
+        out = -a
+
+        np.testing.assert_allclose(
+            to_numpy(out), np.asarray(-a_np, dtype=np.float32), rtol=1e-6, atol=1e-6
+        )
+
     def test_tensor_tensor_same_shape(self) -> None:
         a_np: ArrayF32 = np.asarray(np.arange(12, dtype=np.float32).reshape(3, 4), dtype=np.float32)
         b_np: ArrayF32 = np.asarray(

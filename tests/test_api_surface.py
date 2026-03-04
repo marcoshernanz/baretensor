@@ -23,6 +23,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt.Tensor, "max"))
         self.assertTrue(hasattr(bt.Tensor, "item"))
         self.assertTrue(hasattr(bt.Tensor, "__getitem__"))
+        self.assertTrue(hasattr(bt.Tensor, "__neg__"))
         self.assertTrue(hasattr(bt.nn.functional, "cross_entropy"))
         self.assertTrue(hasattr(bt.nn.functional, "layer_norm"))
         self.assertTrue(hasattr(bt.nn.functional, "embedding"))

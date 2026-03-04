@@ -13,6 +13,16 @@ def _require_grad(tensor: bt.Tensor) -> bt.Tensor:
 
 
 class AutogradOpsTests(unittest.TestCase):
+    def test_neg_backward_matches_closed_form(self) -> None:
+        x_np = np.asarray([-1.0, 0.0, 2.0, 4.0], dtype=np.float32)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = (-x).sum()
+        loss.backward()
+
+        expected = np.full_like(x_np, -1.0, dtype=np.float32)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
     def test_sub_backward_with_broadcast(self) -> None:
         a_np = np.arange(6, dtype=np.float32).reshape(2, 3)
         b_np = np.asarray([[10.0, 20.0, 30.0]], dtype=np.float32)
