@@ -31,13 +31,53 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)  # type: ignore
 
 
-def sample_text(logits: torch.Tensor, chars: list[str], sample_len: int) -> str:
-    probs = logits.exp() / logits.exp().sum(1, keepdim=True)
+def forward(
+    inputs: torch.Tensor,
+    embeddings: torch.Tensor,
+    weights1: torch.Tensor,
+    biases1: torch.Tensor,
+    weights2: torch.Tensor,
+    biases2: torch.Tensor,
+) -> torch.Tensor:
+    e = F.embedding(inputs, embeddings)
+    h1 = (e @ weights1 + biases1).tanh()
+    return h1 @ weights2 + biases2
+
+
+def split_loss(
+    encoded_split: torch.Tensor,
+    embeddings: torch.Tensor,
+    weights1: torch.Tensor,
+    biases1: torch.Tensor,
+    weights2: torch.Tensor,
+    biases2: torch.Tensor,
+) -> torch.Tensor:
+    inputs = encoded_split[:-1]
+    targets = encoded_split[1:]
+    logits = forward(inputs, embeddings, weights1, biases1, weights2, biases2)
+    return F.cross_entropy(logits, targets)
+
+
+def sample_text(
+    chars: list[str],
+    sample_len: int,
+    embeddings: torch.Tensor,
+    weights1: torch.Tensor,
+    biases1: torch.Tensor,
+    weights2: torch.Tensor,
+    biases2: torch.Tensor,
+) -> str:
     sample_id = random.randrange(len(chars))
     sample = [chars[sample_id]]
+    current = torch.tensor([sample_id], dtype=torch.long)
+
     for _ in range(sample_len - 1):
-        sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
+        logits = forward(current, embeddings, weights1, biases1, weights2, biases2)
+        probs = F.softmax(logits[0], dim=0)
+        sample_id = int(torch.multinomial(probs, num_samples=1).item())
         sample.append(chars[sample_id])
+        current = torch.tensor([sample_id], dtype=torch.long)
+
     return "".join(sample)
 
 
@@ -68,10 +108,8 @@ def main() -> None:
         batch = torch.randint(0, len(encoded_train) - 1, (BATCH_LEN,))
         inputs = encoded_train[batch]
         targets = encoded_train[batch + 1]
-        e = F.embedding(inputs, embeddings)
-        h1 = (e @ weights1 + biases1).tanh()
-        out = h1 @ weights2 + biases2
-        loss = F.cross_entropy(out, targets)
+        logits = forward(inputs, embeddings, weights1, biases1, weights2, biases2)
+        loss = F.cross_entropy(logits, targets)
 
         for p in params:
             p.grad = None
@@ -85,17 +123,12 @@ def main() -> None:
         if step % 100 == 0:
             print(f"step={step} loss={loss.item():.6f}")
 
-    batch = torch.tensor(range(len(encoded_val) - 1))
-    inputs = encoded_val[batch]
-    targets = encoded_val[batch + 1]
-    e = F.embedding(inputs, embeddings)
-    h1 = (e @ weights1 + biases1).tanh()
-    out = h1 @ weights2 + biases2
-    validation_loss = F.cross_entropy(out, targets)
+    with torch.no_grad():
+        train_loss = split_loss(encoded_train, embeddings, weights1, biases1, weights2, biases2)
+        validation_loss = split_loss(encoded_val, embeddings, weights1, biases1, weights2, biases2)
+        sample = sample_text(chars, SAMPLE_LEN, embeddings, weights1, biases1, weights2, biases2)
 
-    sample = sample_text(out, chars, SAMPLE_LEN)
-
-    print(f"train_loss={loss.item():.6f}")
+    print(f"train_loss={train_loss.item():.6f}")
     print(f"validation_loss={validation_loss.item():.6f}")
     print(f'sample="""\n{sample}\n"""')
 
