@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import math
 import random
 
 import bt
@@ -70,13 +69,9 @@ def main() -> None:
         log_prob_sum += probs[prev_id, next_id].log().item()
         token_count += 1
     cross_entropy = -log_prob_sum / token_count
-    perplexity = math.exp(cross_entropy)
     sample = sample_text(probs, chars, SAMPLE_LEN)
 
-    print(f"vocab_size={vocab_size}")
-    print(f"seed={SEED}")
     print(f"cross_entropy={cross_entropy:.6f}")
-    print(f"perplexity={perplexity:.6f}")
     print(f'sample="""\n{sample}\n"""')
 
 

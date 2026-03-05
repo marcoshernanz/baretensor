@@ -59,13 +59,9 @@ def main() -> None:
     prev_tokens = encoded[:-1]
     next_tokens = encoded[1:]
     cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
-    perplexity = torch.exp(cross_entropy)
     sample = sample_text(probs, chars, SAMPLE_LEN)
 
-    print(f"vocab_size={vocab_size}")
-    print(f"seed={SEED}")
     print(f"cross_entropy={cross_entropy.item():.6f}")
-    print(f"perplexity={perplexity.item():.6f}")
     print(f'sample="""\n{sample}\n"""')
 
 
