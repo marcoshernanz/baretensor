@@ -8,7 +8,6 @@ import random
 
 import bt
 import numpy as np
-import bt.nn.functional as F
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
@@ -65,11 +64,12 @@ def main() -> None:
 
     encoded = [char_to_id[ch] for ch in tokens]
     probs = build_bigram_probs(encoded, vocab_size)
-    log_probs = probs.log()
-    prev_tokens = bt.tensor(np.asarray(encoded[:-1], dtype=np.float32))
-    next_tokens = bt.tensor(np.asarray(encoded[1:], dtype=np.float32))
-    logits = F.embedding(prev_tokens, log_probs)
-    cross_entropy = F.cross_entropy(logits, next_tokens).item()
+    log_prob_sum = 0.0
+    token_count = 0
+    for prev_id, next_id in zip(encoded, encoded[1:]):
+        log_prob_sum += probs[prev_id, next_id].log().item()
+        token_count += 1
+    cross_entropy = -log_prob_sum / token_count
     perplexity = math.exp(cross_entropy)
     sample = sample_text(probs, chars, SAMPLE_LEN)
 
