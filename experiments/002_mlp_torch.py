@@ -114,10 +114,11 @@ def main() -> None:
         for p in params:
             p.grad = None
 
-        loss.backward()
+        loss.backward()  # type: ignore
 
         with torch.no_grad():
             for p in params:
+                assert p.grad is not None
                 p -= 0.1 * p.grad
 
         if step % 100 == 0:
