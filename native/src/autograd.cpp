@@ -55,8 +55,7 @@ void build_topology_from_tensor(const bt::Tensor &tensor,
   return bt::ones(output.shape);
 }
 
-void validate_root_gradient_shape(const bt::Tensor &output,
-                                  const bt::Tensor &gradient) {
+void validate_root_gradient_shape(const bt::Tensor &output, const bt::Tensor &gradient) {
   if (gradient.shape == output.shape) {
     return;
   }
@@ -76,9 +75,8 @@ void validate_input_gradient_shape(const bt::Tensor &input,
 
   std::ostringstream oss;
   oss << "autograd node produced gradient shape "
-      << bt::detail::shape_to_string(input_grad.shape)
-      << " for input tensor shape " << bt::detail::shape_to_string(input.shape)
-      << ".";
+      << bt::detail::shape_to_string(input_grad.shape) << " for input tensor shape "
+      << bt::detail::shape_to_string(input.shape) << ".";
   throw std::runtime_error(oss.str());
 }
 
@@ -94,14 +92,11 @@ namespace autograd {
 
 bool is_grad_enabled() noexcept { return g_grad_enabled; }
 
-NoGradGuard::NoGradGuard() : previous_state_(g_grad_enabled) {
-  g_grad_enabled = false;
-}
+NoGradGuard::NoGradGuard() : previous_state_(g_grad_enabled) { g_grad_enabled = false; }
 
 NoGradGuard::~NoGradGuard() { g_grad_enabled = previous_state_; }
 
-Tensor reduce_sum_to_shape(const Tensor &grad,
-                           const std::vector<int64_t> &shape) {
+Tensor reduce_sum_to_shape(const Tensor &grad, const std::vector<int64_t> &shape) {
   if (grad.shape == shape) {
     return grad;
   }
@@ -147,9 +142,8 @@ Tensor reduce_sum_to_shape(const Tensor &grad,
   if (reduced.shape != shape) {
     std::ostringstream oss;
     oss << "reduce_sum_to_shape failed: reduced gradient shape "
-        << detail::shape_to_string(reduced.shape)
-        << " does not match target shape " << detail::shape_to_string(shape)
-        << ".";
+        << detail::shape_to_string(reduced.shape) << " does not match target shape "
+        << detail::shape_to_string(shape) << ".";
     throw std::runtime_error(oss.str());
   }
 

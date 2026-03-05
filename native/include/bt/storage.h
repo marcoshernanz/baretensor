@@ -20,7 +20,7 @@ namespace bt {
  * Purpose: Owns a contiguous float buffer and basic memory operations.
  */
 class Storage {
- public:
+public:
   /*
    * Constructs storage with the requested number of elements.
    */
@@ -29,22 +29,22 @@ class Storage {
   /*
    * Constructs storage by copying from an existing vector.
    */
-  explicit Storage(const std::vector<float>& src);
+  explicit Storage(const std::vector<float> &src);
 
   /*
    * Constructs storage by moving from an existing vector.
    */
-  explicit Storage(std::vector<float>&& src) noexcept;
+  explicit Storage(std::vector<float> &&src) noexcept;
 
   /*
    * Returns a const pointer to the underlying buffer.
    */
-  [[nodiscard]] const float* data_ptr() const noexcept;
+  [[nodiscard]] const float *data_ptr() const noexcept;
 
   /*
    * Returns a mutable pointer to the underlying buffer.
    */
-  [[nodiscard]] float* data_ptr() noexcept;
+  [[nodiscard]] float *data_ptr() noexcept;
 
   /*
    * Returns the number of stored elements.
@@ -56,7 +56,7 @@ class Storage {
    */
   void fill(float fill_value) noexcept;
 
- private:
+private:
   std::vector<float> data_;
 };
 

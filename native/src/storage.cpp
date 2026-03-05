@@ -36,7 +36,7 @@ namespace {
   throw std::invalid_argument(oss.str());
 }
 
-}  // namespace
+} // namespace
 
 /*
  * Constructs storage with the requested number of elements.
@@ -46,22 +46,22 @@ Storage::Storage(int64_t size) : data_(checked_storage_size(size)) {}
 /*
  * Constructs storage by copying an existing vector.
  */
-Storage::Storage(const std::vector<float>& src) : data_(src) {}
+Storage::Storage(const std::vector<float> &src) : data_(src) {}
 
 /*
  * Constructs storage by moving an existing vector.
  */
-Storage::Storage(std::vector<float>&& src) noexcept : data_(std::move(src)) {}
+Storage::Storage(std::vector<float> &&src) noexcept : data_(std::move(src)) {}
 
 /*
  * Returns a const pointer to storage data.
  */
-const float* Storage::data_ptr() const noexcept { return data_.data(); }
+const float *Storage::data_ptr() const noexcept { return data_.data(); }
 
 /*
  * Returns a mutable pointer to storage data.
  */
-float* Storage::data_ptr() noexcept { return data_.data(); }
+float *Storage::data_ptr() noexcept { return data_.data(); }
 
 /*
  * Returns the number of stored elements.

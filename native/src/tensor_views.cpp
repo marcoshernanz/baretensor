@@ -31,8 +31,7 @@ namespace {
  * destination layout over a shared logical shape.
  */
 void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
-                    const float *src, float *dst,
-                    const std::vector<int64_t> &src_strides,
+                    const float *src, float *dst, const std::vector<int64_t> &src_strides,
                     const std::vector<int64_t> &dst_strides) {
   if (shape[dim] == 0) {
     return;
@@ -133,8 +132,7 @@ Tensor Tensor::contiguous() const {
     return out;
   }
 
-  recursive_copy(0, ndim, shape, data_ptr(), out.data_ptr(), strides,
-                 out.strides);
+  recursive_copy(0, ndim, shape, data_ptr(), out.data_ptr(), strides, out.strides);
 
   if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<ContiguousNode>(*this));
@@ -151,17 +149,15 @@ Tensor Tensor::contiguous() const {
 Tensor Tensor::view(const std::vector<int64_t> &shape) const {
   bt::detail::validate_copy_metadata(*this, "view");
 
-  std::vector<int64_t> target_shape =
-      detail::infer_reshape_shape(this->shape, shape);
+  std::vector<int64_t> target_shape = detail::infer_reshape_shape(this->shape, shape);
   std::optional<std::vector<int64_t>> target_strides =
       detail::infer_view_strides(this->shape, this->strides, target_shape);
   if (!target_strides.has_value()) {
-    throw std::invalid_argument(
-        "Cannot view tensor with shape " +
-        detail::shape_to_string(this->shape) + " and strides " +
-        detail::shape_to_string(this->strides) + " as shape " +
-        detail::shape_to_string(target_shape) +
-        " without copying. Use contiguous() before view().");
+    throw std::invalid_argument("Cannot view tensor with shape " +
+                                detail::shape_to_string(this->shape) + " and strides " +
+                                detail::shape_to_string(this->strides) + " as shape " +
+                                detail::shape_to_string(target_shape) +
+                                " without copying. Use contiguous() before view().");
   }
 
   Tensor out(storage, storage_offset, target_shape, *target_strides);
@@ -179,8 +175,7 @@ Tensor Tensor::view(const std::vector<int64_t> &shape) const {
 Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
   bt::detail::validate_copy_metadata(*this, "reshape");
 
-  std::vector<int64_t> target_shape =
-      detail::infer_reshape_shape(this->shape, shape);
+  std::vector<int64_t> target_shape = detail::infer_reshape_shape(this->shape, shape);
   std::optional<std::vector<int64_t>> target_strides =
       detail::infer_view_strides(this->shape, this->strides, target_shape);
   if (target_strides.has_value()) {
@@ -212,8 +207,7 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
     target_strides[i] = strides[source_dim];
   }
 
-  Tensor out(storage, storage_offset, std::move(target_shape),
-             std::move(target_strides));
+  Tensor out(storage, storage_offset, std::move(target_shape), std::move(target_strides));
   if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<PermuteNode>(
         *this, detail::invert_permutation(normalized_dims)));

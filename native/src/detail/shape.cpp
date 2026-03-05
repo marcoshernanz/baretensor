@@ -40,8 +40,8 @@ int64_t checked_numel(const std::vector<int64_t> &shape) {
     const int64_t s = shape[i];
     if (s < 0) {
       std::ostringstream oss;
-      oss << "Invalid tensor shape " << shape_to_string(shape) << ": dimension "
-          << i << " has negative size " << s << ".";
+      oss << "Invalid tensor shape " << shape_to_string(shape) << ": dimension " << i
+          << " has negative size " << s << ".";
       throw std::invalid_argument(oss.str());
     }
     if (s != 0 && n > std::numeric_limits<int64_t>::max() / s) {
@@ -60,9 +60,8 @@ int64_t checked_numel(const std::vector<int64_t> &shape) {
  * Resolves a requested reshape target against an input shape.
  * Supports at most one inferred '-1' dimension and validates total elements.
  */
-std::vector<int64_t>
-infer_reshape_shape(const std::vector<int64_t> &input_shape,
-                    const std::vector<int64_t> &requested_shape) {
+std::vector<int64_t> infer_reshape_shape(const std::vector<int64_t> &input_shape,
+                                         const std::vector<int64_t> &requested_shape) {
   const int64_t input_numel = checked_numel(input_shape);
 
   int64_t known_numel = 1;
@@ -82,9 +81,8 @@ infer_reshape_shape(const std::vector<int64_t> &input_shape,
 
     if (d < -1) {
       throw std::invalid_argument(
-          "Invalid reshape target " + shape_to_string(requested_shape) +
-          ": dimension " + std::to_string(i) + " has invalid size " +
-          std::to_string(d) + ".");
+          "Invalid reshape target " + shape_to_string(requested_shape) + ": dimension " +
+          std::to_string(i) + " has invalid size " + std::to_string(d) + ".");
     }
 
     if (d != 0 && known_numel > std::numeric_limits<int64_t>::max() / d) {
@@ -99,8 +97,7 @@ infer_reshape_shape(const std::vector<int64_t> &input_shape,
       throw std::invalid_argument(
           "Invalid reshape from " + shape_to_string(input_shape) + " to " +
           shape_to_string(requested_shape) + ": element counts differ (" +
-          std::to_string(input_numel) + " vs " + std::to_string(known_numel) +
-          ").");
+          std::to_string(input_numel) + " vs " + std::to_string(known_numel) + ").");
     }
     return requested_shape;
   }
@@ -112,11 +109,11 @@ infer_reshape_shape(const std::vector<int64_t> &input_shape,
   }
 
   if (input_numel % known_numel != 0) {
-    throw std::invalid_argument(
-        "Invalid reshape from " + shape_to_string(input_shape) + " to " +
-        shape_to_string(requested_shape) + ": cannot infer '-1' because " +
-        std::to_string(input_numel) + " is not divisible by " +
-        std::to_string(known_numel) + ".");
+    throw std::invalid_argument("Invalid reshape from " + shape_to_string(input_shape) +
+                                " to " + shape_to_string(requested_shape) +
+                                ": cannot infer '-1' because " +
+                                std::to_string(input_numel) + " is not divisible by " +
+                                std::to_string(known_numel) + ".");
   }
 
   std::vector<int64_t> resolved_shape(requested_shape);
@@ -160,23 +157,21 @@ infer_view_strides(const std::vector<int64_t> &input_shape,
   int64_t input_chunk_numel = 1;
   int64_t target_chunk_numel = 1;
 
-  for (int64_t input_dim = static_cast<int64_t>(input_shape.size()) - 1;
-       input_dim >= 0; --input_dim) {
+  for (int64_t input_dim = static_cast<int64_t>(input_shape.size()) - 1; input_dim >= 0;
+       --input_dim) {
     input_chunk_numel *= input_shape[static_cast<size_t>(input_dim)];
 
     const bool is_chunk_boundary =
-        (input_dim == 0) ||
-        ((input_shape[static_cast<size_t>(input_dim - 1)] != 1) &&
-         (input_strides[static_cast<size_t>(input_dim - 1)] !=
-          input_chunk_numel * chunk_base_stride));
+        (input_dim == 0) || ((input_shape[static_cast<size_t>(input_dim - 1)] != 1) &&
+                             (input_strides[static_cast<size_t>(input_dim - 1)] !=
+                              input_chunk_numel * chunk_base_stride));
 
     if (!is_chunk_boundary) {
       continue;
     }
 
-    while (target_dim >= 0 &&
-           (target_chunk_numel < input_chunk_numel ||
-            target_shape[static_cast<size_t>(target_dim)] == 1)) {
+    while (target_dim >= 0 && (target_chunk_numel < input_chunk_numel ||
+                               target_shape[static_cast<size_t>(target_dim)] == 1)) {
       target_strides[static_cast<size_t>(target_dim)] =
           target_chunk_numel * chunk_base_stride;
       target_chunk_numel *= target_shape[static_cast<size_t>(target_dim)];

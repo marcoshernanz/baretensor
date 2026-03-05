@@ -115,10 +115,9 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
 /*
  * Applies layer normalization over the trailing normalized_shape dimensions.
  */
-Tensor layer_norm(const Tensor &input,
-                  const std::vector<int64_t> &normalized_shape,
-                  const std::optional<Tensor> &weight,
-                  const std::optional<Tensor> &bias, const float eps) {
+Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_shape,
+                  const std::optional<Tensor> &weight, const std::optional<Tensor> &bias,
+                  const float eps) {
   bt::detail::validate_copy_metadata(input, "layer_norm");
   const bool should_record =
       bt::detail::should_record_unary(input) ||
@@ -138,9 +137,8 @@ Tensor layer_norm(const Tensor &input,
   };
 
   if (normalized_shape.empty()) {
-    throw std::invalid_argument(
-        make_error_prefix() +
-        "normalized_shape must contain at least one dimension.");
+    throw std::invalid_argument(make_error_prefix() +
+                                "normalized_shape must contain at least one dimension.");
   }
 
   for (size_t dim = 0; dim < normalized_shape.size(); ++dim) {
@@ -149,15 +147,14 @@ Tensor layer_norm(const Tensor &input,
     }
 
     std::ostringstream oss;
-    oss << make_error_prefix() << "normalized_shape[" << dim
-        << "] must be positive, got " << normalized_shape[dim] << ".";
+    oss << make_error_prefix() << "normalized_shape[" << dim << "] must be positive, got "
+        << normalized_shape[dim] << ".";
     throw std::invalid_argument(oss.str());
   }
 
   if (!std::isfinite(eps) || eps <= 0.0f) {
     std::ostringstream oss;
-    oss << make_error_prefix() << "eps must be a finite value > 0, got " << eps
-        << ".";
+    oss << make_error_prefix() << "eps must be a finite value > 0, got " << eps << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -165,8 +162,7 @@ Tensor layer_norm(const Tensor &input,
   const size_t input_rank = input.shape.size();
   if (normalized_rank > input_rank) {
     std::ostringstream oss;
-    oss << make_error_prefix()
-        << "normalized_shape rank must be <= input rank, got "
+    oss << make_error_prefix() << "normalized_shape rank must be <= input rank, got "
         << normalized_rank << " and " << input_rank << ".";
     throw std::invalid_argument(oss.str());
   }
@@ -180,8 +176,8 @@ Tensor layer_norm(const Tensor &input,
 
     std::ostringstream oss;
     oss << make_error_prefix() << "input tail dimensions "
-        << detail::shape_to_string(std::vector<int64_t>(
-               input.shape.begin() + tail_start, input.shape.end()))
+        << detail::shape_to_string(
+               std::vector<int64_t>(input.shape.begin() + tail_start, input.shape.end()))
         << " must match normalized_shape.";
     throw std::invalid_argument(oss.str());
   }
@@ -189,14 +185,12 @@ Tensor layer_norm(const Tensor &input,
   if (weight.has_value() && weight->shape != normalized_shape) {
     std::ostringstream oss;
     oss << make_error_prefix() << "weight shape "
-        << detail::shape_to_string(weight->shape)
-        << " must match normalized_shape.";
+        << detail::shape_to_string(weight->shape) << " must match normalized_shape.";
     throw std::invalid_argument(oss.str());
   }
   if (bias.has_value() && bias->shape != normalized_shape) {
     std::ostringstream oss;
-    oss << make_error_prefix() << "bias shape "
-        << detail::shape_to_string(bias->shape)
+    oss << make_error_prefix() << "bias shape " << detail::shape_to_string(bias->shape)
         << " must match normalized_shape.";
     throw std::invalid_argument(oss.str());
   }
@@ -204,8 +198,7 @@ Tensor layer_norm(const Tensor &input,
   const int64_t normalized_numel = detail::checked_numel(normalized_shape);
   if (normalized_numel <= 0) {
     throw std::invalid_argument(
-        make_error_prefix() +
-        "cannot normalize over zero elements in normalized_shape.");
+        make_error_prefix() + "cannot normalize over zero elements in normalized_shape.");
   }
 
   const Tensor input_contiguous = input.contiguous();
@@ -266,9 +259,9 @@ Tensor layer_norm(const Tensor &input,
     if (bias.has_value()) {
       node_inputs.push_back(*bias);
     }
-    output.set_grad_fn(bt::detail::make_layer_norm_node(
-        std::move(node_inputs), normalized_shape, eps, weight.has_value(),
-        bias.has_value()));
+    output.set_grad_fn(
+        bt::detail::make_layer_norm_node(std::move(node_inputs), normalized_shape, eps,
+                                         weight.has_value(), bias.has_value()));
   }
 
   return output;
@@ -299,9 +292,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   const int64_t class_count = input.shape[static_cast<size_t>(class_dim)];
   if (class_count <= 0) {
     std::ostringstream oss;
-    oss << make_error_prefix()
-        << "input class dimension size must be positive, got " << class_count
-        << ".";
+    oss << make_error_prefix() << "input class dimension size must be positive, got "
+        << class_count << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -352,16 +344,14 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
     const float target_value = target_ptr[target_offset];
     if (!std::isfinite(target_value)) {
-      throw std::invalid_argument(
-          make_error_prefix() +
-          "target values must be finite integer class indices.");
+      throw std::invalid_argument(make_error_prefix() +
+                                  "target values must be finite integer class indices.");
     }
 
     const float truncated = std::trunc(target_value);
     if (target_value != truncated) {
       std::ostringstream oss;
-      oss << make_error_prefix()
-          << "target values must be integer class indices.";
+      oss << make_error_prefix() << "target values must be integer class indices.";
       throw std::invalid_argument(oss.str());
     }
 
@@ -378,8 +368,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
       const float log_prob =
           log_probs_ptr[log_probs_base_offset +
-                        class_index *
-                            log_probs.strides[static_cast<size_t>(class_dim)]];
+                        class_index * log_probs.strides[static_cast<size_t>(class_dim)]];
       const float loss = -log_prob;
       unreduced_ptr[unreduced_offset] = loss;
       total_loss += loss;
@@ -390,8 +379,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
       continue;
     }
 
-    for (int64_t dim = static_cast<int64_t>(target.shape.size()) - 1; dim >= 0;
-         --dim) {
+    for (int64_t dim = static_cast<int64_t>(target.shape.size()) - 1; dim >= 0; --dim) {
       const size_t dim_index = static_cast<size_t>(dim);
       ++coord[dim_index];
       target_offset += target.strides[dim_index];
@@ -403,8 +391,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
       target_offset -= coord[dim_index] * target.strides[dim_index];
       unreduced_offset -= coord[dim_index] * unreduced.strides[dim_index];
-      log_probs_base_offset -=
-          coord[dim_index] * log_probs_target_strides[dim_index];
+      log_probs_base_offset -= coord[dim_index] * log_probs_target_strides[dim_index];
       coord[dim_index] = 0;
     }
   }
@@ -463,9 +450,8 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
   const int64_t embedding_dim = weight.shape[1];
   if (vocab_size <= 0) {
     std::ostringstream oss;
-    oss << make_error_prefix()
-        << "weight.shape[0] (vocab size) must be positive, got " << vocab_size
-        << ".";
+    oss << make_error_prefix() << "weight.shape[0] (vocab size) must be positive, got "
+        << vocab_size << ".";
     throw std::invalid_argument(oss.str());
   }
 

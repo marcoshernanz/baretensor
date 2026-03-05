@@ -67,8 +67,7 @@ public:
    * This constructor is intended for internal view-producing operations.
    */
   Tensor(const std::shared_ptr<Storage> storage, const int64_t storage_offset,
-         const std::vector<int64_t> &shape,
-         const std::vector<int64_t> &strides);
+         const std::vector<int64_t> &shape, const std::vector<int64_t> &strides);
 
   /*
    * Returns the tensor rank.
@@ -236,8 +235,7 @@ public:
    * An empty dim list performs no reduction and returns a copy-equivalent
    * tensor with the same shape and values.
    */
-  [[nodiscard]] Tensor sum(const std::vector<int64_t> &dim,
-                           bool keepdim = false) const;
+  [[nodiscard]] Tensor sum(const std::vector<int64_t> &dim, bool keepdim = false) const;
 
   /*
    * Returns the mean of all tensor elements as a scalar tensor.
@@ -258,8 +256,7 @@ public:
    * An empty dim list performs no reduction and returns a copy-equivalent
    * tensor with the same shape and values.
    */
-  [[nodiscard]] Tensor mean(const std::vector<int64_t> &dim,
-                            bool keepdim = false) const;
+  [[nodiscard]] Tensor mean(const std::vector<int64_t> &dim, bool keepdim = false) const;
 
   /*
    * Returns the maximum of all tensor elements as a scalar tensor.
@@ -280,8 +277,7 @@ public:
    * An empty dim list performs no reduction and returns a copy-equivalent
    * tensor with the same shape and values.
    */
-  [[nodiscard]] Tensor max(const std::vector<int64_t> &dim,
-                           bool keepdim = false) const;
+  [[nodiscard]] Tensor max(const std::vector<int64_t> &dim, bool keepdim = false) const;
 
   /*
    * Returns a tensor containing the elementwise exponential of this tensor.
@@ -368,8 +364,7 @@ public:
   /*
    * Computes gradients for each input tensor from an output gradient.
    */
-  [[nodiscard]] virtual std::vector<Tensor>
-  backward(const Tensor &out_grad) const = 0;
+  [[nodiscard]] virtual std::vector<Tensor> backward(const Tensor &out_grad) const = 0;
 
 private:
   std::vector<Tensor> inputs_;
@@ -421,8 +416,7 @@ private:
 /*
  * Executes reverse-mode automatic differentiation from the output tensor.
  */
-void backward(const Tensor &output,
-              const std::optional<Tensor> &gradient = std::nullopt);
+void backward(const Tensor &output, const std::optional<Tensor> &gradient = std::nullopt);
 
 } // namespace autograd
 
@@ -435,14 +429,12 @@ void backward(const Tensor &output,
 /*
  * Creates a tensor filled with zeros.
  */
-[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape,
-                           bool requires_grad = false);
+[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape, bool requires_grad = false);
 
 /*
  * Creates a tensor filled with ones.
  */
-[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape,
-                          bool requires_grad = false);
+[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape, bool requires_grad = false);
 
 /*
  * Computes cross-entropy loss between logits and class-index targets.
@@ -463,10 +455,11 @@ void backward(const Tensor &output,
  * - weight and bias, when provided, must have shape normalized_shape
  * - eps must be finite and greater than zero
  */
-[[nodiscard]] Tensor
-layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_shape,
-           const std::optional<Tensor> &weight = std::nullopt,
-           const std::optional<Tensor> &bias = std::nullopt, float eps = 1e-5f);
+[[nodiscard]] Tensor layer_norm(const Tensor &input,
+                                const std::vector<int64_t> &normalized_shape,
+                                const std::optional<Tensor> &weight = std::nullopt,
+                                const std::optional<Tensor> &bias = std::nullopt,
+                                float eps = 1e-5f);
 
 /*
  * Computes embedding lookup for integer index tensors.

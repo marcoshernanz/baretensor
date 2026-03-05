@@ -16,11 +16,12 @@ namespace bt::detail {
 /*
  * Converts a shape vector into a human-readable string.
  */
-std::string shape_to_string(const std::vector<int64_t>& shape) {
+std::string shape_to_string(const std::vector<int64_t> &shape) {
   std::ostringstream oss;
   oss << "[";
   for (size_t i = 0; i < shape.size(); ++i) {
-    if (i != 0) oss << ", ";
+    if (i != 0)
+      oss << ", ";
     oss << shape[i];
   }
   oss << "]";

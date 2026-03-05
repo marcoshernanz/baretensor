@@ -69,13 +69,11 @@ private:
  */
 class LayerNormNode final : public bt::Node {
 public:
-  LayerNormNode(std::vector<bt::Tensor> inputs,
-                std::vector<int64_t> normalized_shape, const float eps,
-                const bool has_weight, const bool has_bias)
-      : bt::Node(std::move(inputs)),
-        normalized_shape_(std::move(normalized_shape)),
-        normalized_numel_(bt::detail::checked_numel(normalized_shape_)),
-        eps_(eps), has_weight_(has_weight), has_bias_(has_bias) {}
+  LayerNormNode(std::vector<bt::Tensor> inputs, std::vector<int64_t> normalized_shape,
+                const float eps, const bool has_weight, const bool has_bias)
+      : bt::Node(std::move(inputs)), normalized_shape_(std::move(normalized_shape)),
+        normalized_numel_(bt::detail::checked_numel(normalized_shape_)), eps_(eps),
+        has_weight_(has_weight), has_bias_(has_bias) {}
 
   [[nodiscard]] std::vector<bt::Tensor>
   backward(const bt::Tensor &out_grad) const override {
@@ -111,8 +109,7 @@ public:
     float *input_grad_ptr = input_grad.data_ptr();
 
     const int64_t outer_numel = input_contiguous.numel() / normalized_numel_;
-    const float inv_normalized_numel =
-        1.0f / static_cast<float>(normalized_numel_);
+    const float inv_normalized_numel = 1.0f / static_cast<float>(normalized_numel_);
     for (int64_t outer_idx = 0; outer_idx < outer_numel; ++outer_idx) {
       const int64_t base = outer_idx * normalized_numel_;
 
@@ -135,8 +132,7 @@ public:
       for (int64_t i = 0; i < normalized_numel_; ++i) {
         const float x_hat = (input_ptr[base + i] - mean) * inv_std;
         const float dout = out_grad_ptr[base + i];
-        const float dx_hat =
-            weight_ptr != nullptr ? (dout * weight_ptr[i]) : dout;
+        const float dx_hat = weight_ptr != nullptr ? (dout * weight_ptr[i]) : dout;
 
         dx_hat_sum += dx_hat;
         dx_hat_xhat_sum += dx_hat * x_hat;
@@ -152,18 +148,16 @@ public:
       for (int64_t i = 0; i < normalized_numel_; ++i) {
         const float x_hat = (input_ptr[base + i] - mean) * inv_std;
         const float dout = out_grad_ptr[base + i];
-        const float dx_hat =
-            weight_ptr != nullptr ? (dout * weight_ptr[i]) : dout;
+        const float dx_hat = weight_ptr != nullptr ? (dout * weight_ptr[i]) : dout;
         const float dx = inv_std * inv_normalized_numel *
-                         (static_cast<float>(normalized_numel_) * dx_hat -
-                          dx_hat_sum - (x_hat * dx_hat_xhat_sum));
+                         (static_cast<float>(normalized_numel_) * dx_hat - dx_hat_sum -
+                          (x_hat * dx_hat_xhat_sum));
         input_grad_ptr[base + i] = dx;
       }
     }
 
     std::vector<bt::Tensor> grads;
-    grads.reserve(1 + static_cast<size_t>(has_weight_) +
-                  static_cast<size_t>(has_bias_));
+    grads.reserve(1 + static_cast<size_t>(has_weight_) + static_cast<size_t>(has_bias_));
     grads.push_back(input_grad);
     if (has_weight_) {
       grads.push_back(*weight_grad);
@@ -191,8 +185,8 @@ public:
   CrossEntropyNode(const bt::Tensor &input, const bt::Tensor &target,
                    const int64_t class_dim, const int64_t ignore_index,
                    const bt::detail::CrossEntropyReductionMode reduction_mode)
-      : bt::Node({input, target}), class_dim_(class_dim),
-        ignore_index_(ignore_index), reduction_mode_(reduction_mode) {}
+      : bt::Node({input, target}), class_dim_(class_dim), ignore_index_(ignore_index),
+        reduction_mode_(reduction_mode) {}
 
   [[nodiscard]] std::vector<bt::Tensor>
   backward(const bt::Tensor &out_grad) const override {
@@ -217,8 +211,7 @@ public:
     if (reduction_mode_ == bt::detail::CrossEntropyReductionMode::kMean) {
       for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
         const float target_value = target_ptr[linear_idx];
-        if (!std::isfinite(target_value) ||
-            target_value != std::trunc(target_value)) {
+        if (!std::isfinite(target_value) || target_value != std::trunc(target_value)) {
           throw std::runtime_error(
               "cross_entropy backward received invalid non-integer target "
               "value.");
@@ -243,16 +236,14 @@ public:
     float reduced_grad_scale = 0.0f;
     if (reduction_mode_ == bt::detail::CrossEntropyReductionMode::kSum) {
       reduced_grad_scale = out_grad_ptr[0];
-    } else if (reduction_mode_ ==
-               bt::detail::CrossEntropyReductionMode::kMean) {
+    } else if (reduction_mode_ == bt::detail::CrossEntropyReductionMode::kMean) {
       if (valid_count == 0) {
         return {input_grad, target_grad};
       }
       reduced_grad_scale = out_grad_ptr[0] / static_cast<float>(valid_count);
     }
 
-    std::vector<int64_t> probs_target_strides(target_contiguous.shape.size(),
-                                              0);
+    std::vector<int64_t> probs_target_strides(target_contiguous.shape.size(), 0);
     size_t target_dim = 0;
     for (size_t input_dim = 0; input_dim < input.shape.size(); ++input_dim) {
       if (static_cast<int64_t>(input_dim) == class_dim_) {
@@ -267,8 +258,7 @@ public:
 
     for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
       const float target_value = target_ptr[linear_idx];
-      if (!std::isfinite(target_value) ||
-          target_value != std::trunc(target_value)) {
+      if (!std::isfinite(target_value) || target_value != std::trunc(target_value)) {
         throw std::runtime_error("cross_entropy backward received invalid "
                                  "non-integer target value.");
       }
@@ -289,16 +279,14 @@ public:
           const int64_t offset = probs_base_offset + (class_idx * class_stride);
           input_grad_ptr[offset] += grad_scale * probs_ptr[offset];
         }
-        input_grad_ptr[probs_base_offset + (class_index * class_stride)] -=
-            grad_scale;
+        input_grad_ptr[probs_base_offset + (class_index * class_stride)] -= grad_scale;
       }
 
       if (target_contiguous.shape.empty()) {
         continue;
       }
 
-      for (int64_t dim =
-               static_cast<int64_t>(target_contiguous.shape.size()) - 1;
+      for (int64_t dim = static_cast<int64_t>(target_contiguous.shape.size()) - 1;
            dim >= 0; --dim) {
         const size_t dim_index = static_cast<size_t>(dim);
         ++coord[dim_index];
@@ -349,24 +337,21 @@ public:
 
     for (int64_t linear_idx = 0; linear_idx < input_numel; ++linear_idx) {
       const float index_value = input_ptr[linear_idx];
-      if (!std::isfinite(index_value) ||
-          index_value != std::trunc(index_value)) {
+      if (!std::isfinite(index_value) || index_value != std::trunc(index_value)) {
         throw std::runtime_error(
             "embedding backward received invalid non-integer index value.");
       }
 
       const int64_t row_index = static_cast<int64_t>(index_value);
       if (row_index < 0 || row_index >= vocab_size) {
-        throw std::runtime_error(
-            "embedding backward received out-of-range index value.");
+        throw std::runtime_error("embedding backward received out-of-range index value.");
       }
 
       const int64_t weight_row_offset = row_index * weight_grad.strides[0];
       const int64_t out_grad_offset = linear_idx * embedding_dim_;
       for (int64_t d = 0; d < embedding_dim_; ++d) {
         weight_grad_ptr[weight_row_offset + (d * weight_grad.strides[1])] +=
-            out_grad_ptr[out_grad_offset +
-                         (d * out_grad_contiguous.strides.back())];
+            out_grad_ptr[out_grad_offset + (d * out_grad_contiguous.strides.back())];
       }
     }
 
@@ -405,12 +390,10 @@ namespace bt::detail {
  * Creates a backward node for layer_norm().
  */
 [[nodiscard]] std::shared_ptr<Node>
-make_layer_norm_node(std::vector<Tensor> inputs,
-                     std::vector<int64_t> normalized_shape, const float eps,
-                     const bool has_weight, const bool has_bias) {
-  return std::make_shared<LayerNormNode>(std::move(inputs),
-                                         std::move(normalized_shape), eps,
-                                         has_weight, has_bias);
+make_layer_norm_node(std::vector<Tensor> inputs, std::vector<int64_t> normalized_shape,
+                     const float eps, const bool has_weight, const bool has_bias) {
+  return std::make_shared<LayerNormNode>(std::move(inputs), std::move(normalized_shape),
+                                         eps, has_weight, has_bias);
 }
 
 /*
@@ -420,8 +403,8 @@ make_layer_norm_node(std::vector<Tensor> inputs,
 make_cross_entropy_node(const Tensor &input, const Tensor &target,
                         const int64_t class_dim, const int64_t ignore_index,
                         const CrossEntropyReductionMode reduction_mode) {
-  return std::make_shared<CrossEntropyNode>(input, target, class_dim,
-                                            ignore_index, reduction_mode);
+  return std::make_shared<CrossEntropyNode>(input, target, class_dim, ignore_index,
+                                            reduction_mode);
 }
 
 /*

@@ -53,11 +53,9 @@ Tensor::Tensor(const std::vector<int64_t> &shape, std::vector<float> data)
  * Constructs a tensor view over existing storage and explicit metadata.
  * This constructor is intended for internal view-producing operations.
  */
-Tensor::Tensor(const std::shared_ptr<Storage> storage,
-               const int64_t storage_offset, const std::vector<int64_t> &shape,
-               const std::vector<int64_t> &strides)
-    : storage(storage), storage_offset(storage_offset), shape(shape),
-      strides(strides) {}
+Tensor::Tensor(const std::shared_ptr<Storage> storage, const int64_t storage_offset,
+               const std::vector<int64_t> &shape, const std::vector<int64_t> &strides)
+    : storage(storage), storage_offset(storage_offset), shape(shape), strides(strides) {}
 
 /*
  * Returns the tensor rank.
@@ -105,9 +103,7 @@ const float *Tensor::data_ptr() const noexcept {
 /*
  * Returns a mutable pointer to tensor data at storage offset.
  */
-float *Tensor::data_ptr() noexcept {
-  return storage->data_ptr() + storage_offset;
-}
+float *Tensor::data_ptr() noexcept { return storage->data_ptr() + storage_offset; }
 
 /*
  * Returns whether autograd is enabled for this tensor.
@@ -173,9 +169,7 @@ void Tensor::zero_grad() {
 /*
  * Returns a tensor detached from autograd history.
  */
-Tensor Tensor::detach() const {
-  return Tensor(storage, storage_offset, shape, strides);
-}
+Tensor Tensor::detach() const { return Tensor(storage, storage_offset, shape, strides); }
 
 /*
  * Executes backward from this tensor.

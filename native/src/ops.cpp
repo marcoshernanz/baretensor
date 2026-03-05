@@ -24,13 +24,11 @@ namespace {
  * N-D shape space.
  */
 template <class Op>
-void recursive_apply_binary(int dim, int ndim,
-                            const std::vector<int64_t> &shape, const float *lhs,
-                            const float *rhs, float *out,
+void recursive_apply_binary(int dim, int ndim, const std::vector<int64_t> &shape,
+                            const float *lhs, const float *rhs, float *out,
                             const std::vector<int64_t> &lhs_strides,
                             const std::vector<int64_t> &rhs_strides,
-                            const std::vector<int64_t> &out_strides,
-                            const Op &op) {
+                            const std::vector<int64_t> &out_strides, const Op &op) {
   if (shape[dim] == 0)
     return;
   if (dim == ndim - 1) {
@@ -44,8 +42,8 @@ void recursive_apply_binary(int dim, int ndim,
   }
 
   for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_apply_binary(dim + 1, ndim, shape, lhs, rhs, out, lhs_strides,
-                           rhs_strides, out_strides, op);
+    recursive_apply_binary(dim + 1, ndim, shape, lhs, rhs, out, lhs_strides, rhs_strides,
+                           out_strides, op);
     lhs += lhs_strides[dim];
     rhs += rhs_strides[dim];
     out += out_strides[dim];
@@ -60,8 +58,7 @@ template <class Op>
 void recursive_apply_unary(int dim, int ndim, const std::vector<int64_t> &shape,
                            const float *input, float *out,
                            const std::vector<int64_t> &input_strides,
-                           const std::vector<int64_t> &out_strides,
-                           const Op &op) {
+                           const std::vector<int64_t> &out_strides, const Op &op) {
   if (shape[dim] == 0)
     return;
   if (dim == ndim - 1) {
@@ -74,8 +71,8 @@ void recursive_apply_unary(int dim, int ndim, const std::vector<int64_t> &shape,
   }
 
   for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_apply_unary(dim + 1, ndim, shape, input, out, input_strides,
-                          out_strides, op);
+    recursive_apply_unary(dim + 1, ndim, shape, input, out, input_strides, out_strides,
+                          op);
     input += input_strides[dim];
     out += out_strides[dim];
   }
@@ -95,8 +92,7 @@ bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
     return out;
 
   const bool no_broadcast = (a.shape == out_shape) && (b.shape == out_shape);
-  if (no_broadcast && a.is_contiguous() && b.is_contiguous() &&
-      out.is_contiguous()) {
+  if (no_broadcast && a.is_contiguous() && b.is_contiguous() && out.is_contiguous()) {
     const float *a_ptr = a.data_ptr();
     const float *b_ptr = b.data_ptr();
     float *out_ptr = out.data_ptr();
@@ -117,8 +113,8 @@ bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
   const std::vector<int64_t> stride_b =
       bt::detail::aligned_broadcast_strides(b.shape, b.strides, out_shape);
 
-  recursive_apply_binary(0, ndim, out_shape, a.data_ptr(), b.data_ptr(),
-                         out.data_ptr(), stride_a, stride_b, out.strides, op);
+  recursive_apply_binary(0, ndim, out_shape, a.data_ptr(), b.data_ptr(), out.data_ptr(),
+                         stride_a, stride_b, out.strides, op);
   return out;
 }
 
@@ -148,9 +144,8 @@ template <class Op> bt::Tensor binary_ts(const bt::Tensor &a, float s, Op op) {
 
   const float scalar = s;
   const std::vector<int64_t> scalar_strides(static_cast<size_t>(ndim), 0);
-  recursive_apply_binary(0, ndim, a.shape, a.data_ptr(), &scalar,
-                         out.data_ptr(), a.strides, scalar_strides, out.strides,
-                         op);
+  recursive_apply_binary(0, ndim, a.shape, a.data_ptr(), &scalar, out.data_ptr(),
+                         a.strides, scalar_strides, out.strides, op);
   return out;
 }
 
@@ -178,8 +173,8 @@ template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
     return out;
   }
 
-  recursive_apply_unary(0, ndim, a.shape, a.data_ptr(), out.data_ptr(),
-                        a.strides, out.strides, op);
+  recursive_apply_unary(0, ndim, a.shape, a.data_ptr(), out.data_ptr(), a.strides,
+                        out.strides, op);
   return out;
 }
 
@@ -190,10 +185,8 @@ public:
 
   [[nodiscard]] std::vector<bt::Tensor>
   backward(const bt::Tensor &out_grad) const override {
-    bt::Tensor lhs_grad =
-        bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
-    bt::Tensor rhs_grad =
-        bt::autograd::reduce_sum_to_shape(out_grad, rhs_shape_);
+    bt::Tensor lhs_grad = bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
+    bt::Tensor rhs_grad = bt::autograd::reduce_sum_to_shape(out_grad, rhs_shape_);
     return {lhs_grad, rhs_grad};
   }
 
@@ -253,10 +246,8 @@ public:
 
   [[nodiscard]] std::vector<bt::Tensor>
   backward(const bt::Tensor &out_grad) const override {
-    bt::Tensor lhs_grad =
-        bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
-    bt::Tensor rhs_grad =
-        bt::autograd::reduce_sum_to_shape(out_grad * -1.0f, rhs_shape_);
+    bt::Tensor lhs_grad = bt::autograd::reduce_sum_to_shape(out_grad, lhs_shape_);
+    bt::Tensor rhs_grad = bt::autograd::reduce_sum_to_shape(out_grad * -1.0f, rhs_shape_);
     return {lhs_grad, rhs_grad};
   }
 
