@@ -9,10 +9,10 @@ import torch.nn.functional as F
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
-EMBEDDING_LEN = 64
-BATCH_LEN = 32
-HIDDEN_LAYER_LEN = 16
-SAMPLE_LEN = 200
+EMBEDDING_DIM = 64
+BATCH_SIZE = 32
+HIDDEN_DIM = 16
+SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.1
 TRAIN_STEPS = 10_000
 
@@ -39,100 +39,100 @@ def set_seed(seed: int) -> None:
 
 def model_params(model: Model) -> tuple[torch.Tensor, ...]:
     return (
-        model["embeddings"],
-        model["weights1"],
-        model["biases1"],
-        model["weights2"],
-        model["biases2"],
+        model["embedding_table"],
+        model["hidden_weights"],
+        model["hidden_bias"],
+        model["output_weights"],
+        model["output_bias"],
     )
 
 
 def init_model(vocab_size: int) -> Model:
     tanh_gain = 5.0 / 3.0
     model: Model = {
-        "embeddings": torch.randn((vocab_size, EMBEDDING_LEN)) * 0.1,
-        "weights1": torch.randn((EMBEDDING_LEN, HIDDEN_LAYER_LEN))
-        * (tanh_gain / math.sqrt(EMBEDDING_LEN)),
-        "biases1": torch.zeros((HIDDEN_LAYER_LEN,)),
-        "weights2": torch.randn((HIDDEN_LAYER_LEN, vocab_size))
-        * (1.0 / math.sqrt(HIDDEN_LAYER_LEN)),
-        "biases2": torch.zeros((vocab_size,)),
+        "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
+        "hidden_weights": torch.randn((EMBEDDING_DIM, HIDDEN_DIM))
+        * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
+        "hidden_bias": torch.zeros((HIDDEN_DIM,)),
+        "output_weights": torch.randn((HIDDEN_DIM, vocab_size))
+        * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "output_bias": torch.zeros((vocab_size,)),
     }
-    for p in model_params(model):
-        p.requires_grad = True
+    for param in model_params(model):
+        param.requires_grad = True
     return model
 
 
-def forward(inputs: torch.Tensor, model: Model) -> torch.Tensor:
-    e = F.embedding(inputs, model["embeddings"])
-    h1 = (e @ model["weights1"] + model["biases1"]).tanh()
-    return h1 @ model["weights2"] + model["biases2"]
+def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
+    embedded = F.embedding(input_ids, model["embedding_table"])
+    hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
+    return hidden @ model["output_weights"] + model["output_bias"]
 
 
-def evaluate_split(encoded_split: torch.Tensor, model: Model) -> float:
+def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
-        inputs = encoded_split[:-1]
-        targets = encoded_split[1:]
-        logits = forward(inputs, model)
-        loss = F.cross_entropy(logits, targets)
+        input_ids = token_ids[:-1]
+        target_ids = token_ids[1:]
+        logits = forward(input_ids, model)
+        loss = F.cross_entropy(logits, target_ids)
         return float(loss.item())
 
 
-def sample_text(chars: list[str], sample_len: int, model: Model) -> str:
+def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
     with torch.no_grad():
-        sample_id = random.randrange(len(chars))
-        sample = [chars[sample_id]]
-        current = torch.tensor([sample_id], dtype=torch.long)
+        token_id = random.randrange(len(vocab_chars))
+        sample = [vocab_chars[token_id]]
+        current_token = torch.tensor([token_id], dtype=torch.long)
 
-        for _ in range(sample_len - 1):
-            logits = forward(current, model)
+        for _ in range(sample_length - 1):
+            logits = forward(current_token, model)
             probs = F.softmax(logits[0], dim=0)
-            sample_id = int(torch.multinomial(probs, num_samples=1).item())
-            sample.append(chars[sample_id])
-            current = torch.tensor([sample_id], dtype=torch.long)
+            token_id = int(torch.multinomial(probs, num_samples=1).item())
+            sample.append(vocab_chars[token_id])
+            current_token = torch.tensor([token_id], dtype=torch.long)
 
     return "".join(sample)
 
 
 def main() -> None:
     set_seed(SEED)
-    tokens = load_text(DATA_PATH)
+    text = load_text(DATA_PATH)
 
-    chars = sorted(set(tokens))
-    char_to_id = {char: idx for idx, char in enumerate(chars)}
-    vocab_size = len(char_to_id)
+    vocab_chars = sorted(set(text))
+    char_to_index = {char: idx for idx, char in enumerate(vocab_chars)}
+    vocab_size = len(char_to_index)
 
-    encoded = torch.tensor([char_to_id[ch] for ch in tokens], dtype=torch.long)
-    num_tokens = len(encoded)
-    encoded_train = encoded[: int(num_tokens * 0.8)]
-    encoded_val = encoded[int(num_tokens * 0.8) :]
+    token_ids = torch.tensor([char_to_index[ch] for ch in text], dtype=torch.long)
+    num_tokens = len(token_ids)
+    train_token_ids = token_ids[: int(num_tokens * 0.8)]
+    val_token_ids = token_ids[int(num_tokens * 0.8) :]
 
     model = init_model(vocab_size)
 
     for step in range(TRAIN_STEPS):
-        batch = torch.randint(0, len(encoded_train) - 1, (BATCH_LEN,))
-        inputs = encoded_train[batch]
-        targets = encoded_train[batch + 1]
-        logits = forward(inputs, model)
-        loss = F.cross_entropy(logits, targets)
+        batch_indices = torch.randint(0, len(train_token_ids) - 1, (BATCH_SIZE,))
+        input_ids = train_token_ids[batch_indices]
+        target_ids = train_token_ids[batch_indices + 1]
+        logits = forward(input_ids, model)
+        loss = F.cross_entropy(logits, target_ids)
 
-        for p in model_params(model):
-            p.grad = None
+        for param in model_params(model):
+            param.grad = None
 
         loss.backward()  # pyright: ignore[reportUnknownMemberType]
 
         with torch.no_grad():
-            for p in model_params(model):
-                grad = p.grad
+            for param in model_params(model):
+                grad = param.grad
                 assert grad is not None
-                p -= LEARNING_RATE * grad
+                param -= LEARNING_RATE * grad
 
         if step % 100 == 0:
             print(f"step={step} loss={loss.item():.6f}")
 
-    train_loss = evaluate_split(encoded_train, model)
-    validation_loss = evaluate_split(encoded_val, model)
-    sample = sample_text(chars, SAMPLE_LEN, model)
+    train_loss = evaluate_split(train_token_ids, model)
+    validation_loss = evaluate_split(val_token_ids, model)
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model)
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
