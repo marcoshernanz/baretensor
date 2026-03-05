@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import random
+import math
 
 import torch
 import bt
@@ -59,16 +60,20 @@ def main() -> None:
 
     encoded = [char_to_id[ch] for ch in tokens]
     probs = build_bigram_probs(encoded, vocab_size)
-    prev_tokens = encoded[:-1]
-    next_tokens = encoded[1:]
-    cross_entropy = -probs[prev_tokens, next_tokens].log().mean()
-    perplexity = cross_entropy.exp()
+
+    sum: float = 0.0
+    total: int = 0
+    for t1, t2 in zip(encoded, encoded[1:]):
+        sum += probs[t1, t2].log().item()
+        total += 1
+    cross_entropy = -sum / total
+    perplexity = math.exp(cross_entropy)
     # sample = sample_text(probs, chars, SAMPLE_LEN)
 
     print(f"vocab_size={vocab_size}")
     print(f"seed={SEED}")
-    print(f"cross_entropy={cross_entropy.item():.6f}")
-    print(f"perplexity={perplexity.item():.6f}")
+    print(f"cross_entropy={cross_entropy:.6f}")
+    print(f"perplexity={perplexity:.6f}")
     # print(f'sample="""\n{sample}\n"""')
 
 
