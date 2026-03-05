@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 import random
 
@@ -12,6 +13,11 @@ EMBEDDING_LEN = 64
 BATCH_LEN = 32
 HIDDEN_LAYER_LEN = 16
 SAMPLE_LEN = 200
+LEARNING_RATE = 0.1
+TRAIN_STEPS = 10_000
+
+
+Model = dict[str, torch.Tensor]
 
 
 def load_text(path: Path) -> str:
@@ -31,52 +37,59 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)  # type: ignore
 
 
-def forward(
-    inputs: torch.Tensor,
-    embeddings: torch.Tensor,
-    weights1: torch.Tensor,
-    biases1: torch.Tensor,
-    weights2: torch.Tensor,
-    biases2: torch.Tensor,
-) -> torch.Tensor:
-    e = F.embedding(inputs, embeddings)
-    h1 = (e @ weights1 + biases1).tanh()
-    return h1 @ weights2 + biases2
+def model_params(model: Model) -> tuple[torch.Tensor, ...]:
+    return (
+        model["embeddings"],
+        model["weights1"],
+        model["biases1"],
+        model["weights2"],
+        model["biases2"],
+    )
 
 
-def split_loss(
-    encoded_split: torch.Tensor,
-    embeddings: torch.Tensor,
-    weights1: torch.Tensor,
-    biases1: torch.Tensor,
-    weights2: torch.Tensor,
-    biases2: torch.Tensor,
-) -> torch.Tensor:
-    inputs = encoded_split[:-1]
-    targets = encoded_split[1:]
-    logits = forward(inputs, embeddings, weights1, biases1, weights2, biases2)
-    return F.cross_entropy(logits, targets)
+def init_model(vocab_size: int) -> Model:
+    tanh_gain = 5.0 / 3.0
+    model: Model = {
+        "embeddings": torch.randn((vocab_size, EMBEDDING_LEN)) * 0.1,
+        "weights1": torch.randn((EMBEDDING_LEN, HIDDEN_LAYER_LEN))
+        * (tanh_gain / math.sqrt(EMBEDDING_LEN)),
+        "biases1": torch.zeros((HIDDEN_LAYER_LEN,)),
+        "weights2": torch.randn((HIDDEN_LAYER_LEN, vocab_size))
+        * (1.0 / math.sqrt(HIDDEN_LAYER_LEN)),
+        "biases2": torch.zeros((vocab_size,)),
+    }
+    for p in model_params(model):
+        p.requires_grad = True
+    return model
 
 
-def sample_text(
-    chars: list[str],
-    sample_len: int,
-    embeddings: torch.Tensor,
-    weights1: torch.Tensor,
-    biases1: torch.Tensor,
-    weights2: torch.Tensor,
-    biases2: torch.Tensor,
-) -> str:
-    sample_id = random.randrange(len(chars))
-    sample = [chars[sample_id]]
-    current = torch.tensor([sample_id], dtype=torch.long)
+def forward(inputs: torch.Tensor, model: Model) -> torch.Tensor:
+    e = F.embedding(inputs, model["embeddings"])
+    h1 = (e @ model["weights1"] + model["biases1"]).tanh()
+    return h1 @ model["weights2"] + model["biases2"]
 
-    for _ in range(sample_len - 1):
-        logits = forward(current, embeddings, weights1, biases1, weights2, biases2)
-        probs = F.softmax(logits[0], dim=0)
-        sample_id = int(torch.multinomial(probs, num_samples=1).item())
-        sample.append(chars[sample_id])
+
+def evaluate_split(encoded_split: torch.Tensor, model: Model) -> float:
+    with torch.no_grad():
+        inputs = encoded_split[:-1]
+        targets = encoded_split[1:]
+        logits = forward(inputs, model)
+        loss = F.cross_entropy(logits, targets)
+        return float(loss.item())
+
+
+def sample_text(chars: list[str], sample_len: int, model: Model) -> str:
+    with torch.no_grad():
+        sample_id = random.randrange(len(chars))
+        sample = [chars[sample_id]]
         current = torch.tensor([sample_id], dtype=torch.long)
+
+        for _ in range(sample_len - 1):
+            logits = forward(current, model)
+            probs = F.softmax(logits[0], dim=0)
+            sample_id = int(torch.multinomial(probs, num_samples=1).item())
+            sample.append(chars[sample_id])
+            current = torch.tensor([sample_id], dtype=torch.long)
 
     return "".join(sample)
 
@@ -94,43 +107,35 @@ def main() -> None:
     encoded_train = encoded[: int(num_tokens * 0.8)]
     encoded_val = encoded[int(num_tokens * 0.8) :]
 
-    embeddings = torch.randn((vocab_size, EMBEDDING_LEN))
-    weights1 = torch.randn((EMBEDDING_LEN, HIDDEN_LAYER_LEN))
-    biases1 = torch.randn((HIDDEN_LAYER_LEN,))
-    weights2 = torch.randn((HIDDEN_LAYER_LEN, vocab_size))
-    biases2 = torch.randn((vocab_size,))
+    model = init_model(vocab_size)
 
-    params = [embeddings, weights1, biases1, weights2, biases2]
-    for p in params:
-        p.requires_grad = True
-
-    for step in range(10000):
+    for step in range(TRAIN_STEPS):
         batch = torch.randint(0, len(encoded_train) - 1, (BATCH_LEN,))
         inputs = encoded_train[batch]
         targets = encoded_train[batch + 1]
-        logits = forward(inputs, embeddings, weights1, biases1, weights2, biases2)
+        logits = forward(inputs, model)
         loss = F.cross_entropy(logits, targets)
 
-        for p in params:
+        for p in model_params(model):
             p.grad = None
 
-        loss.backward()  # type: ignore
+        loss.backward()  # pyright: ignore[reportUnknownMemberType]
 
         with torch.no_grad():
-            for p in params:
-                assert p.grad is not None
-                p -= 0.1 * p.grad
+            for p in model_params(model):
+                grad = p.grad
+                assert grad is not None
+                p -= LEARNING_RATE * grad
 
         if step % 100 == 0:
             print(f"step={step} loss={loss.item():.6f}")
 
-    with torch.no_grad():
-        train_loss = split_loss(encoded_train, embeddings, weights1, biases1, weights2, biases2)
-        validation_loss = split_loss(encoded_val, embeddings, weights1, biases1, weights2, biases2)
-        sample = sample_text(chars, SAMPLE_LEN, embeddings, weights1, biases1, weights2, biases2)
+    train_loss = evaluate_split(encoded_train, model)
+    validation_loss = evaluate_split(encoded_val, model)
+    sample = sample_text(chars, SAMPLE_LEN, model)
 
-    print(f"train_loss={train_loss.item():.6f}")
-    print(f"validation_loss={validation_loss.item():.6f}")
+    print(f"train_loss={train_loss:.6f}")
+    print(f"validation_loss={validation_loss:.6f}")
     print(f'sample="""\n{sample}\n"""')
 
 
