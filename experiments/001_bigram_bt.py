@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-import random
 import math
+import random
 
-import torch
 import bt
 import numpy as np
+import bt.nn.functional as F
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
@@ -30,24 +30,29 @@ def load_text(path: Path) -> str:
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    torch.manual_seed(seed)  # type: ignore
+    np.random.seed(seed)
 
 
 def build_bigram_probs(encoded: list[int], vocab_size: int) -> bt.Tensor:
-    bigram_counts = [[LAPLACE_SMOOTHING for _ in range(vocab_size)] for _ in range(vocab_size)]
-    for prev_id, next_id in zip(encoded, encoded[1:]):
-        bigram_counts[prev_id][next_id] += 1.0
-    counts = bt.tensor(np.array(bigram_counts))
+    counts_np = np.full((vocab_size, vocab_size), LAPLACE_SMOOTHING, dtype=np.float32)
+    prev_np = np.asarray(encoded[:-1], dtype=np.int64)
+    next_np = np.asarray(encoded[1:], dtype=np.int64)
+    np.add.at(counts_np, (prev_np, next_np), 1.0)
+    counts = bt.tensor(counts_np)
     return counts / counts.sum(1, keepdim=True)
 
 
-# def sample_text(probs: bt.Tensor, chars: list[str], sample_len: int) -> str:
-#     sample_id = random.randrange(len(chars))
-#     sample = [chars[sample_id]]
-#     for _ in range(sample_len - 1):
-#         sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
-#         sample.append(chars[sample_id])
-#     return "".join(sample)
+def sample_text(probs: bt.Tensor, chars: list[str], sample_len: int) -> str:
+    probs_np = np.asarray(probs.numpy(), dtype=np.float32)
+    sample_id = random.randrange(len(chars))
+    sample_chars = [chars[sample_id]]
+
+    for _ in range(sample_len - 1):
+        weights = probs_np[sample_id].tolist()
+        sample_id = int(random.choices(range(len(chars)), weights=weights, k=1)[0])
+        sample_chars.append(chars[sample_id])
+
+    return "".join(sample_chars)
 
 
 def main() -> None:
@@ -60,21 +65,19 @@ def main() -> None:
 
     encoded = [char_to_id[ch] for ch in tokens]
     probs = build_bigram_probs(encoded, vocab_size)
-
-    sum: float = 0.0
-    total: int = 0
-    for t1, t2 in zip(encoded, encoded[1:]):
-        sum += probs[t1, t2].log().item()
-        total += 1
-    cross_entropy = -sum / total
+    log_probs = probs.log()
+    prev_tokens = bt.tensor(np.asarray(encoded[:-1], dtype=np.float32))
+    next_tokens = bt.tensor(np.asarray(encoded[1:], dtype=np.float32))
+    logits = F.embedding(prev_tokens, log_probs)
+    cross_entropy = F.cross_entropy(logits, next_tokens).item()
     perplexity = math.exp(cross_entropy)
-    # sample = sample_text(probs, chars, SAMPLE_LEN)
+    sample = sample_text(probs, chars, SAMPLE_LEN)
 
     print(f"vocab_size={vocab_size}")
     print(f"seed={SEED}")
     print(f"cross_entropy={cross_entropy:.6f}")
     print(f"perplexity={perplexity:.6f}")
-    # print(f'sample="""\n{sample}\n"""')
+    print(f'sample="""\n{sample}\n"""')
 
 
 if __name__ == "__main__":
