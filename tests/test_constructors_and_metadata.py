@@ -27,6 +27,21 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         expected = np.arange(6, dtype=np.float32).reshape(2, 3)
         np.testing.assert_allclose(to_numpy(tensor), expected)
 
+    def test_tensor_accepts_python_lists(self) -> None:
+        tensor = bt.tensor([[1, 2, 3], [4, 5, 6]])
+
+        self.assertEqual(tensor.shape, [2, 3])
+        np.testing.assert_allclose(
+            to_numpy(tensor),
+            np.asarray([[1, 2, 3], [4, 5, 6]], dtype=np.float32),
+        )
+
+    def test_tensor_accepts_python_scalar(self) -> None:
+        tensor = bt.tensor(3.5)
+
+        self.assertEqual(tensor.shape, [])
+        np.testing.assert_allclose(to_numpy(tensor), np.asarray(3.5, dtype=np.float32))
+
     def test_scalar_tensor_metadata(self) -> None:
         tensor = bt.tensor(np.asarray(3.5, dtype=np.float32))
 
@@ -87,6 +102,11 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         np.testing.assert_allclose(
             to_numpy(from_non_contiguous), np.asarray(non_contiguous, dtype=np.float32)
         )
+
+    def test_tensor_list_respects_requires_grad(self) -> None:
+        tensor = bt.tensor([1.0, 2.0, 3.0], requires_grad=True)
+
+        self.assertTrue(tensor.requires_grad)
 
 
 if __name__ == "__main__":

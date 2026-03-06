@@ -4,8 +4,11 @@ from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Any
 
+import numpy as np
+from numpy.typing import ArrayLike
+
 from . import _C
-from ._C import Tensor, full, ones, tensor, zeros  # pylint: disable=no-name-in-module
+from ._C import Tensor, full, ones, tensor as _tensor, zeros  # pylint: disable=no-name-in-module
 from . import nn
 
 
@@ -38,6 +41,12 @@ class _NoGradContext(AbstractContextManager[None]):
 def no_grad() -> AbstractContextManager[None]:
     """Disable gradient recording within a ``with`` block."""
     return _NoGradContext()
+
+
+def tensor(data: ArrayLike, requires_grad: bool = False) -> Tensor:
+    """Create a float32 tensor from NumPy-compatible array-like input."""
+    array = np.asarray(data, dtype=np.float32, order="C")
+    return _tensor(array, requires_grad=requires_grad)
 
 
 __all__ = ["Tensor", "full", "zeros", "ones", "tensor", "nn", "no_grad"]
