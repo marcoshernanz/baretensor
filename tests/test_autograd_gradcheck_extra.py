@@ -117,6 +117,21 @@ class AutogradExtraGradcheckTests(unittest.TestCase):
         expected = _numerical_grad(x_np, loss_for_x)
         np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=7e-3, atol=7e-3)
 
+    def test_tanh_gradcheck_finite_difference(self) -> None:
+        x_np = np.asarray([[0.7, -0.4, 1.2], [-1.1, 0.3, 2.2]], dtype=np.float32)
+        g_np = np.asarray([[0.5, -1.0, 0.8], [1.3, -0.6, 0.2]], dtype=np.float32)
+
+        x = bt.tensor(x_np, requires_grad=True)
+        g = bt.tensor(g_np)
+        loss = (x.tanh() * g).sum()
+        loss.backward()
+
+        def loss_for_x(x_value: np.ndarray) -> np.float32:
+            return np.float32(np.sum(np.tanh(x_value) * g_np, dtype=np.float32))
+
+        expected = _numerical_grad(x_np, loss_for_x)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=5e-3, atol=5e-3)
+
     def test_elementwise_mul_gradcheck_with_broadcast(self) -> None:
         a_np = np.asarray([[0.5, -1.0, 2.0], [1.5, 0.3, -0.7]], dtype=np.float32)
         b_np = np.asarray([[0.2, 1.1, -0.4]], dtype=np.float32)

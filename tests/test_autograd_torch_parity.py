@@ -158,6 +158,27 @@ class AutogradTorchParityTests(unittest.TestCase):
                 _torch_grad_numpy(x_log_torch),
             )
 
+    def test_randomized_tanh_parity(self) -> None:
+        for seed in range(6):
+            rng = np.random.default_rng(300 + seed)
+            x_np = rng.normal(size=(2, 3, 4)).astype(np.float32)
+            w_np = rng.normal(size=(2, 3, 4)).astype(np.float32)
+
+            x_bt = bt.tensor(x_np, requires_grad=True)
+            x_torch = torch.tensor(x_np, dtype=torch.float32, requires_grad=True)
+            w_bt = bt.tensor(w_np)
+            w_torch = torch.tensor(w_np, dtype=torch.float32)
+
+            out_bt = x_bt.tanh()
+            out_torch = torch.tanh(x_torch)
+            loss_bt = (out_bt * w_bt).sum()
+            loss_torch = (out_torch * w_torch).sum()
+            loss_bt.backward()
+            cast(Any, loss_torch).backward()
+
+            _assert_allclose(to_numpy(out_bt), out_torch.detach().cpu().numpy().astype(np.float32))
+            _assert_allclose(to_numpy(_require_grad(x_bt)), _torch_grad_numpy(x_torch))
+
 
 if __name__ == "__main__":
     unittest.main()

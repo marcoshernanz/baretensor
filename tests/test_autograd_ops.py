@@ -82,6 +82,16 @@ class AutogradOpsTests(unittest.TestCase):
         expected = (1.0 / x_np).astype(np.float32)
         np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
 
+    def test_tanh_backward_matches_closed_form(self) -> None:
+        x_np = np.asarray([-2.0, -0.5, 0.0, 1.5], dtype=np.float32)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = x.tanh().sum()
+        loss.backward()
+
+        expected = (1.0 - np.tanh(x_np) ** 2).astype(np.float32)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
     def test_mean_backward_reduction_scales_gradients(self) -> None:
         x_np = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
         x = bt.tensor(x_np, requires_grad=True)
