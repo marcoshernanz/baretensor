@@ -359,6 +359,26 @@ public:
 };
 
 /*
+ * Elementwise scalar-tensor addition.
+ */
+Tensor operator+(float lhs, const Tensor &rhs);
+
+/*
+ * Elementwise scalar-tensor subtraction.
+ */
+Tensor operator-(float lhs, const Tensor &rhs);
+
+/*
+ * Elementwise scalar-tensor multiplication.
+ */
+Tensor operator*(float lhs, const Tensor &rhs);
+
+/*
+ * Elementwise scalar-tensor division.
+ */
+Tensor operator/(float lhs, const Tensor &rhs);
+
+/*
  * Class: Node
  * Purpose: Represents a backward function in the autograd graph.
  */

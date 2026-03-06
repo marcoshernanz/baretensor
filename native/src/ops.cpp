@@ -352,6 +352,28 @@ namespace bt {
 Tensor Tensor::operator-() const { return (*this) * -1.0f; }
 
 /*
+ * Elementwise scalar-tensor addition.
+ */
+Tensor operator+(const float lhs, const Tensor &rhs) { return rhs + lhs; }
+
+/*
+ * Elementwise scalar-tensor subtraction.
+ */
+Tensor operator-(const float lhs, const Tensor &rhs) { return (-rhs) + lhs; }
+
+/*
+ * Elementwise scalar-tensor multiplication.
+ */
+Tensor operator*(const float lhs, const Tensor &rhs) { return rhs * lhs; }
+
+/*
+ * Elementwise scalar-tensor division.
+ */
+Tensor operator/(const float lhs, const Tensor &rhs) {
+  return bt::full(rhs.shape, lhs) / rhs;
+}
+
+/*
  * Elementwise tensor-tensor addition.
  */
 Tensor Tensor::operator+(const Tensor &rhs) const {
