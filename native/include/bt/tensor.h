@@ -313,6 +313,11 @@ public:
   [[nodiscard]] Tensor log_softmax(int64_t dim) const;
 
   /*
+   * Elementwise unary negation.
+   */
+  Tensor operator-() const;
+
+  /*
    * Elementwise tensor-tensor addition.
    */
   Tensor operator+(const Tensor &t) const;

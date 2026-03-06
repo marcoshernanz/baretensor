@@ -347,6 +347,11 @@ public:
 namespace bt {
 
 /*
+ * Elementwise unary negation.
+ */
+Tensor Tensor::operator-() const { return (*this) * -1.0f; }
+
+/*
  * Elementwise tensor-tensor addition.
  */
 Tensor Tensor::operator+(const Tensor &rhs) const {
