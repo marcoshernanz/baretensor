@@ -13,8 +13,8 @@ EMBEDDING_DIM = 64
 BATCH_SIZE = 32
 HIDDEN_DIM = 16
 SAMPLE_LENGTH = 200
-LEARNING_RATE = 0.1
-TRAIN_STEPS = 10_000
+LEARNING_RATE = 0.05
+TRAIN_STEPS = 25_000
 
 
 Model = dict[str, torch.Tensor]
@@ -54,8 +54,7 @@ def init_model(vocab_size: int) -> Model:
         "hidden_weights": torch.randn((EMBEDDING_DIM, HIDDEN_DIM))
         * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
         "hidden_bias": torch.zeros((HIDDEN_DIM,)),
-        "output_weights": torch.randn((HIDDEN_DIM, vocab_size))
-        * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "output_weights": torch.randn((HIDDEN_DIM, vocab_size)) * (1.0 / math.sqrt(HIDDEN_DIM)),
         "output_bias": torch.zeros((vocab_size,)),
     }
     for param in model_params(model):
@@ -119,7 +118,7 @@ def main() -> None:
         for param in model_params(model):
             param.grad = None
 
-        loss.backward()  # pyright: ignore[reportUnknownMemberType]
+        loss.backward()  # type: ignore
 
         with torch.no_grad():
             for param in model_params(model):
@@ -127,7 +126,7 @@ def main() -> None:
                 assert grad is not None
                 param -= LEARNING_RATE * grad
 
-        if step % 100 == 0:
+        if step % 1000 == 0:
             print(f"step={step} loss={loss.item():.6f}")
 
     train_loss = evaluate_split(train_token_ids, model)
