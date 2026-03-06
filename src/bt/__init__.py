@@ -14,9 +14,9 @@ class _NoGradContext(AbstractContextManager[None]):
         self._guard: Any | None = None
 
     def __enter__(self) -> None:
-        guard_factory = getattr(_C, "_NoGradGuard")
-        self._guard = guard_factory()
-        self._guard.__enter__()
+        guard = getattr(_C, "_NoGradGuard")()
+        guard.__enter__()
+        self._guard = guard
         return None
 
     def __exit__(
