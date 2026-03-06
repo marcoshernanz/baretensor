@@ -292,6 +292,12 @@ public:
   [[nodiscard]] Tensor log() const;
 
   /*
+   * Returns a tensor containing the elementwise hyperbolic tangent of this
+   * tensor. For each element x, the output contains tanh(x).
+   */
+  [[nodiscard]] Tensor tanh() const;
+
+  /*
    * Returns a tensor containing softmax values computed along dim.
    * Uses numerically stable normalization by subtracting the per-slice maximum
    * before exponentiation.

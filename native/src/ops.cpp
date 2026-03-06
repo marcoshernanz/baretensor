@@ -326,6 +326,18 @@ public:
   }
 };
 
+class TanhNode final : public bt::Node {
+public:
+  explicit TanhNode(const bt::Tensor &input) : bt::Node({input}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    const bt::Tensor tanh_input = this->inputs()[0].tanh();
+    const bt::Tensor tanh_sq = tanh_input * tanh_input;
+    return {out_grad * ((tanh_sq * -1.0f) + 1.0f)};
+  }
+};
+
 } // namespace
 
 /*
@@ -440,6 +452,17 @@ Tensor Tensor::log() const {
   Tensor out = unary_t(*this, ops::Log{});
   if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<LogNode>(*this));
+  }
+  return out;
+}
+
+/*
+ * Elementwise hyperbolic tangent.
+ */
+Tensor Tensor::tanh() const {
+  Tensor out = unary_t(*this, ops::Tanh{});
+  if (bt::detail::should_record_unary(*this)) {
+    out.set_grad_fn(std::make_shared<TanhNode>(*this));
   }
   return out;
 }

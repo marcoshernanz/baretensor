@@ -61,4 +61,12 @@ struct Log {
   float operator()(float x) const noexcept { return std::log(x); }
 };
 
+/*
+ * Functor: Tanh
+ * Purpose: Computes tanh(x).
+ */
+struct Tanh {
+  float operator()(float x) const noexcept { return std::tanh(x); }
+};
+
 } /* namespace bt::ops */
