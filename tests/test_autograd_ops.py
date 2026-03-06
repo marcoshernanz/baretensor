@@ -62,6 +62,26 @@ class AutogradOpsTests(unittest.TestCase):
         np.testing.assert_allclose(to_numpy(_require_grad(a)), expected_a, rtol=1e-6, atol=1e-6)
         np.testing.assert_allclose(to_numpy(_require_grad(b)), expected_b, rtol=1e-6, atol=1e-6)
 
+    def test_reverse_sub_backward_matches_closed_form(self) -> None:
+        x_np = np.asarray([[2.0, 4.0], [8.0, 16.0]], dtype=np.float32)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = (3.0 - x).sum()
+        loss.backward()
+
+        expected = np.full_like(x_np, -1.0, dtype=np.float32)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
+    def test_reverse_div_backward_matches_closed_form(self) -> None:
+        x_np = np.asarray([[1.0, 2.0], [4.0, 8.0]], dtype=np.float32)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = (3.0 / x).sum()
+        loss.backward()
+
+        expected = (-3.0 / (x_np * x_np)).astype(np.float32)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
     def test_exp_backward_matches_closed_form(self) -> None:
         x_np = np.asarray([-1.0, 0.0, 0.5, 2.0], dtype=np.float32)
         x = bt.tensor(x_np, requires_grad=True)

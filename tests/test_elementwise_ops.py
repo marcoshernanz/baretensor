@@ -39,6 +39,18 @@ def _apply_bt_scalar_op(name: str, a: bt.Tensor, scalar: float) -> bt.Tensor:
     raise ValueError(f"Unknown op: {name}")
 
 
+def _apply_bt_reverse_scalar_op(name: str, scalar: float, a: bt.Tensor) -> bt.Tensor:
+    if name == "add":
+        return scalar + a
+    if name == "sub":
+        return scalar - a
+    if name == "mul":
+        return scalar * a
+    if name == "div":
+        return scalar / a
+    raise ValueError(f"Unknown op: {name}")
+
+
 def _apply_np_op(name: str, a: ArrayF32, b: ArrayF32) -> ArrayF32:
     if name == "add":
         return np.asarray(a + b, dtype=np.float32)
@@ -96,6 +108,24 @@ class ElementwiseOpsTests(unittest.TestCase):
                 np.testing.assert_allclose(
                     to_numpy(out),
                     _apply_np_op(name, a_np, scalar_array),
+                    rtol=1e-6,
+                    atol=1e-6,
+                )
+
+    def test_reverse_scalar_tensor(self) -> None:
+        a_np: ArrayF32 = np.asarray(
+            np.linspace(1.0, 12.0, num=12, dtype=np.float32).reshape(3, 4), dtype=np.float32
+        )
+        a = bt.tensor(a_np)
+        scalar = 2.5
+
+        for name in _op_names():
+            with self.subTest(op=name):
+                out = _apply_bt_reverse_scalar_op(name, scalar, a)
+                scalar_array: ArrayF32 = np.asarray(np.float32(scalar))
+                np.testing.assert_allclose(
+                    to_numpy(out),
+                    _apply_np_op(name, scalar_array, a_np),
                     rtol=1e-6,
                     atol=1e-6,
                 )
