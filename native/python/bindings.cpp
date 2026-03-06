@@ -252,6 +252,24 @@ bt::Tensor &set_requires_grad(bt::Tensor &tensor, const bool requires_grad) {
   return tensor.set_requires_grad(requires_grad);
 }
 
+class PyNoGradGuard {
+public:
+  PyNoGradGuard() = default;
+
+  PyNoGradGuard &enter() {
+    if (guard_.has_value()) {
+      throw std::runtime_error("no_grad() context manager is already active.");
+    }
+    guard_.emplace();
+    return *this;
+  }
+
+  void exit() { guard_.reset(); }
+
+private:
+  std::optional<bt::autograd::NoGradGuard> guard_ = std::nullopt;
+};
+
 } // namespace
 
 /*
@@ -263,6 +281,20 @@ NB_MODULE(_C, m) {
 
   using NdArrayF32 =
       nb::ndarray<nb::numpy, const float, nb::c_contig, nb::device::cpu>;
+
+  nb::class_<PyNoGradGuard>(m, "_NoGradGuard")
+      .def(nb::init<>())
+      .def("__enter__", &PyNoGradGuard::enter,
+           nb::rv_policy::reference_internal)
+      .def("close", &PyNoGradGuard::exit)
+      .def(
+          "__exit__",
+          [](PyNoGradGuard &guard, nb::object, nb::object, nb::object) {
+            guard.exit();
+            return false;
+          },
+          nb::arg("exc_type").none(), nb::arg("exc").none(),
+          nb::arg("traceback").none());
 
   nb::class_<bt::Tensor>(m, "Tensor")
       .def_ro("shape", &bt::Tensor::shape)
