@@ -1,6 +1,8 @@
 - mdspan
-- 100 line length
 - JAX-style transformations - grad(f) / vmap(f) / jit(f)
 
 - dtype
 - bt.tensor() from list
+
+- CS229 first, when BareTensor MLP is done or nearly done.
+- CS224N second, when you move into attention/Transformer decisions.
