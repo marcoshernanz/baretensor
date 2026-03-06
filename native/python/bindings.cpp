@@ -331,6 +331,11 @@ NB_MODULE(_C, m) {
                             const bt::Tensor &rhs) { return lhs.matmul(rhs); })
       .def("__neg__",
            static_cast<bt::Tensor (bt::Tensor::*)() const>(&bt::Tensor::operator-))
+      .def("__radd__", [](const bt::Tensor &rhs, const float lhs) { return lhs + rhs; })
+      .def("__rsub__", [](const bt::Tensor &rhs, const float lhs) { return lhs - rhs; })
+      .def("__rmul__", [](const bt::Tensor &rhs, const float lhs) { return lhs * rhs; })
+      .def("__rtruediv__",
+           [](const bt::Tensor &rhs, const float lhs) { return lhs / rhs; })
       .def("exp", &bt::Tensor::exp)
       .def("log", &bt::Tensor::log)
       .def("tanh", &bt::Tensor::tanh)
