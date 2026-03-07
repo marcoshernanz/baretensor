@@ -85,7 +85,7 @@ def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str
     # with torch.no_grad(): ?
     token_id = random.randrange(len(vocab_chars))
     sample = [vocab_chars[token_id]]
-    current_token = bt.tensor(np.array(token_id))
+    current_token = bt.tensor(token_id)
 
     for _ in range(sample_length - 1):
         logits = forward(current_token, model)
@@ -93,7 +93,7 @@ def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str
         weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
         token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
         sample.append(vocab_chars[token_id])
-        current_token = bt.tensor(np.array(token_id))
+        current_token = bt.tensor(token_id)
 
     return "".join(sample)
 
