@@ -11,11 +11,11 @@ import numpy as np
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
-BATCH_SIZE = 32
-HIDDEN_DIM = 16
+BATCH_SIZE = 64
+HIDDEN_DIM = 64
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
-TRAIN_STEPS = 25_000
+TRAIN_STEPS = 40_000
 
 
 Model = dict[str, bt.Tensor]
@@ -36,7 +36,6 @@ def load_text(path: Path) -> str:
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
-    # torch.manual_seed(seed) ?
 
 
 def model_params(model: Model) -> tuple[bt.Tensor, ...]:
@@ -121,7 +120,6 @@ def main() -> None:
         loss = F.cross_entropy(logits, target_ids)
 
         for param in model_params(model):
-            # param.grad = None ?
             param.zero_grad()
 
         loss.backward()  # type: ignore
