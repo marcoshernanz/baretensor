@@ -68,7 +68,7 @@ def init_model(vocab_size: int) -> Model:
 
 def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
     embedded = F.embedding(input_ids, model["embedding_table"])
-    hidden = embedded @ model["hidden_weights"] + model["hidden_bias"]  # .tanh()
+    hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
     return hidden @ model["output_weights"] + model["output_bias"]
 
 
