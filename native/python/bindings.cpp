@@ -336,6 +336,46 @@ NB_MODULE(_C, m) {
       .def("__rmul__", [](const bt::Tensor &rhs, const float lhs) { return lhs * rhs; })
       .def("__rtruediv__",
            [](const bt::Tensor &rhs, const float lhs) { return lhs / rhs; })
+      .def(
+          "__iadd__",
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
+            return lhs += rhs;
+          },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__iadd__",
+          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs += rhs; },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__isub__",
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
+            return lhs -= rhs;
+          },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__isub__",
+          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs -= rhs; },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__imul__",
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
+            return lhs *= rhs;
+          },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__imul__",
+          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs *= rhs; },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__itruediv__",
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
+            return lhs /= rhs;
+          },
+          nb::rv_policy::reference_internal)
+      .def(
+          "__itruediv__",
+          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs /= rhs; },
+          nb::rv_policy::reference_internal)
       .def("exp", &bt::Tensor::exp)
       .def("log", &bt::Tensor::log)
       .def("tanh", &bt::Tensor::tanh)
