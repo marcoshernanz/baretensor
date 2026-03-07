@@ -1,160 +1,264 @@
-# BareTensor LLM Roadmap (End-to-End Stack Mastery)
+# BareTensor LLM Roadmap
 
-## Primary goal
-Build and understand the full AI stack in this repo, from tensor internals to modern architectures.
+This roadmap is intentionally small-step.
+The purpose is to reduce leap size between milestones and make it obvious:
+- what model comes next,
+- what BareTensor work is required for that model,
+- when to pause model work for library work,
+- when to start CS229 and CS224N.
 
-This roadmap is not about using external frameworks long-term. It is about owning:
-- C++ tensor core,
-- autograd,
-- Python API,
-- NN layer abstractions,
-- tokenizer pipeline,
-- CUDA kernels,
-- training/evaluation systems,
-- LLM architecture choices.
+## Current Position
+As of 2026-03-07, you are between `002` and `003`.
 
-## Hard constraints
-- Keep external dependencies minimal (near-zero target).
-- `nanobind` is the required bridge for bindings.
-- BareTensor-native implementations are the default path.
-- Temporary placeholders are allowed only to unblock learning, then must be replaced.
+That means:
+- `001` bigram is done.
+- `002` 1-hidden-layer MLP is done or nearly done.
+- You should start CS229 now.
+- You should not implement `bt.nn` yet.
+- The next move should be the first attention prototype without `bt.nn`.
 
-## Project structure intent
-- `native/`: C++ tensor and kernel backend.
-- `src/bt/`: Python API surface.
-- `src/bt/nn/`: high-level NN abstractions.
-- `experiments/`: milestone scripts and quick prototypes.
-- `docs/learning_log.md`: run history and metric tracking.
+## Principles
+- Learning first: optimize for understanding and correctness.
+- BareTensor-first: do not hide milestone logic behind abstractions too early.
+- Milestones should be runnable scripts.
+- Infrastructure breaks should happen only after the need is concrete.
+- Do not start tokenizer or CUDA work before the model path earns it.
 
-## Stage-by-stage plan
+## Milestone 001: Bigram LM
+Model:
+- Simple character-level bigram model.
 
-### Stage A: Bare minimum LM loop (current)
-Goal:
-- run simple language-model baselines and understand loss/gradients.
-
-Milestones:
-1. Bigram LM.
-2. 1-hidden-layer MLP LM.
-3. Train/val split tracking + sample generation.
-
-Where to edit:
-- `experiments/` first.
+BareTensor work:
+- Tensor construction.
+- Basic indexing.
+- `sum`.
+- `log`.
+- Sampling/readback via `numpy()`.
 
 Exit criteria:
-- You can explain every tensor shape and gradient path in your scripts.
-- Baselines produce stable cross-entropy values and samples.
+- Script runs end to end.
+- Cross-entropy is stable.
+- You can explain every tensor shape.
 
-### Stage B: Move baseline logic into BareTensor-first code
-Goal:
-- remove placeholder framework usage from core milestone path.
+Course checkpoint:
+- No course dependency required.
 
-Milestones:
-1. Port bigram and MLP logic to BareTensor-native training path.
-2. Keep loss fixed: next-token cross-entropy.
-3. Keep dataset fixed while comparing improvements.
+## Milestone 002: 1-Hidden-Layer MLP LM
+Model:
+- Character LM with one hidden layer and `tanh`.
 
-Where to edit:
-- `experiments/` and `src/bt/` usage paths.
+BareTensor work:
+- `matmul`.
+- Elementwise autograd.
+- `tanh`.
+- `embedding`.
+- `cross_entropy`.
+- `no_grad`.
+- In-place optimizer step under `no_grad`.
 
 Exit criteria:
-- Baselines run with BareTensor as the core tensor/autograd runtime.
+- Train/val/sample flow runs stably.
+- You can explain the forward path and the backward path.
+- It feels like a real BareTensor model, not a placeholder.
 
-### Stage C: Introduce tokenizer
-When to do it:
-- after the first attention-capable baseline is stable and char-level bottlenecks are visible.
+Course checkpoint:
+- Start CS229 here.
+- Recommended first pass:
+  - Lecture 1: overview and course framing.
+  - Lecture 2: linear regression and gradient descent.
+  - Lecture 3: logistic regression and Newton's method.
 
-What to implement:
-1. Basic BPE tokenizer training script.
-2. Frozen tokenizer artifacts (vocab/merges/config).
-3. Deterministic encode/decode tests.
+## Milestone 003: MLP + 1 Causal Self-Attention Head
+Model:
+- Keep the `002` MLP path.
+- Add one causal self-attention head.
+- Keep it character-level.
+- Do this without `bt.nn`.
 
-Where to edit:
-- `scripts/` for tokenizer tooling.
-- `artifacts/tokenizer/` for frozen tokenizer files.
-- `experiments/` for tokenized training data path.
+Why this milestone exists:
+- You want to feel the raw model mechanics before designing the reusable layer API.
 
-### Stage D: Build `bt.nn`-style layer API (PyTorch-like ergonomics)
-When to do it:
-- once repeated layer code appears across multiple experiments.
+BareTensor work:
+- Attention score computation.
+- Causal masking.
+- Careful `transpose` / `permute` usage.
+- Real-model `softmax` usage.
+
+Exit criteria:
+- A 1-head causal attention model runs end to end.
+- You understand Q/K/V shapes, mask shape, and logits path.
+- You can point to the code repetition that justifies `bt.nn`.
+
+Course checkpoint:
+- Continue CS229 if useful, especially later:
+  - Lecture 10: introduction to neural networks.
+  - Lecture 11: backprop and improving neural networks.
+  - Lecture 12: debugging ML models and error analysis.
+- Start CS224N here, because this is the first real attention decision point.
+- Recommended first pass:
+  - Lecture 1: intro and word vectors.
+  - Lecture 2: word vectors and language models.
+  - Lecture 3: backpropagation and neural networks.
+
+## Break A: Implement `bt.nn`
+Do this immediately after `003`.
+At this point the repetition is no longer hypothetical.
 
 What to implement first:
-1. `Module` base class.
-2. `Linear`.
-3. `Embedding`.
-4. `LayerNorm`.
-5. Minimal optimizer abstractions.
+- `Module`.
+- `Linear`.
+- `Embedding`.
+- `LayerNorm`.
+- Minimal parameter traversal.
 
-Where to edit:
-- `src/bt/nn/`.
-- `tests/` for correctness/parity.
+What not to build yet:
+- No full training runner.
+- No config system.
+- No tokenizer.
+- No optimizer hierarchy unless the current scripts really need it.
 
-Why here:
-- this is where prototyping turns into reusable architecture code.
+## Milestone 004: Rebuild 003 Using `bt.nn`
+Model:
+- Re-implement the same model from `003`.
+- Same architecture goal.
+- Cleaner code path through `bt.nn`.
 
-### Stage E: Introduce robust runner (`train.py` + single config format)
-When to do it:
-- after `bt.nn` exists and repeated training boilerplate slows iteration.
+Why this milestone exists:
+- This is the proof that `bt.nn` is actually helping, not just extra infrastructure.
+
+BareTensor work:
+- Module composition.
+- Parameter organization.
+- Cleaner forward definitions.
+
+Exit criteria:
+- The `004` script is meaningfully cleaner than `003`.
+- The model behavior is still understandable.
+- You can now separate "model idea" from "framework plumbing".
+
+Course checkpoint:
+- Continue CS224N:
+  - Lecture 7: attention and LLM intro.
+
+## Milestone 005: Add Residuals and LayerNorm Around Attention
+Model:
+- Still a small character model.
+- Add residual structure and normalization around the attention path.
+- Do not build a full decoder block yet.
+
+Why this milestone exists:
+- It is a smaller step than jumping directly from `004` to a full Transformer block.
+
+BareTensor work:
+- Residual wiring.
+- LayerNorm in a real architecture.
+- Cleaner shape discipline around attention outputs.
+
+Exit criteria:
+- Residual + normalization path is stable.
+- You can explain exactly where normalization sits and why.
+
+Course checkpoint:
+- Continue CS224N:
+  - Lecture 8: self-attention and Transformers.
+
+## Milestone 006: First Single-Block Decoder-Only Transformer
+Model:
+- Attention + residual + normalization + feedforward.
+- One decoder block only.
+- Still character-level.
+
+BareTensor work:
+- Feedforward block structure.
+- Better module composition.
+- Cleaner parameter reuse.
+
+Exit criteria:
+- A single decoder block trains and samples.
+- The architecture now looks recognizably Transformer-like.
+
+Course checkpoint:
+- Continue CS224N:
+  - Revisit Lecture 8 as needed.
+  - Lecture 9: pretraining.
+
+## Break B: Implement Tokenizer
+Do this after the first stable decoder-style baseline.
+Do not do it before `006`.
 
 What to implement:
-1. One `scripts/train.py` entrypoint.
-2. One config format only (recommended TOML).
-3. Reproducible logging, checkpointing, and profile presets.
+- Basic BPE training script.
+- Frozen tokenizer artifacts.
+- Deterministic encode/decode tests.
 
-Where to edit:
-- `scripts/train.py`
-- `configs/*.toml`
+## Milestone 007: Tokenized Single-Block Decoder Baseline
+Model:
+- Same decoder idea as `006`.
+- Move from characters to tokens.
+
+BareTensor work:
+- Tokenized data path.
+- Tokenizer integration.
+- Stable train/val/sample path with tokens.
+
+Exit criteria:
+- Tokenized baseline runs end to end.
+- Samples and losses are interpretable.
+
+## Milestone 008: Small Multi-Layer Decoder
+Model:
+- Stack multiple decoder blocks.
+- Keep scale modest.
+
+BareTensor work:
+- Cleaner module composition.
+- Better parameter traversal.
+- Better experiment hygiene.
+
+Exit criteria:
+- Multi-layer decoder is stable.
+- Experiment boilerplate is now the main friction.
+
+## Break C: Training Runner and Config
+Only do this after `008`.
+
+What to build:
+- One `train.py` entrypoint.
+- One config format only.
+- Logging, checkpoints, and reproducible run metadata.
+
+## Later: Performance and CUDA
+Only start this once decoder semantics are stable.
+
+Kernel priority:
+- `matmul`.
+- `softmax` / `log_softmax`.
+- `layer_norm`.
+- Fused cross-entropy.
+- Attention-specific kernels.
 
 Rule:
-- Do not add this before Stage D; otherwise infra complexity outpaces learning.
+- correctness parity first,
+- profiler evidence second,
+- performance claims third.
 
-### Stage F: Architecture climb (Tiny GPT -> modern blocks)
-Goal:
-- progress from simple models to modern Transformer patterns.
+## Decision Summary
+Use this if you are unsure what to do next.
 
-Milestones:
-1. Single-head causal self-attention.
-2. Multi-head attention + residual + LayerNorm.
-3. Stacked decoder-only Transformer.
-4. Positional strategies and improved FFN variants.
+- If `002` is not stable:
+  stay on `002`.
 
-Where to edit:
-- primarily `src/bt/nn/` and experiment/train entrypoints.
+- If `002` is stable:
+  start CS229 and move to `003`.
 
-### Stage G: Custom CUDA kernels
-When to start:
-- only after model/training semantics are stable and profiler shows bottlenecks.
+- After `003`:
+  stop and build `bt.nn`.
 
-Kernel order:
-1. Matmul baseline.
-2. Softmax/log_softmax.
-3. LayerNorm.
-4. Fused cross-entropy.
-5. Attention-oriented kernels.
+- After `bt.nn`:
+  rebuild the same model as `004` before increasing architecture complexity.
 
-Where to edit:
-- `native/src/`, `native/include/`, `native/python/bindings.cpp`.
-- add CPU/CUDA parity tests in `tests/`.
+- Do not start tokenizer work before `006`.
 
-Rule:
-- correctness parity first, performance claims second.
+- Do not start training-runner/config work before `008`.
 
-## Transition checklist
-Use these to decide what to do next.
-
-- Tokenizer now?
-  - Yes only if char-level has clearly plateaued and you already have a stable attention baseline.
-
-- `bt.nn` now?
-  - Yes when copy-paste layer code is frequent and slowing progress.
-
-- `train.py` + config now?
-  - Yes when experiments are numerous and reproducibility overhead is hurting momentum.
-
-- Custom CUDA kernels now?
-  - Yes only with stable model semantics + profiling evidence of hotspots.
-
-## Practical next steps (immediate)
-1. Keep logging baseline runs in `docs/learning_log.md`.
-2. Continue milestone scripts in `experiments/` while porting logic toward BareTensor-native paths.
-3. Add a first tiny attention milestone.
-4. Start Stage D (`bt.nn`) only when repetition is concrete, not hypothetical.
+- Do not start CUDA work before a stable decoder baseline exists.
