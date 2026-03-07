@@ -18,6 +18,7 @@
 #include "bt/detail/dims.h"
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
+#include "bt/detail/tensor_copy.h"
 #include "bt/detail/tensor_validation.h"
 
 /*
@@ -25,33 +26,6 @@
  * Purpose: Private implementation details local to this translation unit.
  */
 namespace {
-
-/*
- * Recursively copies data from a strided source layout into a strided
- * destination layout over a shared logical shape.
- */
-void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
-                    const float *src, float *dst, const std::vector<int64_t> &src_strides,
-                    const std::vector<int64_t> &dst_strides) {
-  if (shape[dim] == 0) {
-    return;
-  }
-
-  if (dim == ndim - 1) {
-    for (int64_t i = 0; i < shape[dim]; ++i) {
-      *dst = *src;
-      src += src_strides[dim];
-      dst += dst_strides[dim];
-    }
-    return;
-  }
-
-  for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
-    src += src_strides[dim];
-    dst += dst_strides[dim];
-  }
-}
 
 /*
  * Class: ViewNode
@@ -126,13 +100,7 @@ Tensor Tensor::contiguous() const {
   Tensor out(shape);
   bt::detail::validate_copy_metadata(out, "contiguous");
 
-  const size_t ndim = shape.size();
-  if (ndim == 0) {
-    *out.data_ptr() = *data_ptr();
-    return out;
-  }
-
-  recursive_copy(0, ndim, shape, data_ptr(), out.data_ptr(), strides, out.strides);
+  bt::detail::copy_tensor_values(*this, out);
 
   if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<ContiguousNode>(*this));

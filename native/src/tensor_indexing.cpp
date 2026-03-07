@@ -17,6 +17,7 @@
 #include "bt/detail/autograd_record.h"
 #include "bt/detail/dims.h"
 #include "bt/detail/format.h"
+#include "bt/detail/tensor_copy.h"
 #include "bt/detail/tensor_validation.h"
 
 /*
@@ -35,51 +36,6 @@ struct NormalizedSlice {
   int64_t step = 1;
   int64_t size = 0;
 };
-
-/*
- * Recursively copies data from a strided source layout into a strided
- * destination layout over a shared logical shape.
- */
-void recursive_copy(size_t dim, size_t ndim, const std::vector<int64_t> &shape,
-                    const float *src, float *dst, const std::vector<int64_t> &src_strides,
-                    const std::vector<int64_t> &dst_strides) {
-  if (shape[dim] == 0) {
-    return;
-  }
-
-  if (dim == ndim - 1) {
-    for (int64_t i = 0; i < shape[dim]; ++i) {
-      *dst = *src;
-      src += src_strides[dim];
-      dst += dst_strides[dim];
-    }
-    return;
-  }
-
-  for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
-    src += src_strides[dim];
-    dst += dst_strides[dim];
-  }
-}
-
-/*
- * Copies tensor values from src into dst assuming matching shapes.
- */
-void copy_tensor_values(const bt::Tensor &src, bt::Tensor &dst) {
-  if (src.shape != dst.shape) {
-    throw std::runtime_error("copy_tensor_values failed: source and "
-                             "destination tensor shapes do not match.");
-  }
-
-  if (src.ndim() == 0) {
-    *dst.data_ptr() = *src.data_ptr();
-    return;
-  }
-
-  recursive_copy(0, src.shape.size(), src.shape, src.data_ptr(), dst.data_ptr(),
-                 src.strides, dst.strides);
-}
 
 /*
  * Normalizes and validates one integer index for select().
@@ -196,7 +152,7 @@ public:
     bt::Tensor selected_grad(input_grad.storage,
                              input_grad.storage_offset + selected_offset,
                              std::move(selected_shape), std::move(selected_strides));
-    copy_tensor_values(out_grad, selected_grad);
+    bt::detail::copy_tensor_values(out_grad, selected_grad);
     return {input_grad};
   }
 
@@ -232,7 +188,7 @@ public:
     const int64_t sliced_offset = start_ * input_grad.strides[dim_];
     bt::Tensor sliced_grad(input_grad.storage, input_grad.storage_offset + sliced_offset,
                            std::move(sliced_shape), std::move(sliced_strides));
-    copy_tensor_values(out_grad, sliced_grad);
+    bt::detail::copy_tensor_values(out_grad, sliced_grad);
     return {input_grad};
   }
 

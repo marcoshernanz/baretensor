@@ -12,6 +12,7 @@
 
 #include "bt/detail/autograd_record.h"
 #include "bt/detail/broadcast.h"
+#include "bt/detail/tensor_copy.h"
 #include "bt/detail/tensor_validation.h"
 #include "bt/tensor.h"
 
@@ -180,44 +181,11 @@ template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
   return out;
 }
 
-void recursive_copy(int dim, int ndim, const std::vector<int64_t> &shape,
-                    const float *src, float *dst, const std::vector<int64_t> &src_strides,
-                    const std::vector<int64_t> &dst_strides) {
-  if (shape[dim] == 0) {
-    return;
-  }
-
-  if (dim == ndim - 1) {
-    for (int64_t i = 0; i < shape[dim]; ++i) {
-      *dst = *src;
-      src += src_strides[dim];
-      dst += dst_strides[dim];
-    }
-    return;
-  }
-
-  for (int64_t i = 0; i < shape[dim]; ++i) {
-    recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
-    src += src_strides[dim];
-    dst += dst_strides[dim];
-  }
-}
-
-void copy_tensor_values(const bt::Tensor &src, bt::Tensor &dst) {
-  if (src.shape != dst.shape) {
-    throw std::runtime_error("copy_tensor_values failed: source and "
-                             "destination tensor shapes do not match.");
-  }
-
-  if (src.ndim() == 0) {
-    *dst.data_ptr() = *src.data_ptr();
-    return;
-  }
-
-  recursive_copy(0, src.ndim(), src.shape, src.data_ptr(), dst.data_ptr(), src.strides,
-                 dst.strides);
-}
-
+/*
+ * Executes an out-of-place elementwise computation and copies the result back
+ * into lhs storage. This operation is only valid when gradient recording is
+ * disabled.
+ */
 template <class Compute>
 bt::Tensor &apply_inplace(bt::Tensor &lhs, const char *operation_name,
                           const Compute &compute) {
@@ -238,7 +206,7 @@ bt::Tensor &apply_inplace(bt::Tensor &lhs, const char *operation_name,
     throw std::invalid_argument(oss.str());
   }
 
-  copy_tensor_values(out, lhs);
+  bt::detail::copy_tensor_values(out, lhs);
   return lhs;
 }
 
