@@ -73,27 +73,27 @@ def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
 
 
 def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
-    # with torch.no_grad(): ?
-    input_ids = bt.tensor(token_ids[:-1].astype(np.float32))
-    target_ids = bt.tensor(token_ids[1:].astype(np.float32))
-    logits = forward(input_ids, model)
-    loss = F.cross_entropy(logits, target_ids)
-    return float(loss.item())
+    with bt.no_grad():
+        input_ids = bt.tensor(token_ids[:-1].astype(np.float32))
+        target_ids = bt.tensor(token_ids[1:].astype(np.float32))
+        logits = forward(input_ids, model)
+        loss = F.cross_entropy(logits, target_ids)
+        return float(loss.item())
 
 
 def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
-    # with torch.no_grad(): ?
-    token_id = random.randrange(len(vocab_chars))
-    sample = [vocab_chars[token_id]]
-    current_token = bt.tensor(token_id)
-
-    for _ in range(sample_length - 1):
-        logits = forward(current_token, model)
-        probs = logits.softmax(0)
-        weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
-        token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
-        sample.append(vocab_chars[token_id])
+    with bt.no_grad():
+        token_id = random.randrange(len(vocab_chars))
+        sample = [vocab_chars[token_id]]
         current_token = bt.tensor(token_id)
+
+        for _ in range(sample_length - 1):
+            logits = forward(current_token, model)
+            probs = logits.softmax(0)
+            weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
+            token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
+            sample.append(vocab_chars[token_id])
+            current_token = bt.tensor(token_id)
 
     return "".join(sample)
 
@@ -126,11 +126,11 @@ def main() -> None:
 
         loss.backward()  # type: ignore
 
-        # with torch.no_grad():
-        for param in model_params(model):
-            grad = param.grad
-            assert grad is not None
-            param -= LEARNING_RATE * grad
+        with bt.no_grad():
+            for param in model_params(model):
+                grad = param.grad
+                assert grad is not None
+                param -= LEARNING_RATE * grad
 
         if step % 1000 == 0:
             print(f"step={step} loss={loss.item():.6f}")
