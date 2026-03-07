@@ -35,7 +35,7 @@ def load_text(path: Path) -> str:
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    np.random.seed(SEED)
+    np.random.seed(seed)
     # torch.manual_seed(seed) ?
 
 
@@ -106,7 +106,7 @@ def main() -> None:
     char_to_index = {char: idx for idx, char in enumerate(vocab_chars)}
     vocab_size = len(char_to_index)
 
-    token_ids = np.array([char_to_index[ch] for ch in text], dtype=np.long)
+    token_ids = np.array([char_to_index[ch] for ch in text], dtype=np.int64)
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
