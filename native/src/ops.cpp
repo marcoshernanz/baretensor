@@ -7,10 +7,12 @@
 
 #include <cstdint>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 #include "bt/detail/autograd_record.h"
 #include "bt/detail/broadcast.h"
+#include "bt/detail/tensor_validation.h"
 #include "bt/tensor.h"
 
 /*
@@ -176,6 +178,68 @@ template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
   recursive_apply_unary(0, ndim, a.shape, a.data_ptr(), out.data_ptr(), a.strides,
                         out.strides, op);
   return out;
+}
+
+void recursive_copy(int dim, int ndim, const std::vector<int64_t> &shape,
+                    const float *src, float *dst, const std::vector<int64_t> &src_strides,
+                    const std::vector<int64_t> &dst_strides) {
+  if (shape[dim] == 0) {
+    return;
+  }
+
+  if (dim == ndim - 1) {
+    for (int64_t i = 0; i < shape[dim]; ++i) {
+      *dst = *src;
+      src += src_strides[dim];
+      dst += dst_strides[dim];
+    }
+    return;
+  }
+
+  for (int64_t i = 0; i < shape[dim]; ++i) {
+    recursive_copy(dim + 1, ndim, shape, src, dst, src_strides, dst_strides);
+    src += src_strides[dim];
+    dst += dst_strides[dim];
+  }
+}
+
+void copy_tensor_values(const bt::Tensor &src, bt::Tensor &dst) {
+  if (src.shape != dst.shape) {
+    throw std::runtime_error("copy_tensor_values failed: source and "
+                             "destination tensor shapes do not match.");
+  }
+
+  if (src.ndim() == 0) {
+    *dst.data_ptr() = *src.data_ptr();
+    return;
+  }
+
+  recursive_copy(0, src.ndim(), src.shape, src.data_ptr(), dst.data_ptr(), src.strides,
+                 dst.strides);
+}
+
+template <class Compute>
+bt::Tensor &apply_inplace(bt::Tensor &lhs, const char *operation_name,
+                          const Compute &compute) {
+  if (bt::autograd::is_grad_enabled()) {
+    throw std::runtime_error(std::string(operation_name) +
+                             " is only supported inside bt.no_grad().");
+  }
+
+  bt::detail::validate_copy_metadata(lhs, operation_name);
+  const bt::Tensor out = compute();
+  bt::detail::validate_copy_metadata(out, operation_name);
+
+  if (out.shape != lhs.shape) {
+    std::ostringstream oss;
+    oss << operation_name << " cannot change tensor shape from "
+        << bt::detail::shape_to_string(lhs.shape) << " to "
+        << bt::detail::shape_to_string(out.shape) << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  copy_tensor_values(out, lhs);
+  return lhs;
 }
 
 class AddTensorNode final : public bt::Node {
@@ -396,6 +460,20 @@ Tensor Tensor::operator+(float rhs) const {
 }
 
 /*
+ * In-place tensor-tensor addition.
+ */
+Tensor &Tensor::operator+=(const Tensor &rhs) {
+  return apply_inplace(*this, "__iadd__()", [this, &rhs]() { return *this + rhs; });
+}
+
+/*
+ * In-place tensor-scalar addition.
+ */
+Tensor &Tensor::operator+=(float rhs) {
+  return apply_inplace(*this, "__iadd__()", [this, rhs]() { return *this + rhs; });
+}
+
+/*
  * Elementwise tensor-tensor subtraction.
  */
 Tensor Tensor::operator-(const Tensor &rhs) const {
@@ -415,6 +493,20 @@ Tensor Tensor::operator-(float rhs) const {
     out.set_grad_fn(std::make_shared<SubScalarNode>(*this));
   }
   return out;
+}
+
+/*
+ * In-place tensor-tensor subtraction.
+ */
+Tensor &Tensor::operator-=(const Tensor &rhs) {
+  return apply_inplace(*this, "__isub__()", [this, &rhs]() { return *this - rhs; });
+}
+
+/*
+ * In-place tensor-scalar subtraction.
+ */
+Tensor &Tensor::operator-=(float rhs) {
+  return apply_inplace(*this, "__isub__()", [this, rhs]() { return *this - rhs; });
 }
 
 /*
@@ -440,6 +532,20 @@ Tensor Tensor::operator*(float rhs) const {
 }
 
 /*
+ * In-place tensor-tensor multiplication.
+ */
+Tensor &Tensor::operator*=(const Tensor &rhs) {
+  return apply_inplace(*this, "__imul__()", [this, &rhs]() { return *this * rhs; });
+}
+
+/*
+ * In-place tensor-scalar multiplication.
+ */
+Tensor &Tensor::operator*=(float rhs) {
+  return apply_inplace(*this, "__imul__()", [this, rhs]() { return *this * rhs; });
+}
+
+/*
  * Elementwise tensor-tensor division.
  */
 Tensor Tensor::operator/(const Tensor &rhs) const {
@@ -459,6 +565,20 @@ Tensor Tensor::operator/(float rhs) const {
     out.set_grad_fn(std::make_shared<DivScalarNode>(*this, rhs));
   }
   return out;
+}
+
+/*
+ * In-place tensor-tensor division.
+ */
+Tensor &Tensor::operator/=(const Tensor &rhs) {
+  return apply_inplace(*this, "__itruediv__()", [this, &rhs]() { return *this / rhs; });
+}
+
+/*
+ * In-place tensor-scalar division.
+ */
+Tensor &Tensor::operator/=(float rhs) {
+  return apply_inplace(*this, "__itruediv__()", [this, rhs]() { return *this / rhs; });
 }
 
 /*

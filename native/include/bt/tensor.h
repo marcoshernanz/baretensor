@@ -328,6 +328,18 @@ public:
   Tensor operator+(float rhs) const;
 
   /*
+   * In-place tensor-tensor addition.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator+=(const Tensor &t);
+
+  /*
+   * In-place tensor-scalar addition.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator+=(float rhs);
+
+  /*
    * Elementwise tensor-tensor subtraction.
    */
   Tensor operator-(const Tensor &t) const;
@@ -336,6 +348,18 @@ public:
    * Elementwise tensor-scalar subtraction.
    */
   Tensor operator-(float rhs) const;
+
+  /*
+   * In-place tensor-tensor subtraction.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator-=(const Tensor &t);
+
+  /*
+   * In-place tensor-scalar subtraction.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator-=(float rhs);
 
   /*
    * Elementwise tensor-tensor multiplication.
@@ -348,6 +372,18 @@ public:
   Tensor operator*(float rhs) const;
 
   /*
+   * In-place tensor-tensor multiplication.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator*=(const Tensor &t);
+
+  /*
+   * In-place tensor-scalar multiplication.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator*=(float rhs);
+
+  /*
    * Elementwise tensor-tensor division.
    */
   Tensor operator/(const Tensor &t) const;
@@ -356,6 +392,18 @@ public:
    * Elementwise tensor-scalar division.
    */
   Tensor operator/(float rhs) const;
+
+  /*
+   * In-place tensor-tensor division.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator/=(const Tensor &t);
+
+  /*
+   * In-place tensor-scalar division.
+   * This operation is only supported while gradient recording is disabled.
+   */
+  Tensor &operator/=(float rhs);
 };
 
 /*
