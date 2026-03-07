@@ -16,9 +16,16 @@
 
 #include "bt/detail/format.h"
 
+/*
+ * Namespace: (anonymous)
+ * Purpose: Private implementation details local to this translation unit.
+ */
 namespace {
 thread_local bool g_grad_enabled = true;
 
+/*
+ * Traverses autograd parents from tensor and records a topological ordering.
+ */
 void build_topology_from_tensor(const bt::Tensor &tensor,
                                 std::unordered_set<const bt::Node *> &visited,
                                 std::vector<std::shared_ptr<bt::Node>> &topo) {
@@ -44,6 +51,9 @@ void build_topology_from_tensor(const bt::Tensor &tensor,
   topo.push_back(fn);
 }
 
+/*
+ * Builds the implicit root gradient for scalar backward() calls.
+ */
 [[nodiscard]] bt::Tensor make_default_root_grad(const bt::Tensor &output) {
   if (output.numel() != 1) {
     std::ostringstream oss;
@@ -55,6 +65,9 @@ void build_topology_from_tensor(const bt::Tensor &tensor,
   return bt::ones(output.shape);
 }
 
+/*
+ * Validates that an explicit backward() gradient matches the output shape.
+ */
 void validate_root_gradient_shape(const bt::Tensor &output, const bt::Tensor &gradient) {
   if (gradient.shape == output.shape) {
     return;
@@ -67,6 +80,9 @@ void validate_root_gradient_shape(const bt::Tensor &output, const bt::Tensor &gr
   throw std::invalid_argument(oss.str());
 }
 
+/*
+ * Validates that a node-produced input gradient matches the input shape.
+ */
 void validate_input_gradient_shape(const bt::Tensor &input,
                                    const bt::Tensor &input_grad) {
   if (input_grad.shape == input.shape) {
@@ -84,18 +100,36 @@ void validate_input_gradient_shape(const bt::Tensor &input,
 
 namespace bt {
 
+/*
+ * Stores node inputs for later backward traversal.
+ */
 Node::Node(std::vector<Tensor> inputs) : inputs_(std::move(inputs)) {}
 
+/*
+ * Returns the input tensors connected to this node.
+ */
 const std::vector<Tensor> &Node::inputs() const noexcept { return inputs_; }
 
 namespace autograd {
 
+/*
+ * Returns whether gradient recording is currently enabled.
+ */
 bool is_grad_enabled() noexcept { return g_grad_enabled; }
 
+/*
+ * Disables gradient recording for the lifetime of the guard.
+ */
 NoGradGuard::NoGradGuard() : previous_state_(g_grad_enabled) { g_grad_enabled = false; }
 
+/*
+ * Restores the previous gradient-recording state.
+ */
 NoGradGuard::~NoGradGuard() { g_grad_enabled = previous_state_; }
 
+/*
+ * Reduces a broadcasted gradient so it matches a target input shape.
+ */
 Tensor reduce_sum_to_shape(const Tensor &grad, const std::vector<int64_t> &shape) {
   if (grad.shape == shape) {
     return grad;
@@ -150,6 +184,9 @@ Tensor reduce_sum_to_shape(const Tensor &grad, const std::vector<int64_t> &shape
   return reduced;
 }
 
+/*
+ * Executes reverse-mode automatic differentiation from output.
+ */
 void backward(const Tensor &output, const std::optional<Tensor> &gradient) {
   if (!output.requires_grad()) {
     throw std::invalid_argument(
