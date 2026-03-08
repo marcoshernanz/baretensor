@@ -82,12 +82,10 @@ It should not replace the implementation path.
 - Character-level bigram language model from counts.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build the count table.
-  - Normalize into probabilities.
-  - Compute cross-entropy manually from next-token probabilities.
-  - Sample text.
-- Then port the exact same pipeline to BareTensor.
+- Build the count table.
+- Normalize into probabilities.
+- Compute cross-entropy manually from next-token probabilities.
+- Sample text.
 
 ### BareTensor Features Needed
 - Tensor construction.
@@ -120,14 +118,12 @@ You should come out of this milestone able to:
 - Still only one-token context.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build embedding table.
-  - Use one token as input.
-  - Project to hidden layer.
-  - Apply `tanh`.
-  - Project to logits.
-  - Train with cross-entropy.
-- Then reproduce the same model and training loop in BareTensor.
+- Build embedding table.
+- Use one token as input.
+- Project to hidden layer.
+- Apply `tanh`.
+- Project to logits.
+- Train with cross-entropy.
 
 ### BareTensor Features Needed
 - `matmul`.
@@ -164,11 +160,9 @@ You should come out of this milestone able to:
 - This isolates the effect of more context.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build a sliding context window dataset.
-  - Concatenate or flatten context embeddings.
-  - Predict next token with a single linear projection.
-- Then reproduce the same context-window pipeline in BareTensor.
+- Build a sliding context window dataset.
+- Concatenate or flatten context embeddings.
+- Predict next token with a single linear projection.
 
 ### BareTensor Features Needed
 - Better handling of reshape/view logic.
@@ -197,10 +191,8 @@ You should come out of this milestone able to:
 - Add a hidden layer and nonlinearity.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Reuse the dataset path from `003`.
-  - Add one hidden layer over the flattened context representation.
-- Then rebuild the same architecture in BareTensor.
+- Reuse the dataset path from `003`.
+- Add one hidden layer over the flattened context representation.
 
 ### BareTensor Features Needed
 - Nothing radically new if `002` and `003` are solid.
@@ -228,10 +220,8 @@ You should come out of this milestone able to:
 - Increase context length enough to feel the limits of this family.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Increase window size.
-  - Retune only minimally.
-- Then rebuild the same thing in BareTensor.
+- Increase window size.
+- Retune only minimally.
 
 ### BareTensor Features Needed
 - Mainly robustness and clarity in existing tensor ops.
@@ -255,11 +245,9 @@ You should come out of this milestone able to:
 - Use the sequence directly rather than a fixed context window.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build a vanilla recurrent cell.
-  - Unroll over sequence positions.
-  - Train with next-token loss.
-- Then rebuild the same unrolled recurrence in BareTensor.
+- Build a vanilla recurrent cell.
+- Unroll over sequence positions.
+- Train with next-token loss.
 
 ### BareTensor Features Needed
 - No new special op is strictly required.
@@ -287,10 +275,8 @@ You should come out of this milestone able to:
 - Improve batching, sequencing, and training stability enough to really study it.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Make the training setup cleaner.
-  - Study behavior across longer sequences.
-- Then rebuild the improved training path in BareTensor.
+- Make the training setup cleaner.
+- Study behavior across longer sequences.
 
 ### BareTensor Features Needed
 - Mostly code discipline, not new tensor primitives.
@@ -314,10 +300,8 @@ You should come out of this milestone able to:
 - Do not do both unless you really want the comparison.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Implement the gated recurrent model.
-  - Compare it against the vanilla RNN.
-- Then rebuild the same model in BareTensor.
+- Implement the gated recurrent model.
+- Compare it against the vanilla RNN.
 
 ### BareTensor Features Needed
 - Again, likely no fundamentally new primitive.
@@ -347,11 +331,9 @@ You should come out of this milestone able to:
 - No feedforward block yet.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build the smallest possible causal attention model.
-  - Use explicit Q/K/V projections.
-  - Use explicit causal masking.
-- Then rebuild the same raw attention model in BareTensor.
+- Build the smallest possible causal attention model.
+- Use explicit Q/K/V projections.
+- Use explicit causal masking.
 
 ### BareTensor Features Needed
 - Attention score math.
@@ -441,9 +423,7 @@ You should come out of this milestone able to:
 - Still no LayerNorm or feedforward yet.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build the smallest residualized attention path.
-- Then rebuild the same thing in BareTensor.
+- Build the smallest residualized attention path.
 
 ### Understanding Needed Before Implementing
 - Why residuals matter.
@@ -461,9 +441,7 @@ You should come out of this milestone able to:
 - Still no full feedforward block yet.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Decide and understand the exact normalization placement.
-- Then rebuild the same arrangement in BareTensor.
+- Decide and understand the exact normalization placement.
 
 ### Understanding Needed Before Implementing
 - Why normalization matters.
@@ -482,9 +460,7 @@ You should come out of this milestone able to:
 - Now you have almost all pieces of a decoder block.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build attention path plus feedforward path clearly.
-- Then rebuild it in BareTensor with the same structure.
+- Build attention path plus feedforward path clearly.
 
 ### Understanding Needed Before Implementing
 - Why the feedforward sublayer exists.
@@ -501,9 +477,7 @@ You should come out of this milestone able to:
 - Still character-level.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build the smallest coherent decoder-only Transformer block.
-- Then rebuild the same single-block model in BareTensor.
+- Build the smallest coherent decoder-only Transformer block.
 
 ### Understanding Needed Before Implementing
 - How all previous pieces fit together into one architecture.
@@ -540,9 +514,7 @@ You should come out of this break able to:
 - Move from characters to tokens.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Rebuild the model on tokenized data first.
-- Then rebuild the tokenized version in BareTensor.
+- Rebuild the model on tokenized data first.
 
 ### Understanding Needed Before Implementing
 - How tokenization changes sequence length, vocabulary size, and modeling difficulty.
@@ -558,9 +530,7 @@ You should come out of this milestone able to:
 - Keep scale modest.
 
 ### Implementation Path
-- First implement it in PyTorch:
-  - Build the stacked version first.
-- Then rebuild it in BareTensor.
+- Build the stacked version first.
 
 ### Understanding Needed Before Implementing
 - Why stacking changes optimization and representation depth.
