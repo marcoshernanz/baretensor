@@ -40,6 +40,20 @@ class AutogradViewAndShapeTests(unittest.TestCase):
         expected = np.transpose(weight_np.reshape(3, 2, 4), (1, 0, 2))
         np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
 
+    def test_flatten_backward_maps_gradients_to_original_shape(self) -> None:
+        x_np = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        y = x.flatten(1)
+        weight_np = np.arange(24, dtype=np.float32).reshape(2, 12)
+        weight = bt.tensor(weight_np)
+
+        loss = (y * weight).sum()
+        loss.backward()
+
+        expected = weight_np.reshape(2, 3, 4)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
     def test_permute_backward_uses_inverse_permutation(self) -> None:
         x = bt.tensor(np.arange(24, dtype=np.float32).reshape(2, 3, 4), requires_grad=True)
 

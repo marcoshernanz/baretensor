@@ -23,6 +23,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt.Tensor, "sum"))
         self.assertTrue(hasattr(bt.Tensor, "mean"))
         self.assertTrue(hasattr(bt.Tensor, "max"))
+        self.assertTrue(hasattr(bt.Tensor, "flatten"))
         self.assertTrue(hasattr(bt.Tensor, "item"))
         self.assertTrue(hasattr(bt.Tensor, "__getitem__"))
         self.assertTrue(hasattr(bt.Tensor, "__neg__"))

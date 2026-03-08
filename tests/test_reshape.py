@@ -129,6 +129,50 @@ class ReshapeTests(unittest.TestCase):
         ):
             _ = tensor.reshape([-1, 0])
 
+    def test_flatten_default_preserves_values(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source)
+
+        flattened = tensor.flatten()
+
+        self.assertEqual(flattened.shape, [12])
+        np.testing.assert_allclose(to_numpy(flattened), source.reshape(12))
+
+    def test_flatten_over_subrange_preserves_outer_dimensions(self) -> None:
+        source = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+        tensor = bt.tensor(source)
+
+        flattened = tensor.flatten(1, 2)
+
+        self.assertEqual(flattened.shape, [2, 12])
+        np.testing.assert_allclose(to_numpy(flattened), source.reshape(2, 12))
+
+    def test_flatten_on_scalar_returns_length_one_tensor(self) -> None:
+        tensor = bt.tensor(np.asarray(3.5, dtype=np.float32))
+
+        flattened = tensor.flatten()
+
+        self.assertEqual(flattened.shape, [1])
+        np.testing.assert_allclose(to_numpy(flattened), np.asarray([3.5], dtype=np.float32))
+
+    def test_flatten_accepts_negative_dimensions(self) -> None:
+        source = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+        tensor = bt.tensor(source)
+
+        flattened = tensor.flatten(-2, -1)
+
+        self.assertEqual(flattened.shape, [2, 12])
+        np.testing.assert_allclose(to_numpy(flattened), source.reshape(2, 12))
+
+    def test_flatten_rejects_start_dim_after_end_dim(self) -> None:
+        tensor = bt.tensor(np.arange(12, dtype=np.float32).reshape(3, 4))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"start_dim=1 cannot come after end_dim=0",
+        ):
+            _ = tensor.flatten(1, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
