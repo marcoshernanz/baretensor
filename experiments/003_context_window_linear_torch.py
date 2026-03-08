@@ -58,14 +58,17 @@ def init_model(vocab_size: int) -> Model:
 
 
 def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).view(EMBEDDING_DIM * CONTEXT_LEN)
+    embedded = F.embedding(input_ids, model["embedding_table"]).view(
+        input_ids.shape[0], EMBEDDING_DIM * CONTEXT_LEN
+    )
     return embedded @ model["output_weights"] + model["output_bias"]
 
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
-        input_ids = token_ids[:-1]
-        target_ids = token_ids[1:]
+        indices = token_ids[:-CONTEXT_LEN]
+        input_ids = token_ids[indices[:, None] + torch.arange(CONTEXT_LEN)]
+        target_ids = token_ids[indices + CONTEXT_LEN]
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
         return float(loss.item())
@@ -105,7 +108,7 @@ def main() -> None:
 
     for step in range(TRAIN_STEPS):
         batch_indices = torch.randint(0, len(train_token_ids) - CONTEXT_LEN, (BATCH_SIZE,))
-        input_ids = train_token_ids[batch_indices]
+        input_ids = train_token_ids[batch_indices[:, None] + torch.arange(CONTEXT_LEN)]
         target_ids = train_token_ids[batch_indices + CONTEXT_LEN]
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
