@@ -93,20 +93,21 @@ def sample_text(
     model: Model,
     seed_token_ids: np.ndarray,
 ) -> str:
-    return "TODO"
-    # with bt.no_grad():
-    #     seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
-    #     context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
-    #     sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
+    with bt.no_grad():
+        seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
+        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].copy()
+        sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
-    #     for _ in range(max(sample_length - len(sample), 0)):
-    #         logits = forward(bt.tensor(context.unsqueeze(0)), model)
-    #         probs = logits[0].softmax(0)
-    #         next_token_id = int(torch.multinomial(probs, num_samples=1).item())
-    #         sample.append(vocab_chars[next_token_id])
-    #         context = torch.cat([context[1:], context.new_tensor([next_token_id])])
+        for _ in range(max(sample_length - len(sample), 0)):
+            context_tensor = bt.tensor(context[None, :])
+            logits = forward(context_tensor, model)
+            probs = logits[0].softmax(0)
+            weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
+            next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
+            sample.append(vocab_chars[next_token_id])
+            context = np.concatenate([context[1:], np.asarray([next_token_id], dtype=np.int64)])
 
-    # return "".join(sample)
+    return "".join(sample)
 
 
 def main() -> None:
@@ -161,14 +162,14 @@ def main() -> None:
 
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    # sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
     print(f"loss_history_csv={loss_history_csv}")
     print(f"loss_curve_svg={loss_curve_svg}")
-    # print(f'sample="""\n{sample}\n"""')
+    print(f'sample="""\n{sample}\n"""')
 
 
 if __name__ == "__main__":
