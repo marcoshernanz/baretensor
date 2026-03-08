@@ -8,31 +8,31 @@ We are not taking the shortest path to a GPT-like model.
 We are taking the path that gives the most understanding per milestone.
 
 The approach is:
-- implement the milestone in PyTorch first,
-- make the forward pass, loss, sampling path, and training dynamics understandable,
-- be able to explain the tensor shapes and gradient flow clearly,
-- then port the exact same milestone to BareTensor,
-- only after both versions are understood do we move to the next milestone.
+- Implement the milestone in PyTorch first,
+- Make the forward pass, loss, sampling path, and training dynamics understandable,
+- Be able to explain the tensor shapes and gradient flow clearly,
+- Then port the exact same milestone to BareTensor,
+- Only after both versions are understood do we move to the next milestone.
 
 This is deliberately slower than jumping straight to attention or Transformers.
 It is also better for learning because it isolates ideas.
 You want to learn one new concept at a time:
-- context,
-- nonlinearity,
-- hidden state,
-- recurrence,
-- gating,
-- attention,
-- residual structure,
-- normalization,
-- tokenization,
-- stacking.
+- Context,
+- Nonlinearity,
+- Hidden state,
+- Recurrence,
+- Gating,
+- Attention,
+- Residual structure,
+- Normalization,
+- Tokenization,
+- Stacking.
 
 We also prefer direct conceptual stepping stones over historical completeness.
 However, if an older architecture teaches something important for modern models, it belongs in the roadmap.
 That is why RNNs are included here:
-- not because they are the end goal,
-- but because they teach sequence state, unrolling, and gradient flow in a very direct way.
+- Not because they are the end goal,
+- But because they teach sequence state, unrolling, and gradient flow in a very direct way.
 
 CNNs are not on the main path.
 They are useful, but for the TinyGPT-oriented goal they are lower learning-value than context-window MLPs, RNNs, and attention.
@@ -60,8 +60,8 @@ In practical terms:
 Start CS229 now, during the late `002` / early `003` period.
 
 Recommended use:
-- early: Lectures 1, 2, 3,
-- later, when you want stronger neural-net intuition: Lectures 10, 11, 12.
+- Early: Lectures 1, 2, 3,
+- Later, when you want stronger neural-net intuition: Lectures 10, 11, 12.
 
 CS229 should support your understanding of optimization, supervised learning, neural nets, and debugging.
 It should not block implementation progress.
@@ -70,9 +70,9 @@ It should not block implementation progress.
 Start CS224N when you begin attention-oriented milestones.
 
 Recommended use:
-- before or during early sequence-model work: Lectures 1, 2, 3,
-- when attention becomes real: Lectures 7 and 8,
-- when language-model scaling/pretraining questions become real: Lecture 9.
+- Before or during early sequence-model work: Lectures 1, 2, 3,
+- When attention becomes real: Lectures 7 and 8,
+- When language-model scaling/pretraining questions become real: Lecture 9.
 
 CS224N should support NLP and sequence-model understanding.
 It should not replace the implementation path.
@@ -105,10 +105,10 @@ It should not replace the implementation path.
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain why bigram is a one-step context model,
-- compute cross-entropy by hand for a token pair,
-- explain every tensor shape in the script,
-- explain why the generated samples are weak but still meaningful.
+- Explain why bigram is a one-step context model,
+- Compute cross-entropy by hand for a token pair,
+- Explain every tensor shape in the script,
+- Explain why the generated samples are weak but still meaningful.
 
 ### Exit Criteria
 - The script runs end to end.
@@ -149,10 +149,10 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain the role of embeddings vs hidden weights vs output weights,
-- explain the gradient path through `tanh`,
-- explain why this model is more expressive than bigram,
-- explain where it still fails because context is too small.
+- Explain the role of embeddings vs hidden weights vs output weights,
+- Explain the gradient path through `tanh`,
+- Explain why this model is more expressive than bigram,
+- Explain where it still fails because context is too small.
 
 ### Exit Criteria
 - Train/val/sample path runs stably.
@@ -185,9 +185,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- separate the idea of context size from model depth,
-- explain exactly how context windows are built,
-- see what longer context buys you before recurrence or attention.
+- Separate the idea of context size from model depth,
+- Explain exactly how context windows are built,
+- See what longer context buys you before recurrence or attention.
 
 ### Exit Criteria
 - The model runs end to end.
@@ -212,15 +212,15 @@ You should come out of this milestone able to:
 
 ### Understanding Needed Before Implementing
 - Why this milestone combines two independent ideas:
-  - more context,
-  - more nonlinear capacity.
+  - More context,
+  - More nonlinear capacity.
 - How to tell which one is helping.
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- compare `002` vs `003` vs `004` honestly,
-- explain what longer context plus an MLP buys you,
-- understand why sequence order is still only implicit here.
+- Compare `002` vs `003` vs `004` honestly,
+- Explain what longer context plus an MLP buys you,
+- Understand why sequence order is still only implicit here.
 
 ### Exit Criteria
 - The model runs stably.
@@ -247,9 +247,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- feel the limits of fixed-window MLPs,
-- explain why a fixed window is fundamentally different from sequence state,
-- justify moving to recurrent models next.
+- Feel the limits of fixed-window MLPs,
+- Explain why a fixed window is fundamentally different from sequence state,
+- Justify moving to recurrent models next.
 
 ### Exit Criteria
 - You have clear evidence that fixed-window context is becoming limiting.
@@ -279,9 +279,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain hidden state as carried sequence memory,
-- explain backpropagation through time at a high level,
-- explain why RNNs are a meaningful conceptual bridge to attention even if they are not the end goal.
+- Explain hidden state as carried sequence memory,
+- Explain backpropagation through time at a high level,
+- Explain why RNNs are a meaningful conceptual bridge to attention even if they are not the end goal.
 
 ### Exit Criteria
 - A simple RNN LM runs end to end.
@@ -308,9 +308,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- recognize vanishing-gradient behavior in practice,
-- explain where vanilla recurrence struggles,
-- justify why gated recurrence exists.
+- Recognize vanishing-gradient behavior in practice,
+- Explain where vanilla recurrence struggles,
+- Justify why gated recurrence exists.
 
 ### Exit Criteria
 - The RNN behavior is clear enough that its failure modes are educational, not mysterious.
@@ -338,9 +338,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain why gated recurrence trains better than vanilla RNNs,
-- articulate the limits of recurrence before seeing attention,
-- understand attention as a solution to a problem you have now personally felt.
+- Explain why gated recurrence trains better than vanilla RNNs,
+- Articulate the limits of recurrence before seeing attention,
+- Understand attention as a solution to a problem you have now personally felt.
 
 ### Exit Criteria
 - You can compare vanilla RNN vs gated RNN conceptually and empirically.
@@ -376,10 +376,10 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain attention from first principles,
-- explain every attention-related tensor shape,
-- explain why attention is different from recurrence,
-- point to the code repetition that proves `bt.nn` is now justified.
+- Explain attention from first principles,
+- Explain every attention-related tensor shape,
+- Explain why attention is different from recurrence,
+- Point to the code repetition that proves `bt.nn` is now justified.
 
 ### Exit Criteria
 - One-head causal attention runs end to end.
@@ -414,9 +414,9 @@ You have written enough raw model code to know what should become reusable.
 
 ### Learning Outcomes
 You should come out of this break able to:
-- explain why each abstraction exists,
-- distinguish useful abstraction from abstraction theater,
-- make later model code clearer rather than more magical.
+- Explain why each abstraction exists,
+- Distinguish useful abstraction from abstraction theater,
+- Make later model code clearer rather than more magical.
 
 ## Milestone 010: Rebuild 009 Using `bt.nn`
 ### Model
@@ -437,9 +437,9 @@ You should come out of this break able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- prove that `bt.nn` helps readability and reuse,
-- separate model ideas from plumbing,
-- know what should stay low-level vs become library API.
+- Prove that `bt.nn` helps readability and reuse,
+- Separate model ideas from plumbing,
+- Know what should stay low-level vs become library API.
 
 ### Exit Criteria
 - `010` is meaningfully cleaner than `009`.
@@ -463,9 +463,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain residuals mechanically,
-- explain why they help deeper architectures,
-- see the attention block becoming more Transformer-like one piece at a time.
+- Explain residuals mechanically,
+- Explain why they help deeper architectures,
+- See the attention block becoming more Transformer-like one piece at a time.
 
 ## Milestone 012: Attention + Residual + LayerNorm
 ### Model
@@ -485,9 +485,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain exactly what LayerNorm is normalizing,
-- justify the placement you chose,
-- understand normalization as a training tool rather than a ritual.
+- Explain exactly what LayerNorm is normalizing,
+- Justify the placement you chose,
+- Understand normalization as a training tool rather than a ritual.
 
 ## Milestone 013: Add Feedforward Block
 ### Model
@@ -506,8 +506,8 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain the role of the feedforward block,
-- understand the decoder block as a composition of simpler parts.
+- Explain the role of the feedforward block,
+- Understand the decoder block as a composition of simpler parts.
 
 ## Milestone 014: First Single-Block Decoder-Only Transformer
 ### Model
@@ -526,9 +526,9 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain the whole decoder block from memory,
-- compare it honestly against MLPs and RNNs,
-- know which architectural ideas mattered most.
+- Explain the whole decoder block from memory,
+- Compare it honestly against MLPs and RNNs,
+- Know which architectural ideas mattered most.
 
 ### Course Checkpoint
 - Continue CS224N here with:
@@ -546,8 +546,8 @@ Only now has character-level modeling done enough work to justify tokenization.
 
 ### Learning Outcomes
 You should come out of this break able to:
-- explain what tokenization changes in the modeling problem,
-- reason about vocabulary granularity and sequence length tradeoffs.
+- Explain what tokenization changes in the modeling problem,
+- Reason about vocabulary granularity and sequence length tradeoffs.
 
 ## Milestone 015: Tokenized Single-Block Decoder
 ### Model
@@ -565,8 +565,8 @@ You should come out of this break able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain why tokenization matters,
-- interpret tokenized samples and losses coherently.
+- Explain why tokenization matters,
+- Interpret tokenized samples and losses coherently.
 
 ## Milestone 016: Small Multi-Layer Decoder
 ### Model
@@ -585,8 +585,8 @@ You should come out of this milestone able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- explain depth vs width tradeoffs more concretely,
-- recognize when experiment boilerplate is now the real bottleneck.
+- Explain depth vs width tradeoffs more concretely,
+- Recognize when experiment boilerplate is now the real bottleneck.
 
 ## Break C: Training Runner and Config
 Do this only after `016`.
@@ -597,7 +597,7 @@ What to build:
 - Logging, checkpoints, and reproducible run metadata.
 
 Learning outcome:
-- learn to build training infrastructure only after you have truly earned it.
+- Learn to build training infrastructure only after you have truly earned it.
 
 ## Later: Performance and CUDA
 Only start this after the decoder path is semantically stable.
@@ -610,9 +610,9 @@ Kernel priority:
 - Attention-specific kernels.
 
 Rule:
-- correctness parity first,
-- profiler evidence second,
-- performance claims third.
+- Correctness parity first,
+- Profiler evidence second,
+- Performance claims third.
 
 ## Decision Summary
 - If `002` is not stable, stay on `002`.
