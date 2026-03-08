@@ -7,6 +7,8 @@ import random
 
 import torch
 
+from experiment_artifacts import write_loss_artifacts
+
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
 SEED = 1337
@@ -60,8 +62,13 @@ def main() -> None:
     next_tokens = encoded[1:]
     cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
     sample = sample_text(probs, chars, SAMPLE_LEN)
+    loss_value = float(cross_entropy.item())
+    loss_history = [(0, loss_value, loss_value)]
+    loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
 
-    print(f"cross_entropy={cross_entropy.item():.6f}")
+    print(f"cross_entropy={loss_value:.6f}")
+    print(f"loss_history_csv={loss_history_csv}")
+    print(f"loss_curve_svg={loss_curve_svg}")
     print(f'sample="""\n{sample}\n"""')
 
 
