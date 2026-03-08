@@ -76,10 +76,7 @@ def build_examples(
 
 
 def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
-    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
-    embedded = F.embedding(input_ids, model["embedding_table"]).reshape(
-        (input_ids.shape[0], input_dim)
-    )
+    embedded = F.embedding(input_ids, model["embedding_table"]).flatten(1)
     return embedded @ model["output_weights"] + model["output_bias"]
 
 
