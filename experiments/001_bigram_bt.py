@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import random
+from time import perf_counter
 
 import bt
 import numpy as np
@@ -56,6 +57,7 @@ def sample_text(probs: bt.Tensor, chars: list[str], sample_len: int) -> str:
 
 
 def main() -> None:
+    total_start = perf_counter()
     set_seed(SEED)
     tokens = load_text(DATA_PATH)
 
@@ -74,10 +76,12 @@ def main() -> None:
     sample = sample_text(probs, chars, SAMPLE_LEN)
     loss_history = [(0, cross_entropy, cross_entropy)]
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
+    total_seconds = perf_counter() - total_start
 
     print(f"cross_entropy={cross_entropy:.6f}")
     print(f"loss_history_csv={loss_history_csv}")
     print(f"loss_curve_svg={loss_curve_svg}")
+    print(f"total_seconds={total_seconds:.3f}")
     print(f'sample="""\n{sample}\n"""')
 
 

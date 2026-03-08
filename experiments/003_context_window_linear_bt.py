@@ -14,16 +14,21 @@ from experiment_artifacts import write_loss_artifacts
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
-BATCH_SIZE = 64
-HIDDEN_DIM = 64
+BATCH_SIZE = 32
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 25_000
+CONTEXT_LENGTH = 4
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
 Model = dict[str, bt.Tensor]
+
+
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
 
 
 def load_text(path: Path) -> str:
@@ -38,31 +43,21 @@ def load_text(path: Path) -> str:
     return text
 
 
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def model_params(model: Model) -> tuple[bt.Tensor, ...]:
     return (
         model["embedding_table"],
-        model["hidden_weights"],
-        model["hidden_bias"],
         model["output_weights"],
         model["output_bias"],
     )
 
 
 def init_model(vocab_size: int) -> Model:
-    tanh_gain = 5.0 / 3.0
+    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
     model: Model = {
         "embedding_table": bt.tensor(np.random.randn(vocab_size, EMBEDDING_DIM).astype(np.float32))
         * 0.1,
-        "hidden_weights": bt.tensor(np.random.randn(EMBEDDING_DIM, HIDDEN_DIM).astype(np.float32))
-        * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
-        "hidden_bias": bt.zeros((HIDDEN_DIM,)),
-        "output_weights": bt.tensor(np.random.randn(HIDDEN_DIM, vocab_size).astype(np.float32))
-        * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "output_weights": bt.tensor(np.random.randn(input_dim, vocab_size).astype(np.float32))
+        * (1.0 / math.sqrt(input_dim)),
         "output_bias": bt.zeros((vocab_size,)),
     }
     for param in model_params(model):
@@ -70,34 +65,54 @@ def init_model(vocab_size: int) -> Model:
     return model
 
 
+def build_examples(
+    token_ids: np.ndarray,
+    start_positions: np.ndarray,
+) -> tuple[bt.Tensor, bt.Tensor]:
+    offsets = np.arange(CONTEXT_LENGTH, dtype=np.int64)
+    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets].astype(np.float32))
+    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH].astype(np.float32))
+    return input_ids, target_ids
+
+
 def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"])
-    hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
-    return hidden @ model["output_weights"] + model["output_bias"]
+    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
+    embedded = F.embedding(input_ids, model["embedding_table"]).reshape(
+        (input_ids.shape[0], input_dim)
+    )
+    return embedded @ model["output_weights"] + model["output_bias"]
 
 
 def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
     with bt.no_grad():
-        input_ids = bt.tensor(token_ids[:-1].astype(np.float32))
-        target_ids = bt.tensor(token_ids[1:].astype(np.float32))
+        start_positions = np.arange(len(token_ids) - CONTEXT_LENGTH)
+        input_ids, target_ids = build_examples(token_ids, start_positions)
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
         return float(loss.item())
 
 
-def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
+def sample_text(
+    vocab_chars: list[str],
+    sample_length: int,
+    model: Model,
+    seed_token_ids: np.ndarray,
+) -> str:
     with bt.no_grad():
-        token_id = random.randrange(len(vocab_chars))
-        sample = [vocab_chars[token_id]]
-        current_token = bt.tensor(token_id)
+        seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
+        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].astype(
+            np.int64, copy=True
+        )
+        sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
-        for _ in range(sample_length - 1):
-            logits = forward(current_token, model)
-            probs = logits.softmax(0)
+        for _ in range(max(sample_length - len(sample), 0)):
+            context_tensor = bt.tensor(context[None, :].astype(np.float32))
+            logits = forward(context_tensor, model)
+            probs = logits[0].softmax(0)
             weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
-            token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
-            sample.append(vocab_chars[token_id])
-            current_token = bt.tensor(token_id)
+            next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
+            sample.append(vocab_chars[next_token_id])
+            context = np.concatenate([context[1:], np.asarray([next_token_id], dtype=np.int64)])
 
     return "".join(sample)
 
@@ -115,6 +130,11 @@ def main() -> None:
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
+    if len(train_token_ids) <= CONTEXT_LENGTH or len(val_token_ids) <= CONTEXT_LENGTH:
+        raise ValueError(
+            f"Dataset splits are too small for context length {CONTEXT_LENGTH}. "
+            "Need at least one full context window plus one target token in each split."
+        )
 
     model = init_model(vocab_size)
     loss_history: list[tuple[int, float, float]] = []
@@ -122,9 +142,8 @@ def main() -> None:
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        batch_indices = np.random.randint(0, len(train_token_ids) - 1, size=BATCH_SIZE)
-        input_ids = bt.tensor(train_token_ids[batch_indices].astype(np.float32))
-        target_ids = bt.tensor(train_token_ids[batch_indices + 1].astype(np.float32))
+        start_positions = np.random.randint(0, len(train_token_ids) - CONTEXT_LENGTH, (BATCH_SIZE,))
+        input_ids, target_ids = build_examples(train_token_ids, start_positions)
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
 
@@ -153,7 +172,7 @@ def main() -> None:
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model)
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
     total_seconds = perf_counter() - total_start
 
