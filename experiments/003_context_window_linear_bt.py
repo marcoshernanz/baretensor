@@ -74,7 +74,7 @@ def build_examples(
 
 
 def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).view((BATCH_SIZE, -1))
+    embedded = F.embedding(input_ids, model["embedding_table"]).view((input_ids.shape[0], -1))
     return embedded @ model["output_weights"] + model["output_bias"]
 
 
