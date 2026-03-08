@@ -4,10 +4,10 @@ import math
 from pathlib import Path
 import random
 
-import numpy as np
-
 import bt
 import bt.nn.functional as F
+import numpy as np
+
 from experiment_artifacts import write_loss_artifacts
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
@@ -65,16 +65,20 @@ def init_model(vocab_size: int) -> Model:
 
 
 def build_examples(
-    token_ids: np.ndarray, start_positions: np.ndarray
+    token_ids: np.ndarray,
+    start_positions: np.ndarray,
 ) -> tuple[bt.Tensor, bt.Tensor]:
-    offsets = np.arange(CONTEXT_LENGTH, device=start_positions.device)
-    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets])
-    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH])
+    offsets = np.arange(CONTEXT_LENGTH, dtype=np.int64)
+    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets].astype(np.float32))
+    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH].astype(np.float32))
     return input_ids, target_ids
 
 
 def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).view((input_ids.shape[0], -1))
+    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
+    embedded = F.embedding(input_ids, model["embedding_table"]).reshape(
+        (input_ids.shape[0], input_dim)
+    )
     return embedded @ model["output_weights"] + model["output_bias"]
 
 
@@ -95,11 +99,13 @@ def sample_text(
 ) -> str:
     with bt.no_grad():
         seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
-        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].copy()
+        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].astype(
+            np.int64, copy=True
+        )
         sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
         for _ in range(max(sample_length - len(sample), 0)):
-            context_tensor = bt.tensor(context[None, :])
+            context_tensor = bt.tensor(context[None, :].astype(np.float32))
             logits = forward(context_tensor, model)
             probs = logits[0].softmax(0)
             weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
