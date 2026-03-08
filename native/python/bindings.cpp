@@ -319,6 +319,8 @@ NB_MODULE(_C, m) {
       .def("contiguous", &bt::Tensor::contiguous)
       .def("view", &bt::Tensor::view, nb::arg("shape"))
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
+      .def("flatten", &bt::Tensor::flatten, nb::arg("start_dim") = 0,
+           nb::arg("end_dim") = -1)
       .def("permute", &bt::Tensor::permute, nb::arg("dims"))
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"),
            nb::arg("dim1"))
