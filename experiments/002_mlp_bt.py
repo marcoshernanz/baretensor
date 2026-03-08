@@ -8,6 +8,8 @@ import bt
 import bt.nn.functional as F
 import numpy as np
 
+from experiment_artifacts import write_loss_artifacts
+
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
@@ -16,6 +18,8 @@ HIDDEN_DIM = 64
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 25_000
+LOSS_EMA_DECAY = 0.95
+LOG_INTERVAL = 1000
 
 
 Model = dict[str, bt.Tensor]
@@ -111,6 +115,8 @@ def main() -> None:
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
 
     model = init_model(vocab_size)
+    loss_history: list[tuple[int, float, float]] = []
+    ema_loss: float | None = None
 
     for step in range(TRAIN_STEPS):
         batch_indices = np.random.randint(0, len(train_token_ids) - 1, size=BATCH_SIZE)
@@ -130,15 +136,22 @@ def main() -> None:
                 assert grad is not None
                 param -= LEARNING_RATE * grad
 
-        if step % 1000 == 0:
-            print(f"step={step} loss={loss.item():.6f}")
+        raw_loss = float(loss.item())
+        ema_loss = raw_loss if ema_loss is None else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
+        loss_history.append((step, raw_loss, ema_loss))
+
+        if step % LOG_INTERVAL == 0:
+            print(f"step={step} loss={raw_loss:.6f} ema_loss={ema_loss:.6f}")
 
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
     sample = sample_text(vocab_chars, SAMPLE_LENGTH, model)
+    loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
+    print(f"loss_history_csv={loss_history_csv}")
+    print(f"loss_curve_svg={loss_curve_svg}")
     print(f'sample="""\n{sample}\n"""')
 
 

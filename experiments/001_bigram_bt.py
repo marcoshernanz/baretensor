@@ -8,6 +8,8 @@ import random
 import bt
 import numpy as np
 
+from experiment_artifacts import write_loss_artifacts
+
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 LAPLACE_SMOOTHING = 1.0
 SEED = 1337
@@ -70,8 +72,12 @@ def main() -> None:
         token_count += 1
     cross_entropy = -log_prob_sum / token_count
     sample = sample_text(probs, chars, SAMPLE_LEN)
+    loss_history = [(0, cross_entropy, cross_entropy)]
+    loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
 
     print(f"cross_entropy={cross_entropy:.6f}")
+    print(f"loss_history_csv={loss_history_csv}")
+    print(f"loss_curve_svg={loss_curve_svg}")
     print(f'sample="""\n{sample}\n"""')
 
 
