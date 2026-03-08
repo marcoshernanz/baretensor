@@ -12,6 +12,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "bt/detail/autograd_record.h"
@@ -26,6 +27,30 @@
  * Purpose: Private implementation details local to this translation unit.
  */
 namespace {
+
+/*
+ * Normalizes flatten dimensions, allowing scalar tensors to accept only
+ * start_dim/end_dim values of 0 or -1.
+ */
+[[nodiscard]] int64_t normalize_flatten_dim_checked(const bt::Tensor &tensor,
+                                                    const int64_t dim,
+                                                    std::string_view dim_name) {
+  if (tensor.ndim() != 0) {
+    return bt::detail::normalize_dim_checked("flatten", tensor.shape, dim,
+                                             dim_name);
+  }
+
+  if (dim == 0 || dim == -1) {
+    return 0;
+  }
+
+  std::ostringstream oss;
+  oss << "flatten failed for tensor with shape "
+      << bt::detail::shape_to_string(tensor.shape) << ": " << dim_name << "="
+      << dim << " is out of range for rank 0. Scalar tensors only support "
+      << "start_dim/end_dim of 0 or -1.";
+  throw std::invalid_argument(oss.str());
+}
 
 /*
  * Class: ViewNode
@@ -155,6 +180,48 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
   }
 
   return contiguous().view(target_shape);
+}
+
+/*
+ * Flattens dimensions in the inclusive range [start_dim, end_dim] into one
+ * dimension using PyTorch-style negative-dimension indexing.
+ * Returns a view when possible and otherwise returns a contiguous copy.
+ */
+Tensor Tensor::flatten(const int64_t start_dim, const int64_t end_dim) const {
+  bt::detail::validate_copy_metadata(*this, "flatten");
+
+  const int64_t normalized_start =
+      normalize_flatten_dim_checked(*this, start_dim, "start_dim");
+  const int64_t normalized_end =
+      normalize_flatten_dim_checked(*this, end_dim, "end_dim");
+  if (normalized_start > normalized_end) {
+    std::ostringstream oss;
+    oss << "flatten failed for tensor with shape "
+        << detail::shape_to_string(shape) << ": start_dim=" << start_dim
+        << " cannot come after end_dim=" << end_dim << ".";
+    throw std::invalid_argument(oss.str());
+  }
+
+  if (ndim() == 0) {
+    return view({1});
+  }
+  if (normalized_start == normalized_end) {
+    return *this;
+  }
+
+  std::vector<int64_t> flattened_dims(shape.begin() + normalized_start,
+                                      shape.begin() + normalized_end + 1);
+  const int64_t flattened_size = detail::checked_numel(flattened_dims);
+
+  std::vector<int64_t> target_shape;
+  target_shape.reserve(shape.size() -
+                       static_cast<size_t>(normalized_end - normalized_start));
+  target_shape.insert(target_shape.end(), shape.begin(),
+                      shape.begin() + normalized_start);
+  target_shape.push_back(flattened_size);
+  target_shape.insert(target_shape.end(), shape.begin() + normalized_end + 1,
+                      shape.end());
+  return reshape(target_shape);
 }
 
 /*

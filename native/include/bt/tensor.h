@@ -166,6 +166,14 @@ public:
   [[nodiscard]] Tensor reshape(const std::vector<int64_t> &shape) const;
 
   /*
+   * Flattens dimensions in the inclusive range [start_dim, end_dim] into one
+   * dimension using PyTorch-style negative-dimension indexing.
+   * Returns a view when possible and otherwise returns a contiguous copy.
+   */
+  [[nodiscard]] Tensor flatten(int64_t start_dim = 0,
+                               int64_t end_dim = -1) const;
+
+  /*
    * Returns a view with dimensions reordered according to dims.
    * Supports negative dimensions using Python-style indexing and requires
    * dims to be a full permutation of [0, ..., ndim()-1].
