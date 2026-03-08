@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 import random
+from time import perf_counter
 
 import bt
 import bt.nn.functional as F
@@ -102,6 +103,7 @@ def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str
 
 
 def main() -> None:
+    total_start = perf_counter()
     set_seed(SEED)
     text = load_text(DATA_PATH)
 
@@ -117,6 +119,7 @@ def main() -> None:
     model = init_model(vocab_size)
     loss_history: list[tuple[int, float, float]] = []
     ema_loss: float | None = None
+    train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
         batch_indices = np.random.randint(0, len(train_token_ids) - 1, size=BATCH_SIZE)
@@ -147,15 +150,20 @@ def main() -> None:
         if step % LOG_INTERVAL == 0:
             print(f"step={step} loss={raw_loss:.6f} ema_loss={ema_loss:.6f}")
 
+    train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
     sample = sample_text(vocab_chars, SAMPLE_LENGTH, model)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
+    total_seconds = perf_counter() - total_start
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
     print(f"loss_history_csv={loss_history_csv}")
     print(f"loss_curve_svg={loss_curve_svg}")
+    print(f"train_seconds={train_seconds:.3f}")
+    print(f"steps_per_second={TRAIN_STEPS / train_seconds:.3f}")
+    print(f"total_seconds={total_seconds:.3f}")
     print(f'sample="""\n{sample}\n"""')
 
 
