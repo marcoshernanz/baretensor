@@ -4,9 +4,10 @@ import math
 from pathlib import Path
 import random
 
-import torch
-import torch.nn.functional as F
+import numpy as np
 
+import bt
+import bt.nn.functional as F
 from experiment_artifacts import write_loss_artifacts
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
@@ -21,12 +22,12 @@ LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
-Model = dict[str, torch.Tensor]
+Model = dict[str, bt.Tensor]
 
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    torch.manual_seed(seed)  # type: ignore
+    np.random.seed(seed)
 
 
 def load_text(path: Path) -> str:
@@ -41,7 +42,7 @@ def load_text(path: Path) -> str:
     return text
 
 
-def model_params(model: Model) -> tuple[torch.Tensor, ...]:
+def model_params(model: Model) -> tuple[bt.Tensor, ...]:
     return (
         model["embedding_table"],
         model["output_weights"],
@@ -52,9 +53,11 @@ def model_params(model: Model) -> tuple[torch.Tensor, ...]:
 def init_model(vocab_size: int) -> Model:
     input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
     model: Model = {
-        "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "output_weights": torch.randn((input_dim, vocab_size)) * (1.0 / math.sqrt(input_dim)),
-        "output_bias": torch.zeros((vocab_size,)),
+        "embedding_table": bt.tensor(np.random.randn(vocab_size, EMBEDDING_DIM).astype(np.float32))
+        * 0.1,
+        "output_weights": bt.tensor(np.random.randn(input_dim, vocab_size).astype(np.float32))
+        * (1.0 / math.sqrt(input_dim)),
+        "output_bias": bt.zeros((vocab_size,)),
     }
     for param in model_params(model):
         param.requires_grad = True
@@ -62,23 +65,22 @@ def init_model(vocab_size: int) -> Model:
 
 
 def build_examples(
-    token_ids: torch.Tensor,
-    start_positions: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    offsets = torch.arange(CONTEXT_LENGTH, device=start_positions.device)
-    input_ids = token_ids[start_positions[:, None] + offsets]
-    target_ids = token_ids[start_positions + CONTEXT_LENGTH]
+    token_ids: np.ndarray, start_positions: np.ndarray
+) -> tuple[bt.Tensor, bt.Tensor]:
+    offsets = np.arange(CONTEXT_LENGTH, device=start_positions.device)
+    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets])
+    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH])
     return input_ids, target_ids
 
 
-def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).flatten(1)
+def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
+    embedded = F.embedding(input_ids, model["embedding_table"]).view((BATCH_SIZE, -1))
     return embedded @ model["output_weights"] + model["output_bias"]
 
 
-def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
-    with torch.no_grad():
-        start_positions = torch.arange(len(token_ids) - CONTEXT_LENGTH)
+def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
+    with bt.no_grad():
+        start_positions = np.arange(len(token_ids) - CONTEXT_LENGTH)
         input_ids, target_ids = build_examples(token_ids, start_positions)
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
@@ -89,21 +91,22 @@ def sample_text(
     vocab_chars: list[str],
     sample_length: int,
     model: Model,
-    seed_token_ids: torch.Tensor,
+    seed_token_ids: np.ndarray,
 ) -> str:
-    with torch.no_grad():
-        seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
-        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].clone()
-        sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
+    return "TODO"
+    # with bt.no_grad():
+    #     seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
+    #     context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
+    #     sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
-        for _ in range(max(sample_length - len(sample), 0)):
-            logits = forward(context.unsqueeze(0), model)
-            probs = F.softmax(logits[0], dim=0)
-            next_token_id = int(torch.multinomial(probs, num_samples=1).item())
-            sample.append(vocab_chars[next_token_id])
-            context = torch.cat([context[1:], context.new_tensor([next_token_id])])
+    #     for _ in range(max(sample_length - len(sample), 0)):
+    #         logits = forward(bt.tensor(context.unsqueeze(0)), model)
+    #         probs = logits[0].softmax(0)
+    #         next_token_id = int(torch.multinomial(probs, num_samples=1).item())
+    #         sample.append(vocab_chars[next_token_id])
+    #         context = torch.cat([context[1:], context.new_tensor([next_token_id])])
 
-    return "".join(sample)
+    # return "".join(sample)
 
 
 def main() -> None:
@@ -114,7 +117,7 @@ def main() -> None:
     char_to_index = {char: idx for idx, char in enumerate(vocab_chars)}
     vocab_size = len(char_to_index)
 
-    token_ids = torch.tensor([char_to_index[ch] for ch in text], dtype=torch.long)
+    token_ids = np.array([char_to_index[ch] for ch in text], dtype=np.int64)
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
@@ -129,17 +132,17 @@ def main() -> None:
     ema_loss: float | None = None
 
     for step in range(TRAIN_STEPS):
-        start_positions = torch.randint(0, len(train_token_ids) - CONTEXT_LENGTH, (BATCH_SIZE,))
+        start_positions = np.random.randint(0, len(train_token_ids) - CONTEXT_LENGTH, (BATCH_SIZE,))
         input_ids, target_ids = build_examples(train_token_ids, start_positions)
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
 
         for param in model_params(model):
-            param.grad = None
+            param.zero_grad()
 
         loss.backward()  # type: ignore
 
-        with torch.no_grad():
+        with bt.no_grad():
             for param in model_params(model):
                 grad = param.grad
                 assert grad is not None
@@ -158,14 +161,14 @@ def main() -> None:
 
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
+    # sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
     print(f"loss_history_csv={loss_history_csv}")
     print(f"loss_curve_svg={loss_curve_svg}")
-    print(f'sample="""\n{sample}\n"""')
+    # print(f'sample="""\n{sample}\n"""')
 
 
 if __name__ == "__main__":

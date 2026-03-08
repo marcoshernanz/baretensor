@@ -137,7 +137,11 @@ def main() -> None:
                 param -= LEARNING_RATE * grad
 
         raw_loss = float(loss.item())
-        ema_loss = raw_loss if ema_loss is None else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
+        ema_loss = (
+            raw_loss
+            if ema_loss is None
+            else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
+        )
         loss_history.append((step, raw_loss, ema_loss))
 
         if step % LOG_INTERVAL == 0:
