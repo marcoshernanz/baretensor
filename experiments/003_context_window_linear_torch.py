@@ -14,7 +14,7 @@ BATCH_SIZE = 32
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 25_000
-CONTEXT_LEN = 4
+CONTEXT_LENGTH = 4
 
 
 Model = dict[str, torch.Tensor]
@@ -46,10 +46,10 @@ def model_params(model: Model) -> tuple[torch.Tensor, ...]:
 
 
 def init_model(vocab_size: int) -> Model:
+    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
     model: Model = {
         "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "output_weights": torch.randn((EMBEDDING_DIM * CONTEXT_LEN, vocab_size))
-        * (1 / math.sqrt(EMBEDDING_DIM)),
+        "output_weights": torch.randn((input_dim, vocab_size)) * (1.0 / math.sqrt(input_dim)),
         "output_bias": torch.zeros((vocab_size,)),
     }
     for param in model_params(model):
@@ -57,18 +57,25 @@ def init_model(vocab_size: int) -> Model:
     return model
 
 
+def build_examples(
+    token_ids: torch.Tensor,
+    start_positions: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    offsets = torch.arange(CONTEXT_LENGTH)
+    input_ids = token_ids[start_positions[:, None] + offsets]
+    target_ids = token_ids[start_positions + CONTEXT_LENGTH]
+    return input_ids, target_ids
+
+
 def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).view(
-        input_ids.shape[0], EMBEDDING_DIM * CONTEXT_LEN
-    )
+    embedded = F.embedding(input_ids, model["embedding_table"]).flatten(1)
     return embedded @ model["output_weights"] + model["output_bias"]
 
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
-        indices = torch.arange(len(token_ids) - CONTEXT_LEN)
-        input_ids = token_ids[indices[:, None] + torch.arange(CONTEXT_LEN)]
-        target_ids = token_ids[indices + CONTEXT_LEN]
+        start_positions = torch.arange(len(token_ids) - CONTEXT_LENGTH)
+        input_ids, target_ids = build_examples(token_ids, start_positions)
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
         return float(loss.item())
@@ -78,10 +85,11 @@ def sample_text(
     vocab_chars: list[str],
     sample_length: int,
     model: Model,
-    seed_context: torch.Tensor,
+    seed_token_ids: torch.Tensor,
 ) -> str:
     with torch.no_grad():
-        context = seed_context.to(dtype=torch.long).clone()
+        seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
+        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].clone()
         sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
         for _ in range(max(sample_length - len(sample), 0)):
@@ -89,9 +97,7 @@ def sample_text(
             probs = F.softmax(logits[0], dim=0)
             next_token_id = int(torch.multinomial(probs, num_samples=1).item())
             sample.append(vocab_chars[next_token_id])
-            context = torch.cat(
-                [context[1:], torch.tensor([next_token_id], dtype=torch.long)]
-            )
+            context = torch.cat([context[1:], context.new_tensor([next_token_id])])
 
     return "".join(sample)
 
@@ -108,13 +114,17 @@ def main() -> None:
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
+    if len(train_token_ids) <= CONTEXT_LENGTH or len(val_token_ids) <= CONTEXT_LENGTH:
+        raise ValueError(
+            f"Dataset splits are too small for context length {CONTEXT_LENGTH}. "
+            "Need at least one full context window plus one target token in each split."
+        )
 
     model = init_model(vocab_size)
 
     for step in range(TRAIN_STEPS):
-        batch_indices = torch.randint(0, len(train_token_ids) - CONTEXT_LEN, (BATCH_SIZE,))
-        input_ids = train_token_ids[batch_indices[:, None] + torch.arange(CONTEXT_LEN)]
-        target_ids = train_token_ids[batch_indices + CONTEXT_LEN]
+        start_positions = torch.randint(0, len(train_token_ids) - CONTEXT_LENGTH, (BATCH_SIZE,))
+        input_ids, target_ids = build_examples(train_token_ids, start_positions)
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
 
@@ -134,9 +144,7 @@ def main() -> None:
 
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    seed_start = random.randrange(len(train_token_ids) - CONTEXT_LEN + 1)
-    seed_context = train_token_ids[seed_start : seed_start + CONTEXT_LEN]
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, seed_context)
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
