@@ -66,7 +66,7 @@ def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
-        indices = token_ids[:-CONTEXT_LEN]
+        indices = torch.arange(len(token_ids) - CONTEXT_LEN)
         input_ids = token_ids[indices[:, None] + torch.arange(CONTEXT_LEN)]
         target_ids = token_ids[indices + CONTEXT_LEN]
         logits = forward(input_ids, model)
@@ -74,19 +74,24 @@ def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
         return float(loss.item())
 
 
-def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
-    return "TODO"
+def sample_text(
+    vocab_chars: list[str],
+    sample_length: int,
+    model: Model,
+    seed_context: torch.Tensor,
+) -> str:
     with torch.no_grad():
-        token_id = random.randrange(len(vocab_chars))
-        sample = [vocab_chars[token_id]]
-        current_token = torch.tensor([token_id], dtype=torch.long)
+        context = seed_context.to(dtype=torch.long).clone()
+        sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
-        for _ in range(sample_length - 1):
-            logits = forward(current_token, model)
+        for _ in range(max(sample_length - len(sample), 0)):
+            logits = forward(context.unsqueeze(0), model)
             probs = F.softmax(logits[0], dim=0)
-            token_id = int(torch.multinomial(probs, num_samples=1).item())
-            sample.append(vocab_chars[token_id])
-            current_token = torch.tensor([token_id], dtype=torch.long)
+            next_token_id = int(torch.multinomial(probs, num_samples=1).item())
+            sample.append(vocab_chars[next_token_id])
+            context = torch.cat(
+                [context[1:], torch.tensor([next_token_id], dtype=torch.long)]
+            )
 
     return "".join(sample)
 
@@ -129,7 +134,9 @@ def main() -> None:
 
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model)
+    seed_start = random.randrange(len(train_token_ids) - CONTEXT_LEN + 1)
+    seed_context = train_token_ids[seed_start : seed_start + CONTEXT_LEN]
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, seed_context)
 
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
