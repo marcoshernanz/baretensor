@@ -447,6 +447,7 @@ NB_MODULE(_C, m) {
   m.def("zeros", &bt::zeros, nb::arg("shape"),
         nb::arg("requires_grad") = false);
   m.def("ones", &bt::ones, nb::arg("shape"), nb::arg("requires_grad") = false);
+  m.def("cat", &bt::cat, nb::arg("tensors"), nb::arg("dim") = 0);
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
         nb::arg("target"), nb::arg("ignore_index") = -100,
         nb::arg("reduction") = "mean");

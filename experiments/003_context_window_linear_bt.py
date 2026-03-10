@@ -97,19 +97,17 @@ def sample_text(
 ) -> str:
     with bt.no_grad():
         seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
-        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].astype(
-            np.int64, copy=True
-        )
-        sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
+        seed_context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
+        context = bt.tensor(seed_context.astype(np.float32))
+        sample = [vocab_chars[int(token_id)] for token_id in seed_context[:sample_length]]
 
         for _ in range(max(sample_length - len(sample), 0)):
-            context_tensor = bt.tensor(context[None, :].astype(np.float32))
-            logits = forward(context_tensor, model)
+            logits = forward(context.reshape((1, CONTEXT_LENGTH)), model)
             probs = logits[0].softmax(0)
             weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
             next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
             sample.append(vocab_chars[next_token_id])
-            context = np.concatenate([context[1:], np.asarray([next_token_id], dtype=np.int64)])
+            context = bt.cat([context[1:], bt.tensor([float(next_token_id)])], dim=0)
 
     return "".join(sample)
 
