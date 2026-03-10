@@ -1,5 +1,6 @@
 """BareTensor Python package (bootstrap)."""
 
+from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Any
@@ -8,8 +9,15 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from . import _C
-from ._C import Tensor, full, ones, tensor as _tensor, zeros  # pylint: disable=no-name-in-module
 from . import nn
+from ._C import (  # pylint: disable=no-name-in-module
+    Tensor,
+    cat as _cat,
+    full,
+    ones,
+    tensor as _tensor,
+    zeros,
+)
 
 
 class _NoGradContext(AbstractContextManager[None]):
@@ -49,4 +57,9 @@ def tensor(data: ArrayLike, requires_grad: bool = False) -> Tensor:
     return _tensor(array, requires_grad=requires_grad)
 
 
-__all__ = ["Tensor", "full", "zeros", "ones", "tensor", "nn", "no_grad"]
+def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
+    """Concatenate tensors along an existing dimension."""
+    return _cat(list(tensors), dim=dim)
+
+
+__all__ = ["Tensor", "full", "zeros", "ones", "tensor", "cat", "nn", "no_grad"]
