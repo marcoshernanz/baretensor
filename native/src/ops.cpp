@@ -86,6 +86,8 @@ void recursive_apply_unary(int dim, int ndim, const std::vector<int64_t> &shape,
  */
 template <class Op>
 bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
+  bt::detail::ensure_same_dtype(a, b, "elementwise operation");
+  bt::detail::ensure_float32(a, "elementwise operation", "lhs");
   const std::vector<int64_t> out_shape =
       bt::detail::infer_broadcast_shape(a.shape, b.shape);
   bt::Tensor out(out_shape);
@@ -96,9 +98,9 @@ bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
 
   const bool no_broadcast = (a.shape == out_shape) && (b.shape == out_shape);
   if (no_broadcast && a.is_contiguous() && b.is_contiguous() && out.is_contiguous()) {
-    const float *a_ptr = a.data_ptr();
-    const float *b_ptr = b.data_ptr();
-    float *out_ptr = out.data_ptr();
+    const float *a_ptr = a.data_ptr<float>();
+    const float *b_ptr = b.data_ptr<float>();
+    float *out_ptr = out.data_ptr<float>();
     for (int64_t i = 0; i < n; ++i) {
       out_ptr[i] = op(a_ptr[i], b_ptr[i]);
     }
@@ -107,7 +109,7 @@ bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
 
   const int ndim = out.ndim();
   if (ndim == 0) {
-    *out.data_ptr() = op(*a.data_ptr(), *b.data_ptr());
+    *out.data_ptr<float>() = op(*a.data_ptr<float>(), *b.data_ptr<float>());
     return out;
   }
 
@@ -116,8 +118,8 @@ bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
   const std::vector<int64_t> stride_b =
       bt::detail::aligned_broadcast_strides(b.shape, b.strides, out_shape);
 
-  recursive_apply_binary(0, ndim, out_shape, a.data_ptr(), b.data_ptr(), out.data_ptr(),
-                         stride_a, stride_b, out.strides, op);
+  recursive_apply_binary(0, ndim, out_shape, a.data_ptr<float>(), b.data_ptr<float>(),
+                         out.data_ptr<float>(), stride_a, stride_b, out.strides, op);
   return out;
 }
 
@@ -125,14 +127,15 @@ bt::Tensor binary_tt(const bt::Tensor &a, const bt::Tensor &b, Op op) {
  * Executes a tensor-scalar elementwise operation.
  */
 template <class Op> bt::Tensor binary_ts(const bt::Tensor &a, float s, Op op) {
+  bt::detail::ensure_float32(a, "elementwise scalar operation");
   bt::Tensor out(a.shape);
   const int64_t n = a.numel();
   if (n == 0)
     return out;
 
   if (a.is_contiguous() && out.is_contiguous()) {
-    const float *a_ptr = a.data_ptr();
-    float *out_ptr = out.data_ptr();
+    const float *a_ptr = a.data_ptr<float>();
+    float *out_ptr = out.data_ptr<float>();
     for (int64_t i = 0; i < n; ++i) {
       out_ptr[i] = op(a_ptr[i], s);
     }
@@ -141,14 +144,15 @@ template <class Op> bt::Tensor binary_ts(const bt::Tensor &a, float s, Op op) {
 
   const int ndim = a.ndim();
   if (ndim == 0) {
-    *out.data_ptr() = op(*a.data_ptr(), s);
+    *out.data_ptr<float>() = op(*a.data_ptr<float>(), s);
     return out;
   }
 
   const float scalar = s;
   const std::vector<int64_t> scalar_strides(static_cast<size_t>(ndim), 0);
-  recursive_apply_binary(0, ndim, a.shape, a.data_ptr(), &scalar, out.data_ptr(),
-                         a.strides, scalar_strides, out.strides, op);
+  recursive_apply_binary(0, ndim, a.shape, a.data_ptr<float>(), &scalar,
+                         out.data_ptr<float>(), a.strides, scalar_strides,
+                         out.strides, op);
   return out;
 }
 
@@ -156,14 +160,15 @@ template <class Op> bt::Tensor binary_ts(const bt::Tensor &a, float s, Op op) {
  * Executes a unary elementwise operation.
  */
 template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
+  bt::detail::ensure_float32(a, "unary operation");
   bt::Tensor out(a.shape);
   const int64_t n = a.numel();
   if (n == 0)
     return out;
 
   if (a.is_contiguous() && out.is_contiguous()) {
-    const float *a_ptr = a.data_ptr();
-    float *out_ptr = out.data_ptr();
+    const float *a_ptr = a.data_ptr<float>();
+    float *out_ptr = out.data_ptr<float>();
     for (int64_t i = 0; i < n; ++i) {
       out_ptr[i] = op(a_ptr[i]);
     }
@@ -172,12 +177,12 @@ template <class Op> bt::Tensor unary_t(const bt::Tensor &a, Op op) {
 
   const int ndim = a.ndim();
   if (ndim == 0) {
-    *out.data_ptr() = op(*a.data_ptr());
+    *out.data_ptr<float>() = op(*a.data_ptr<float>());
     return out;
   }
 
-  recursive_apply_unary(0, ndim, a.shape, a.data_ptr(), out.data_ptr(), a.strides,
-                        out.strides, op);
+  recursive_apply_unary(0, ndim, a.shape, a.data_ptr<float>(), out.data_ptr<float>(),
+                        a.strides, out.strides, op);
   return out;
 }
 
