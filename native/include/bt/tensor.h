@@ -170,8 +170,7 @@ public:
    * dimension using PyTorch-style negative-dimension indexing.
    * Returns a view when possible and otherwise returns a contiguous copy.
    */
-  [[nodiscard]] Tensor flatten(int64_t start_dim = 0,
-                               int64_t end_dim = -1) const;
+  [[nodiscard]] Tensor flatten(int64_t start_dim = 0, int64_t end_dim = -1) const;
 
   /*
    * Returns a view with dimensions reordered according to dims.
@@ -192,8 +191,7 @@ public:
    * Supports negative dimensions and Python-style slice bound normalization.
    * Requires step > 0.
    */
-  [[nodiscard]] Tensor slice(int64_t dim, int64_t start, int64_t stop,
-                             int64_t step = 1) const;
+  [[nodiscard]] Tensor slice(int64_t dim, int64_t start, int64_t stop, int64_t step = 1) const;
 
   /*
    * Returns a view with dim0 and dim1 swapped.
@@ -497,8 +495,7 @@ private:
 /*
  * Sums broadcasted gradient dimensions to match a target input shape.
  */
-[[nodiscard]] Tensor reduce_sum_to_shape(const Tensor &grad,
-                                         const std::vector<int64_t> &shape);
+[[nodiscard]] Tensor reduce_sum_to_shape(const Tensor &grad, const std::vector<int64_t> &shape);
 
 /*
  * Executes reverse-mode automatic differentiation from the output tensor.
@@ -524,6 +521,14 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
 [[nodiscard]] Tensor ones(const std::vector<int64_t> &shape, bool requires_grad = false);
 
 /*
+ * Concatenates tensors along an existing dimension.
+ * All non-empty tensors must match in every dimension except the concatenation
+ * dimension. As in PyTorch, 1-D empty tensors with shape [0] are accepted as a
+ * special case and do not affect the result shape.
+ */
+[[nodiscard]] Tensor cat(const std::vector<Tensor> &tensors, int64_t dim = 0);
+
+/*
  * Computes cross-entropy loss between logits and class-index targets.
  * TinyGPT-focused scope:
  * - input shape [C] is supported with scalar target []
@@ -542,8 +547,7 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
  * - weight and bias, when provided, must have shape normalized_shape
  * - eps must be finite and greater than zero
  */
-[[nodiscard]] Tensor layer_norm(const Tensor &input,
-                                const std::vector<int64_t> &normalized_shape,
+[[nodiscard]] Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_shape,
                                 const std::optional<Tensor> &weight = std::nullopt,
                                 const std::optional<Tensor> &bias = std::nullopt,
                                 float eps = 1e-5f);
