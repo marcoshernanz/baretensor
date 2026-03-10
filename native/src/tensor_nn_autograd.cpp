@@ -85,7 +85,7 @@ public:
     const float *weight_ptr = nullptr;
     if (has_weight_) {
       weight_contiguous = inputs[1].contiguous();
-      weight_ptr = weight_contiguous->data_ptr();
+      weight_ptr = weight_contiguous->data_ptr<float>();
     }
 
     bt::Tensor input_grad = bt::full(inputs[0].shape, 0.0f);
@@ -94,19 +94,19 @@ public:
     float *weight_grad_ptr = nullptr;
     if (has_weight_) {
       weight_grad = bt::zeros(normalized_shape_);
-      weight_grad_ptr = weight_grad->data_ptr();
+      weight_grad_ptr = weight_grad->data_ptr<float>();
     }
 
     std::optional<bt::Tensor> bias_grad;
     float *bias_grad_ptr = nullptr;
     if (has_bias_) {
       bias_grad = bt::zeros(normalized_shape_);
-      bias_grad_ptr = bias_grad->data_ptr();
+      bias_grad_ptr = bias_grad->data_ptr<float>();
     }
 
-    const float *input_ptr = input_contiguous.data_ptr();
-    const float *out_grad_ptr = out_grad_contiguous.data_ptr();
-    float *input_grad_ptr = input_grad.data_ptr();
+    const float *input_ptr = input_contiguous.data_ptr<float>();
+    const float *out_grad_ptr = out_grad_contiguous.data_ptr<float>();
+    float *input_grad_ptr = input_grad.data_ptr<float>();
 
     const int64_t outer_numel = input_contiguous.numel() / normalized_numel_;
     const float inv_normalized_numel = 1.0f / static_cast<float>(normalized_numel_);
@@ -203,21 +203,14 @@ public:
         probs_contiguous.strides[static_cast<size_t>(class_dim_)];
     const int64_t target_numel = target_contiguous.numel();
 
-    const float *target_ptr = target_contiguous.data_ptr();
-    const float *probs_ptr = probs_contiguous.data_ptr();
-    float *input_grad_ptr = input_grad.data_ptr();
+    const int64_t *target_ptr = target_contiguous.data_ptr<int64_t>();
+    const float *probs_ptr = probs_contiguous.data_ptr<float>();
+    float *input_grad_ptr = input_grad.data_ptr<float>();
 
     int64_t valid_count = 0;
     if (reduction_mode_ == bt::detail::CrossEntropyReductionMode::kMean) {
       for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
-        const float target_value = target_ptr[linear_idx];
-        if (!std::isfinite(target_value) || target_value != std::trunc(target_value)) {
-          throw std::runtime_error(
-              "cross_entropy backward received invalid non-integer target "
-              "value.");
-        }
-
-        const int64_t class_index = static_cast<int64_t>(target_value);
+        const int64_t class_index = target_ptr[linear_idx];
         if (class_index == ignore_index_) {
           continue;
         }
@@ -231,7 +224,7 @@ public:
     }
 
     const bt::Tensor out_grad_contiguous = out_grad.contiguous();
-    const float *out_grad_ptr = out_grad_contiguous.data_ptr();
+    const float *out_grad_ptr = out_grad_contiguous.data_ptr<float>();
 
     float reduced_grad_scale = 0.0f;
     if (reduction_mode_ == bt::detail::CrossEntropyReductionMode::kSum) {
@@ -257,12 +250,7 @@ public:
     int64_t probs_base_offset = 0;
 
     for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
-      const float target_value = target_ptr[linear_idx];
-      if (!std::isfinite(target_value) || target_value != std::trunc(target_value)) {
-        throw std::runtime_error("cross_entropy backward received invalid "
-                                 "non-integer target value.");
-      }
-      const int64_t class_index = static_cast<int64_t>(target_value);
+      const int64_t class_index = target_ptr[linear_idx];
       if (class_index != ignore_index_) {
         if (class_index < 0 || class_index >= class_count) {
           throw std::runtime_error(
@@ -331,18 +319,12 @@ public:
     const int64_t vocab_size = inputs[1].shape[0];
     const int64_t input_numel = input_contiguous.numel();
 
-    const float *input_ptr = input_contiguous.data_ptr();
-    const float *out_grad_ptr = out_grad_contiguous.data_ptr();
-    float *weight_grad_ptr = weight_grad.data_ptr();
+    const int64_t *input_ptr = input_contiguous.data_ptr<int64_t>();
+    const float *out_grad_ptr = out_grad_contiguous.data_ptr<float>();
+    float *weight_grad_ptr = weight_grad.data_ptr<float>();
 
     for (int64_t linear_idx = 0; linear_idx < input_numel; ++linear_idx) {
-      const float index_value = input_ptr[linear_idx];
-      if (!std::isfinite(index_value) || index_value != std::trunc(index_value)) {
-        throw std::runtime_error(
-            "embedding backward received invalid non-integer index value.");
-      }
-
-      const int64_t row_index = static_cast<int64_t>(index_value);
+      const int64_t row_index = input_ptr[linear_idx];
       if (row_index < 0 || row_index >= vocab_size) {
         throw std::runtime_error("embedding backward received out-of-range index value.");
       }

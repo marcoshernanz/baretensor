@@ -62,6 +62,7 @@ namespace bt {
  */
 Tensor Tensor::softmax(const int64_t dim) const {
   bt::detail::validate_copy_metadata(*this, "softmax");
+  bt::detail::ensure_float32(*this, "softmax");
   const bool should_record = bt::detail::should_record_unary(*this);
 
   const int64_t normalized_dim =
@@ -90,6 +91,7 @@ Tensor Tensor::softmax(const int64_t dim) const {
  */
 Tensor Tensor::log_softmax(const int64_t dim) const {
   bt::detail::validate_copy_metadata(*this, "log_softmax");
+  bt::detail::ensure_float32(*this, "log_softmax");
   const bool should_record = bt::detail::should_record_unary(*this);
 
   const int64_t normalized_dim =
@@ -119,15 +121,18 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
                   const std::optional<Tensor> &weight, const std::optional<Tensor> &bias,
                   const float eps) {
   bt::detail::validate_copy_metadata(input, "layer_norm");
+  bt::detail::ensure_float32(input, "layer_norm", "input");
   const bool should_record =
       bt::detail::should_record_unary(input) ||
       (weight.has_value() && bt::detail::should_record_unary(*weight)) ||
       (bias.has_value() && bt::detail::should_record_unary(*bias));
   if (weight.has_value()) {
     bt::detail::validate_copy_metadata(*weight, "layer_norm");
+    bt::detail::ensure_float32(*weight, "layer_norm", "weight");
   }
   if (bias.has_value()) {
     bt::detail::validate_copy_metadata(*bias, "layer_norm");
+    bt::detail::ensure_float32(*bias, "layer_norm", "bias");
   }
 
   const auto make_error_prefix = [&input, &normalized_shape]() {
@@ -211,15 +216,15 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
 
   if (weight.has_value()) {
     weight_contiguous = weight->contiguous();
-    weight_ptr = weight_contiguous->data_ptr();
+      weight_ptr = weight_contiguous->data_ptr<float>();
   }
   if (bias.has_value()) {
     bias_contiguous = bias->contiguous();
-    bias_ptr = bias_contiguous->data_ptr();
+    bias_ptr = bias_contiguous->data_ptr<float>();
   }
 
-  const float *input_ptr = input_contiguous.data_ptr();
-  float *output_ptr = output.data_ptr();
+  const float *input_ptr = input_contiguous.data_ptr<float>();
+  float *output_ptr = output.data_ptr<float>();
   const int64_t outer_numel = input.numel() / normalized_numel;
 
   for (int64_t outer_idx = 0; outer_idx < outer_numel; ++outer_idx) {
@@ -282,6 +287,15 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
            detail::shape_to_string(target.shape) + ": ";
   };
 
+  if (input.dtype() != bt::ScalarType::kFloat32) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "input must have dtype float32.");
+  }
+  if (target.dtype() != bt::ScalarType::kInt64) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "target must have dtype int64.");
+  }
+
   if (input.ndim() < 1) {
     throw std::invalid_argument(make_error_prefix() +
                                 "input must have rank >= 1 with shape [C] or "
@@ -321,9 +335,9 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
   float total_loss = 0.0f;
   int64_t valid_count = 0;
-  float *unreduced_ptr = unreduced.data_ptr();
-  const float *target_ptr = target.data_ptr();
-  const float *log_probs_ptr = log_probs.data_ptr();
+  float *unreduced_ptr = unreduced.data_ptr<float>();
+  const int64_t *target_ptr = target.data_ptr<int64_t>();
+  const float *log_probs_ptr = log_probs.data_ptr<float>();
 
   std::vector<int64_t> log_probs_target_strides(target.shape.size(), 0);
   size_t target_dim = 0;
@@ -342,20 +356,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   int64_t log_probs_base_offset = 0;
 
   for (int64_t linear_idx = 0; linear_idx < target_numel; ++linear_idx) {
-    const float target_value = target_ptr[target_offset];
-    if (!std::isfinite(target_value)) {
-      throw std::invalid_argument(make_error_prefix() +
-                                  "target values must be finite integer class indices.");
-    }
-
-    const float truncated = std::trunc(target_value);
-    if (target_value != truncated) {
-      std::ostringstream oss;
-      oss << make_error_prefix() << "target values must be integer class indices.";
-      throw std::invalid_argument(oss.str());
-    }
-
-    const int64_t class_index = static_cast<int64_t>(truncated);
+    const int64_t class_index = target_ptr[target_offset];
     if (class_index == ignore_index) {
       unreduced_ptr[unreduced_offset] = 0.0f;
     } else {
@@ -405,7 +406,7 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   }
 
   Tensor reduced({});
-  float *reduced_ptr = reduced.data_ptr();
+  float *reduced_ptr = reduced.data_ptr<float>();
   if (reduction_mode == bt::detail::CrossEntropyReductionMode::kSum) {
     *reduced_ptr = total_loss;
     if (should_record) {
@@ -441,6 +442,15 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
            detail::shape_to_string(weight.shape) + ": ";
   };
 
+  if (input.dtype() != bt::ScalarType::kInt64) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "input must have dtype int64.");
+  }
+  if (weight.dtype() != bt::ScalarType::kFloat32) {
+    throw std::invalid_argument(make_error_prefix() +
+                                "weight must have dtype float32.");
+  }
+
   if (weight.ndim() != 2) {
     throw std::invalid_argument(make_error_prefix() +
                                 "weight must have rank 2 with shape [V, D].");
@@ -465,9 +475,9 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
     return output;
   }
 
-  const float *input_ptr = input.data_ptr();
-  const float *weight_ptr = weight.data_ptr();
-  float *output_ptr = output.data_ptr();
+  const int64_t *input_ptr = input.data_ptr<int64_t>();
+  const float *weight_ptr = weight.data_ptr<float>();
+  float *output_ptr = output.data_ptr<float>();
 
   const int64_t input_rank = static_cast<int64_t>(input.shape.size());
   const int64_t input_numel = input.numel();
@@ -476,19 +486,7 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
   int64_t output_offset = 0;
 
   for (int64_t linear_idx = 0; linear_idx < input_numel; ++linear_idx) {
-    const float index_value = input_ptr[input_offset];
-    if (!std::isfinite(index_value)) {
-      throw std::invalid_argument(make_error_prefix() +
-                                  "input indices must be finite integers.");
-    }
-
-    const float truncated = std::trunc(index_value);
-    if (index_value != truncated) {
-      throw std::invalid_argument(make_error_prefix() +
-                                  "input indices must be integer-valued.");
-    }
-
-    const int64_t row_index = static_cast<int64_t>(truncated);
+    const int64_t row_index = input_ptr[input_offset];
     if (row_index < 0 || row_index >= vocab_size) {
       std::ostringstream oss;
       oss << make_error_prefix() << "index " << row_index
