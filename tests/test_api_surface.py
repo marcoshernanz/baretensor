@@ -5,8 +5,11 @@ import bt
 
 class ApiSurfaceTests(unittest.TestCase):
     def test_public_exports(self) -> None:
+        self.assertTrue(hasattr(bt, "DType"))
         self.assertTrue(hasattr(bt, "Tensor"))
         self.assertTrue(hasattr(bt, "full"))
+        self.assertTrue(hasattr(bt, "float32"))
+        self.assertTrue(hasattr(bt, "int64"))
         self.assertTrue(hasattr(bt, "zeros"))
         self.assertTrue(hasattr(bt, "ones"))
         self.assertTrue(hasattr(bt, "tensor"))
@@ -27,6 +30,8 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt.Tensor, "max"))
         self.assertTrue(hasattr(bt.Tensor, "flatten"))
         self.assertTrue(hasattr(bt.Tensor, "item"))
+        self.assertTrue(hasattr(bt.Tensor, "dtype"))
+        self.assertTrue(hasattr(bt.Tensor, "to"))
         self.assertTrue(hasattr(bt.Tensor, "__getitem__"))
         self.assertTrue(hasattr(bt.Tensor, "__neg__"))
         self.assertTrue(hasattr(bt.Tensor, "__radd__"))
