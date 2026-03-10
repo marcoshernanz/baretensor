@@ -3,18 +3,16 @@
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import Any
+from typing import Any, Protocol, cast
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 
 from . import _C
 from . import nn
 from ._C import (
     DType,
     Tensor,
-    _tensor_float32,
-    _tensor_int64,
     cat as _cat,
     float32,
     full as _full,
@@ -24,6 +22,18 @@ from ._C import (
 )
 
 _INT64_INFO = np.iinfo(np.int64)
+
+
+class _TensorFloat32Ctor(Protocol):
+    def __call__(self, array: NDArray[np.float32], *, requires_grad: bool = False) -> Tensor: ...
+
+
+class _TensorInt64Ctor(Protocol):
+    def __call__(self, array: NDArray[np.int64], *, requires_grad: bool = False) -> Tensor: ...
+
+
+_tensor_float32 = cast(_TensorFloat32Ctor, getattr(_C, "_tensor_float32"))
+_tensor_int64 = cast(_TensorInt64Ctor, getattr(_C, "_tensor_int64"))
 
 
 class _NoGradContext(AbstractContextManager[None]):
@@ -52,9 +62,7 @@ class _NoGradContext(AbstractContextManager[None]):
         return False
 
 
-def _normalize_dtype(dtype: DType | None) -> DType | None:
-    if dtype is None:
-        return None
+def _normalize_dtype(dtype: DType) -> DType:
     if dtype in (float32, int64):
         return dtype
     raise TypeError("dtype must be one of {bt.float32, bt.int64}.")
@@ -75,22 +83,25 @@ def _infer_dtype(array: np.ndarray[Any, Any], *, from_numpy: bool) -> DType:
             f"{array.dtype}. Pass dtype=bt.float32 or dtype=bt.int64 explicitly."
         )
 
-    if array.dtype.kind in ("i", "u"):
+    kind = array.dtype.kind
+    if kind in ("i", "u"):
         return int64
-    if array.dtype.kind == "f":
+    if kind == "f":
         return float32
     raise TypeError("bt.tensor() only supports integer and floating-point inputs.")
 
 
 def _coerce_to_float32(array: np.ndarray[Any, Any]) -> np.ndarray[Any, np.dtype[np.float32]]:
-    if array.dtype.kind not in ("i", "u", "f"):
+    kind = array.dtype.kind
+    if kind not in ("i", "u", "f"):
         raise TypeError("bt.tensor(..., dtype=bt.float32) only supports numeric inputs.")
     return np.asarray(array, dtype=np.float32, order="C")
 
 
 def _coerce_to_int64(array: np.ndarray[Any, Any]) -> np.ndarray[Any, np.dtype[np.int64]]:
-    if array.dtype.kind not in ("i", "u"):
-        if array.dtype.kind == "u" and array.size != 0:
+    kind = array.dtype.kind
+    if kind in ("i", "u"):
+        if kind == "u" and array.size != 0:
             unsigned = np.asarray(array, dtype=np.uint64, order="C")
             if np.any(unsigned > np.uint64(_INT64_INFO.max)):
                 raise ValueError(
@@ -98,7 +109,7 @@ def _coerce_to_int64(array: np.ndarray[Any, Any]) -> np.ndarray[Any, np.dtype[np
                 )
         return np.asarray(array, dtype=np.int64, order="C")
 
-    if array.dtype.kind == "f":
+    if kind == "f":
         float_array = np.asarray(array, dtype=np.float64, order="C")
         if not np.isfinite(float_array).all():
             raise ValueError("bt.tensor(..., dtype=bt.int64) requires finite values.")
@@ -115,16 +126,6 @@ def _coerce_to_int64(array: np.ndarray[Any, Any]) -> np.ndarray[Any, np.dtype[np
     raise TypeError("bt.tensor(..., dtype=bt.int64) only supports numeric inputs.")
 
 
-def _coerce_array_for_dtype(
-    array: np.ndarray[Any, Any], dtype: DType
-) -> np.ndarray[Any, np.dtype[np.generic]]:
-    if dtype == float32:
-        return _coerce_to_float32(array)
-    if dtype == int64:
-        return _coerce_to_int64(array)
-    raise TypeError("Unsupported dtype.")
-
-
 def no_grad() -> AbstractContextManager[None]:
     """Disable gradient recording within a ``with`` block."""
     return _NoGradContext()
@@ -132,13 +133,16 @@ def no_grad() -> AbstractContextManager[None]:
 
 def tensor(data: ArrayLike, *, dtype: DType | None = None, requires_grad: bool = False) -> Tensor:
     """Create a tensor from NumPy-compatible array-like input."""
-    normalized_dtype = _normalize_dtype(dtype)
+    normalized_dtype = None if dtype is None else _normalize_dtype(dtype)
     array = np.asarray(data)
-    target_dtype = normalized_dtype or _infer_dtype(array, from_numpy=_is_numpy_input(data))
-    native_array = _coerce_array_for_dtype(array, target_dtype)
+    target_dtype: DType = (
+        normalized_dtype
+        if normalized_dtype is not None
+        else _infer_dtype(array, from_numpy=_is_numpy_input(data))
+    )
     if target_dtype == float32:
-        return _tensor_float32(native_array, requires_grad=requires_grad)
-    return _tensor_int64(native_array, requires_grad=requires_grad)
+        return _tensor_float32(_coerce_to_float32(array), requires_grad=requires_grad)
+    return _tensor_int64(_coerce_to_int64(array), requires_grad=requires_grad)
 
 
 def full(
