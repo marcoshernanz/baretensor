@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 import random
 from time import perf_counter
+from typing import cast
 
 import bt
 import bt.nn.functional as F
@@ -82,7 +83,7 @@ def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
         target_ids = bt.tensor(token_ids[1:])
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
-        return float(loss.item())
+        return cast(float, loss.item())
 
 
 def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
@@ -139,7 +140,7 @@ def main() -> None:
                 assert grad is not None
                 param -= LEARNING_RATE * grad
 
-        raw_loss = float(loss.item())
+        raw_loss = cast(float, loss.item())
         ema_loss = (
             raw_loss
             if ema_loss is None
