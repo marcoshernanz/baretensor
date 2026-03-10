@@ -5,12 +5,15 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "bt/dtype.h"
 #include "bt/storage.h"
 
 /*
@@ -53,20 +56,15 @@ public:
   std::shared_ptr<AutogradMeta> autograd_meta;
 
   /*
-   * Constructs a tensor with allocated storage for the given shape.
+   * Constructs a tensor with allocated storage for the given shape and dtype.
    */
-  Tensor(const std::vector<int64_t> &shape);
-
-  /*
-   * Constructs a tensor from owned data with the given shape.
-   */
-  Tensor(const std::vector<int64_t> &shape, std::vector<float> data);
+  explicit Tensor(const std::vector<int64_t> &shape, ScalarType dtype = ScalarType::kFloat32);
 
   /*
    * Constructs a tensor view over existing storage and explicit metadata.
    * This constructor is intended for internal view-producing operations.
    */
-  Tensor(const std::shared_ptr<Storage> storage, const int64_t storage_offset,
+  Tensor(const std::shared_ptr<Storage> storage, int64_t storage_offset,
          const std::vector<int64_t> &shape, const std::vector<int64_t> &strides);
 
   /*
@@ -85,14 +83,29 @@ public:
   [[nodiscard]] bool is_contiguous() const noexcept;
 
   /*
-   * Returns a const data pointer at the tensor offset.
+   * Returns the tensor dtype.
    */
-  [[nodiscard]] const float *data_ptr() const noexcept;
+  [[nodiscard]] ScalarType dtype() const noexcept;
 
   /*
-   * Returns a mutable data pointer at the tensor offset.
+   * Returns a const raw data pointer at the tensor offset.
    */
-  [[nodiscard]] float *data_ptr() noexcept;
+  [[nodiscard]] const std::byte *raw_data_ptr() const noexcept;
+
+  /*
+   * Returns a mutable raw data pointer at the tensor offset.
+   */
+  [[nodiscard]] std::byte *raw_data_ptr() noexcept;
+
+  /*
+   * Returns a const typed data pointer at the tensor offset.
+   */
+  template <typename T> [[nodiscard]] const T *data_ptr() const;
+
+  /*
+   * Returns a mutable typed data pointer at the tensor offset.
+   */
+  template <typename T> [[nodiscard]] T *data_ptr();
 
   /*
    * Returns whether autograd is enabled for this tensor.
@@ -150,6 +163,11 @@ public:
    * referencing the same storage.
    */
   [[nodiscard]] Tensor contiguous() const;
+
+  /*
+   * Returns a tensor converted to the requested dtype.
+   */
+  [[nodiscard]] Tensor to(ScalarType dtype) const;
 
   /*
    * Returns a view of this tensor with the requested shape when the current
@@ -507,18 +525,20 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
 /*
  * Creates a tensor filled with a constant value.
  */
-[[nodiscard]] Tensor full(const std::vector<int64_t> &shape, float fill_value,
-                          bool requires_grad = false);
+[[nodiscard]] Tensor full(const std::vector<int64_t> &shape, double fill_value,
+                          ScalarType dtype = ScalarType::kFloat32, bool requires_grad = false);
 
 /*
  * Creates a tensor filled with zeros.
  */
-[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape, bool requires_grad = false);
+[[nodiscard]] Tensor zeros(const std::vector<int64_t> &shape,
+                           ScalarType dtype = ScalarType::kFloat32, bool requires_grad = false);
 
 /*
  * Creates a tensor filled with ones.
  */
-[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape, bool requires_grad = false);
+[[nodiscard]] Tensor ones(const std::vector<int64_t> &shape,
+                          ScalarType dtype = ScalarType::kFloat32, bool requires_grad = false);
 
 /*
  * Concatenates tensors along an existing dimension.
@@ -543,9 +563,6 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
 
 /*
  * Applies layer normalization over the trailing normalized_shape dimensions.
- * - normalized_shape must match the input tail dimensions exactly
- * - weight and bias, when provided, must have shape normalized_shape
- * - eps must be finite and greater than zero
  */
 [[nodiscard]] Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_shape,
                                 const std::optional<Tensor> &weight = std::nullopt,
@@ -554,10 +571,21 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
 
 /*
  * Computes embedding lookup for integer index tensors.
- * - input shape can be arbitrary and stores class indices
- * - weight shape must be [V, embedding_dim]
- * - output shape is input.shape + [embedding_dim]
  */
 [[nodiscard]] Tensor embedding(const Tensor &input, const Tensor &weight);
+
+template <typename T> const T *Tensor::data_ptr() const {
+  if (storage == nullptr) {
+    throw std::invalid_argument("Tensor data access failed: tensor storage is null.");
+  }
+  return storage->template data_ptr<T>() + storage_offset;
+}
+
+template <typename T> T *Tensor::data_ptr() {
+  if (storage == nullptr) {
+    throw std::invalid_argument("Tensor data access failed: tensor storage is null.");
+  }
+  return storage->template data_ptr<T>() + storage_offset;
+}
 
 } /* namespace bt */
