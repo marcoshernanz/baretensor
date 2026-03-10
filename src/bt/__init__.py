@@ -1,4 +1,4 @@
-"""BareTensor Python package (bootstrap)."""
+"""BareTensor Python package."""
 
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
@@ -10,14 +10,20 @@ from numpy.typing import ArrayLike
 
 from . import _C
 from . import nn
-from ._C import (  # pylint: disable=no-name-in-module
+from ._C import (
+    DType,
     Tensor,
+    _tensor_float32,
+    _tensor_int64,
     cat as _cat,
-    full,
-    ones,
-    tensor as _tensor,
-    zeros,
+    float32,
+    full as _full,
+    int64,
+    ones as _ones,
+    zeros as _zeros,
 )
+
+_INT64_INFO = np.iinfo(np.int64)
 
 
 class _NoGradContext(AbstractContextManager[None]):
@@ -46,15 +52,114 @@ class _NoGradContext(AbstractContextManager[None]):
         return False
 
 
+def _normalize_dtype(dtype: DType | None) -> DType | None:
+    if dtype is None:
+        return None
+    if dtype in (float32, int64):
+        return dtype
+    raise TypeError("dtype must be one of {bt.float32, bt.int64}.")
+
+
+def _is_numpy_input(data: ArrayLike) -> bool:
+    return isinstance(data, (np.ndarray, np.generic))
+
+
+def _infer_dtype(array: np.ndarray[Any, Any], *, from_numpy: bool) -> DType:
+    if from_numpy:
+        if array.dtype == np.float32:
+            return float32
+        if array.dtype == np.int64:
+            return int64
+        raise TypeError(
+            "Unsupported NumPy dtype "
+            f"{array.dtype}. Pass dtype=bt.float32 or dtype=bt.int64 explicitly."
+        )
+
+    if array.dtype.kind in ("i", "u"):
+        return int64
+    if array.dtype.kind == "f":
+        return float32
+    raise TypeError("bt.tensor() only supports integer and floating-point inputs.")
+
+
+def _coerce_to_float32(array: np.ndarray[Any, Any]) -> np.ndarray[Any, np.dtype[np.float32]]:
+    if array.dtype.kind not in ("i", "u", "f"):
+        raise TypeError("bt.tensor(..., dtype=bt.float32) only supports numeric inputs.")
+    return np.asarray(array, dtype=np.float32, order="C")
+
+
+def _coerce_to_int64(array: np.ndarray[Any, Any]) -> np.ndarray[Any, np.dtype[np.int64]]:
+    if array.dtype.kind not in ("i", "u"):
+        if array.dtype.kind == "u" and array.size != 0:
+            unsigned = np.asarray(array, dtype=np.uint64, order="C")
+            if np.any(unsigned > np.uint64(_INT64_INFO.max)):
+                raise ValueError(
+                    "bt.tensor(..., dtype=bt.int64) received a value outside int64 range."
+                )
+        return np.asarray(array, dtype=np.int64, order="C")
+
+    if array.dtype.kind == "f":
+        float_array = np.asarray(array, dtype=np.float64, order="C")
+        if not np.isfinite(float_array).all():
+            raise ValueError("bt.tensor(..., dtype=bt.int64) requires finite values.")
+        truncated = np.trunc(float_array)
+        if not np.array_equal(float_array, truncated):
+            raise ValueError("bt.tensor(..., dtype=bt.int64) requires integer-valued floats.")
+        if truncated.size != 0:
+            if np.any(truncated < _INT64_INFO.min) or np.any(truncated > _INT64_INFO.max):
+                raise ValueError(
+                    "bt.tensor(..., dtype=bt.int64) received a value outside int64 range."
+                )
+        return np.asarray(truncated, dtype=np.int64, order="C")
+
+    raise TypeError("bt.tensor(..., dtype=bt.int64) only supports numeric inputs.")
+
+
+def _coerce_array_for_dtype(
+    array: np.ndarray[Any, Any], dtype: DType
+) -> np.ndarray[Any, np.dtype[np.generic]]:
+    if dtype == float32:
+        return _coerce_to_float32(array)
+    if dtype == int64:
+        return _coerce_to_int64(array)
+    raise TypeError("Unsupported dtype.")
+
+
 def no_grad() -> AbstractContextManager[None]:
     """Disable gradient recording within a ``with`` block."""
     return _NoGradContext()
 
 
-def tensor(data: ArrayLike, requires_grad: bool = False) -> Tensor:
-    """Create a float32 tensor from NumPy-compatible array-like input."""
-    array = np.asarray(data, dtype=np.float32, order="C")
-    return _tensor(array, requires_grad=requires_grad)
+def tensor(data: ArrayLike, *, dtype: DType | None = None, requires_grad: bool = False) -> Tensor:
+    """Create a tensor from NumPy-compatible array-like input."""
+    normalized_dtype = _normalize_dtype(dtype)
+    array = np.asarray(data)
+    target_dtype = normalized_dtype or _infer_dtype(array, from_numpy=_is_numpy_input(data))
+    native_array = _coerce_array_for_dtype(array, target_dtype)
+    if target_dtype == float32:
+        return _tensor_float32(native_array, requires_grad=requires_grad)
+    return _tensor_int64(native_array, requires_grad=requires_grad)
+
+
+def full(
+    shape: Sequence[int],
+    fill_value: float | int,
+    *,
+    dtype: DType = float32,
+    requires_grad: bool = False,
+) -> Tensor:
+    """Create a tensor filled with a constant value."""
+    return _full(list(shape), fill_value, _normalize_dtype(dtype), requires_grad)
+
+
+def zeros(shape: Sequence[int], *, dtype: DType = float32, requires_grad: bool = False) -> Tensor:
+    """Create a tensor filled with zeros."""
+    return _zeros(list(shape), _normalize_dtype(dtype), requires_grad)
+
+
+def ones(shape: Sequence[int], *, dtype: DType = float32, requires_grad: bool = False) -> Tensor:
+    """Create a tensor filled with ones."""
+    return _ones(list(shape), _normalize_dtype(dtype), requires_grad)
 
 
 def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
@@ -62,4 +167,16 @@ def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
     return _cat(list(tensors), dim=dim)
 
 
-__all__ = ["Tensor", "full", "zeros", "ones", "tensor", "cat", "nn", "no_grad"]
+__all__ = [
+    "DType",
+    "Tensor",
+    "cat",
+    "float32",
+    "full",
+    "int64",
+    "nn",
+    "no_grad",
+    "ones",
+    "tensor",
+    "zeros",
+]
