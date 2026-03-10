@@ -78,8 +78,8 @@ def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
 
 def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
     with bt.no_grad():
-        input_ids = bt.tensor(token_ids[:-1].astype(np.float32))
-        target_ids = bt.tensor(token_ids[1:].astype(np.float32))
+        input_ids = bt.tensor(token_ids[:-1])
+        target_ids = bt.tensor(token_ids[1:])
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
         return float(loss.item())
@@ -123,8 +123,8 @@ def main() -> None:
 
     for step in range(TRAIN_STEPS):
         batch_indices = np.random.randint(0, len(train_token_ids) - 1, size=BATCH_SIZE)
-        input_ids = bt.tensor(train_token_ids[batch_indices].astype(np.float32))
-        target_ids = bt.tensor(train_token_ids[batch_indices + 1].astype(np.float32))
+        input_ids = bt.tensor(train_token_ids[batch_indices])
+        target_ids = bt.tensor(train_token_ids[batch_indices + 1])
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
 

@@ -70,8 +70,8 @@ def build_examples(
     start_positions: np.ndarray,
 ) -> tuple[bt.Tensor, bt.Tensor]:
     offsets = np.arange(CONTEXT_LENGTH, dtype=np.int64)
-    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets].astype(np.float32))
-    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH].astype(np.float32))
+    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets])
+    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH])
     return input_ids, target_ids
 
 
@@ -98,7 +98,7 @@ def sample_text(
     with bt.no_grad():
         seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
         seed_context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
-        context = bt.tensor(seed_context.astype(np.float32))
+        context = bt.tensor(seed_context)
         sample = [vocab_chars[int(token_id)] for token_id in seed_context[:sample_length]]
 
         for _ in range(max(sample_length - len(sample), 0)):
@@ -107,7 +107,7 @@ def sample_text(
             weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
             next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
             sample.append(vocab_chars[next_token_id])
-            context = bt.cat([context[1:], bt.tensor([float(next_token_id)])], dim=0)
+            context = bt.cat([context[1:], bt.tensor([next_token_id])], dim=0)
 
     return "".join(sample)
 
