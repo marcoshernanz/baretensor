@@ -27,7 +27,7 @@ def cross_entropy(
     Current supported shapes:
     - input: [C] logits, target: [] scalar class index
     - input: [N, C, d1, ..., dK] logits
-    - target: [N, d1, ..., dK] class indices (integer-valued float32)
+    - target: [N, d1, ..., dK] class indices (int64)
     """
     return _cross_entropy(
         input=input,
@@ -49,7 +49,7 @@ def embedding(
     Lookup embeddings for index tensor `input` from embedding matrix `weight`.
 
     Supported now:
-    - input: arbitrary index tensor shape
+    - input: arbitrary int64 index tensor shape
     - weight: [V, D]
     """
     if max_norm is not None:

@@ -7,5 +7,5 @@ from typing import Any, cast
 import bt
 
 
-def to_numpy(tensor: bt.Tensor) -> NDArray[np.float32]:
-    return np.asarray(cast(Any, tensor.numpy()), dtype=np.float32)
+def to_numpy(tensor: bt.Tensor) -> NDArray[Any]:
+    return np.asarray(cast(Any, tensor.numpy()))
