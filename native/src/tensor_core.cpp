@@ -11,51 +11,17 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
-#include <type_traits>
 #include <vector>
 
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
+#include "bt/detail/tensor_cast.h"
 
 /*
  * Namespace: bt
  * Purpose: Public BareTensor C++ API surface.
  */
 namespace bt {
-
-/*
- * Namespace: (anonymous)
- * Purpose: Private implementation details local to this translation unit.
- */
-namespace {
-
-/*
- * Casts one element between supported tensor dtypes.
- */
-template <typename Src, typename Dst>
-[[nodiscard]] Dst cast_tensor_element(const Src value, const std::string_view context) {
-  if constexpr (std::is_same_v<Src, float> && std::is_same_v<Dst, int64_t>) {
-    return checked_int64_from_double(static_cast<double>(value), context);
-  } else {
-    return static_cast<Dst>(value);
-  }
-}
-
-/*
- * Throws when autograd is requested on a non-floating tensor.
- */
-void validate_requires_grad_dtype(const ScalarType dtype, const std::string_view operation_name) {
-  if (is_floating_point(dtype)) {
-    return;
-  }
-
-  std::ostringstream oss;
-  oss << operation_name << " is only supported for floating-point tensors, but got dtype "
-      << scalar_type_name(dtype) << ".";
-  throw std::invalid_argument(oss.str());
-}
-
-} // namespace
 
 /*
  * Constructs a tensor and allocates storage for the given shape and dtype.
@@ -158,7 +124,7 @@ Tensor &Tensor::set_requires_grad(const bool requires_grad) {
     return *this;
   }
 
-  validate_requires_grad_dtype(dtype(), "set_requires_grad(true)");
+  detail::ensure_grad_compatible_dtype(*this, "set_requires_grad(true)");
 
   if (autograd_meta == nullptr) {
     autograd_meta = std::make_shared<AutogradMeta>();
@@ -220,7 +186,7 @@ void Tensor::set_grad_fn(const std::shared_ptr<Node> &grad_fn) {
     throw std::invalid_argument("set_grad_fn() expected a non-null node.");
   }
 
-  validate_requires_grad_dtype(dtype(), "set_grad_fn()");
+  detail::ensure_grad_compatible_dtype(*this, "set_grad_fn()");
 
   if (autograd_meta == nullptr) {
     autograd_meta = std::make_shared<AutogradMeta>();
@@ -252,7 +218,7 @@ void Tensor::accumulate_grad(const Tensor &incoming_grad) {
     throw std::invalid_argument(oss.str());
   }
 
-  validate_requires_grad_dtype(dtype(), "accumulate_grad()");
+  detail::ensure_grad_compatible_dtype(*this, "accumulate_grad()");
   if (incoming_grad.dtype() != dtype()) {
     std::ostringstream oss;
     oss << "accumulate_grad failed for tensor with dtype " << scalar_type_name(dtype())
@@ -285,23 +251,7 @@ Tensor Tensor::to(const ScalarType target_dtype) const {
         "to() does not support dtype conversion for tensors that require gradients.");
   }
 
-  const Tensor source = contiguous();
-  Tensor out(shape, target_dtype);
-  if (source.numel() == 0) {
-    return out;
-  }
-
-  visit_dtype(source.dtype(), [&]<typename Src>() {
-    visit_dtype(target_dtype, [&]<typename Dst>() {
-      const Src *src_ptr = source.data_ptr<Src>();
-      Dst *dst_ptr = out.data_ptr<Dst>();
-      for (int64_t i = 0; i < source.numel(); ++i) {
-        dst_ptr[i] = cast_tensor_element<Src, Dst>(src_ptr[i], "to()");
-      }
-    });
-  });
-
-  return out;
+  return detail::cast_tensor_dtype(*this, target_dtype, "to()");
 }
 
 } /* namespace bt */
