@@ -295,6 +295,30 @@ template <typename T, typename NdArray>
   return tensor;
 }
 
+/*
+ * Constructs a tensor from a dtype-tagged NumPy array object.
+ */
+template <typename NdArrayF32, typename NdArrayI64>
+[[nodiscard]] bt::Tensor tensor_from_numpy_object(const nb::object &array_obj,
+                                                  const bt::ScalarType dtype,
+                                                  const bool requires_grad) {
+  try {
+    switch (dtype) {
+    case bt::ScalarType::kFloat32:
+      return tensor_from_numpy<float>(nb::cast<NdArrayF32>(array_obj), dtype, requires_grad);
+    case bt::ScalarType::kInt64:
+      return tensor_from_numpy<int64_t>(nb::cast<NdArrayI64>(array_obj), dtype, requires_grad);
+    }
+  } catch (const nb::cast_error &) {
+    std::ostringstream oss;
+    oss << "tensor_from_numpy() expected a C-contiguous NumPy array with dtype "
+        << bt::scalar_type_name(dtype) << ".";
+    throw nb::type_error(oss.str().c_str());
+  }
+
+  throw std::runtime_error("Unsupported dtype in tensor_from_numpy().");
+}
+
 class PyNoGradGuard {
 public:
   PyNoGradGuard() = default;
@@ -479,15 +503,9 @@ NB_MODULE(_C, m) {
   m.def("embedding", &bt::embedding, nb::arg("input"), nb::arg("weight"));
 
   m.def(
-      "_tensor_float32",
-      [](const NdArrayF32 &array, const bool requires_grad) {
-        return tensor_from_numpy<float>(array, bt::ScalarType::kFloat32, requires_grad);
+      "tensor_from_numpy",
+      [](const nb::object &array, const bt::ScalarType dtype, const bool requires_grad) {
+        return tensor_from_numpy_object<NdArrayF32, NdArrayI64>(array, dtype, requires_grad);
       },
-      nb::arg("array"), nb::arg("requires_grad") = false);
-  m.def(
-      "_tensor_int64",
-      [](const NdArrayI64 &array, const bool requires_grad) {
-        return tensor_from_numpy<int64_t>(array, bt::ScalarType::kInt64, requires_grad);
-      },
-      nb::arg("array"), nb::arg("requires_grad") = false);
+      nb::arg("array"), nb::arg("dtype"), nb::arg("requires_grad") = false);
 }
