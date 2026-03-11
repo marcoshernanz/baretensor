@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09.
+Runs recorded on 2026-03-09 and 2026-03-12.
 
 ## Summary
 
@@ -8,10 +8,12 @@ Runs recorded on 2026-03-09.
 | --------- | ------ | ----: | ---------: | -------: | ------------: | --------: | ------------: | --- | ----- |
 | 001 | `experiments/001_bigram_torch.py` | 0 | 2.454943 | - | - | - | 15.738 | [csv](../artifacts/experiments/001_bigram_torch/20260309_001835_287317/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_torch/20260309_001835_287317/loss_curve.svg) |
 | 001 | `experiments/001_bigram_bt.py` | 0 | 2.454943 | - | - | - | 2.306 | [csv](../artifacts/experiments/001_bigram_bt/20260309_001819_741240/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_bt/20260309_001819_741240/loss_curve.svg) |
-| 002 | `experiments/002_mlp_torch.py` | 25000 | 2.506999 | 2.532096 | 7.459 | 3351.694 | 8.185 | [csv](../artifacts/experiments/002_mlp_torch/20260309_001853_381825/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_torch/20260309_001853_381825/loss_curve.svg) |
-| 002 | `experiments/002_mlp_bt.py` | 25000 | 2.474183 | 2.507311 | 43.537 | 574.228 | 53.769 | [csv](../artifacts/experiments/002_mlp_bt/20260309_001950_630432/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_bt/20260309_001950_630432/loss_curve.svg) |
-| 003 | `experiments/003_context_window_linear_torch.py` | 25000 | 2.182514 | 2.251570 | 7.256 | 3445.247 | 8.286 | [csv](../artifacts/experiments/003_context_window_linear_torch/20260309_002002_855304/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_torch/20260309_002002_855304/loss_curve.svg) |
-| 003 | `experiments/003_context_window_linear_bt.py` | 25000 | 2.185520 | 2.247977 | 40.335 | 619.808 | 63.844 | [csv](../artifacts/experiments/003_context_window_linear_bt/20260309_002110_007479/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_bt/20260309_002110_007479/loss_curve.svg) |
+| 002 | `experiments/002_mlp_torch.py` | 50000 | 2.488925 | 2.523084 | 18.423 | 2713.927 | 19.376 | [csv](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_curve.svg) |
+| 002 | `experiments/002_mlp_bt.py` | 50000 | 2.466264 | 2.502053 | 113.633 | 440.014 | 126.728 | [csv](../artifacts/experiments/002_mlp_bt/20260312_003650_388215/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_bt/20260312_003650_388215/loss_curve.svg) |
+| 003 | `experiments/003_context_window_linear_torch.py` | 50000 | 2.129700 | 2.229607 | 19.724 | 2534.987 | 20.977 | [csv](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_curve.svg) |
+| 003 | `experiments/003_context_window_linear_bt.py` | 50000 | 2.132292 | 2.228308 | 116.844 | 427.922 | 144.866 | [csv](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_curve.svg) |
+| 004 | `experiments/004_context_window_mlp_torch.py` | 50000 | 1.818081 | 1.962587 | 26.318 | 1899.823 | 28.124 | [csv](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_curve.svg) |
+| 004 | `experiments/004_context_window_mlp_bt.py` | 50000 | 1.820442 | 1.953616 | 138.829 | 360.155 | 171.906 | [csv](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_curve.svg) |
 
 ## 001 Bigram Torch
 
@@ -57,100 +59,136 @@ YOUTy whanganind wis th mage theas be INGle fomis ENTINADWhest
 ## 002 MLP Torch
 
 - Script: `experiments/002_mlp_torch.py`
-- Steps: `25000`
-- Train loss: `2.506999`
-- Val loss: `2.532096`
-- Train seconds: `7.459`
-- Steps per second: `3351.694`
-- Total seconds: `8.185`
+- Steps: `50000`
+- Train loss: `2.488925`
+- Val loss: `2.523084`
+- Train seconds: `18.423`
+- Steps per second: `2713.927`
+- Total seconds: `19.376`
 
-![002 mlp torch loss curve](../artifacts/experiments/002_mlp_torch/20260309_001853_381825/loss_curve.svg)
+![002 mlp torch loss curve](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_curve.svg)
 
 ```text
-hent, ofim cothis, ant t sacitheat yo winor d boudem ndalert nd ie hates shy w?
-S:
+h.
+K:
+D:
+I wely,
 
-HENRY: may owuleistsorestr GI bllates, ha aily h vimisiltwichis ng p'd's so urny ie, y bred rein reshe byowisean ave
+Ant fug, adicondayokend fampow
+ALERKESgnd st;
+
+
+RLAurthontoman ble m Yong he ceshas id o bel. we d iblee he-poteemad owis, or pele theames w t wane is th w ly s thakeldBundeadaversh
 ```
 
 ## 002 MLP BareTensor
 
 - Script: `experiments/002_mlp_bt.py`
-- Steps: `25000`
-- Train loss: `2.474183`
-- Val loss: `2.507311`
-- Train seconds: `43.537`
-- Steps per second: `574.228`
-- Total seconds: `53.769`
+- Steps: `50000`
+- Train loss: `2.466264`
+- Val loss: `2.502053`
+- Train seconds: `113.633`
+- Steps per second: `440.014`
+- Total seconds: `126.728`
 
-![002 mlp bt loss curve](../artifacts/experiments/002_mlp_bt/20260309_001950_630432/loss_curve.svg)
+![002 mlp bt loss curve](../artifacts/experiments/002_mlp_bt/20260312_003650_388215/loss_curve.svg)
 
 ```text
-heprarby sprchesens.
-B:
+henome,--kitangrenrde GLANEThorerelyou wo GABNUze
+XERD yg. paparothy memykir, wol ke PENTo fu le shak in,
+tarowovell manowe:
+Wirvelatend
 
-AMyesherentth wo EE:
-Sy,
-Wel:
-lldor masothy menthir, wom in:
-
-Cavaly le poil he by outrthen manmy intorvenat:
-H awhouw whang:
-S:
-Aven th nced thecod ce oould s, t ELO:
-
-
-OMavi
+Whity wigenanhe even th nage ureas be INGinamingo ENRDY bonest
 ```
 
 ## 003 Context-Window Linear Torch
 
 - Script: `experiments/003_context_window_linear_torch.py`
-- Steps: `25000`
-- Train loss: `2.182514`
-- Val loss: `2.251570`
-- Train seconds: `7.256`
-- Steps per second: `3445.247`
-- Total seconds: `8.286`
+- Steps: `50000`
+- Train loss: `2.129700`
+- Val loss: `2.229607`
+- Train seconds: `19.724`
+- Steps per second: `2534.987`
+- Total seconds: `20.977`
 
-![003 context window linear torch loss curve](../artifacts/experiments/003_context_window_linear_torch/20260309_002002_855304/loss_curve.svg)
+![003 context window linear torch loss curve](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_curve.svg)
 
 ```text
-to as way dove thave t cnos?
+to as noveretang he.
 
-BORL:
-I whts hay. 
-FINK:
-But las,
-Wh rrat.
+GUREO:
+Hew ant dt ard.
+Whe turosthea not striek liscoul, them,
+If RI IAvistoegof,
+Lion comm-ablithe atir too my wil cenor divent majenje:
+Tow thithe,
+Warkeny, and ssedwath.
 
-Ase wide
-
-Wive morey; myous and tyour thes eeand,
-Fhan ou tho buster youn grime but liast mowndlevey youribe sow thes bot! sav
+HAR
 ```
 
 ## 003 Context-Window Linear BareTensor
 
 - Script: `experiments/003_context_window_linear_bt.py`
-- Steps: `25000`
-- Train loss: `2.185520`
-- Val loss: `2.247977`
-- Train seconds: `40.335`
-- Steps per second: `619.808`
-- Total seconds: `63.844`
+- Steps: `50000`
+- Train loss: `2.132292`
+- Val loss: `2.228308`
+- Train seconds: `116.844`
+- Steps per second: `427.922`
+- Total seconds: `144.866`
 
-![003 context window linear bt loss curve](../artifacts/experiments/003_context_window_linear_bt/20260309_002110_007479/loss_curve.svg)
+![003 context window linear bt loss curve](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_curve.svg)
 
 ```text
-to aurast omy sould wist re hald, wirpeovis wo We;
-Ty Bulk Surdor marnght meethead, whand Yalls evand rif dece yourtry:
-Sancentaleites ofelle
-AsUTly will.
+to aurenoghay sould, lowenc.
 
-QMENdES:
-The ch vingig.
+FLORY:
+Shevor wo ala, yo the ay hot leerint
+Potshis pute llabe to gualinge,
+And by outise, I beove itrexcommand
+At: ty willake:
+Hewis so le mathe.
 
-AULINEARESCA,
-Sela?
+CEMEO:
+Mfaredie
+Fore c
+```
+
+## 004 Context-Window MLP Torch
+
+- Script: `experiments/004_context_window_mlp_torch.py`
+- Steps: `50000`
+- Train loss: `1.818081`
+- Val loss: `1.962587`
+- Train seconds: `26.318`
+- Steps per second: `1899.823`
+- Total seconds: `28.124`
+
+![004 context window mlp torch loss curve](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_curve.svg)
+
+```text
+to alf brither hod ridlenfentle Etwardie ant me:
+Fall; let of it are my his my and ooct then to my lest hy yall getorst withun Broubluith' Gis!
+
+Mithee than we with, on youl defrenctlick, andicatund m
+```
+
+## 004 Context-Window MLP BareTensor
+
+- Script: `experiments/004_context_window_mlp_bt.py`
+- Steps: `50000`
+- Train loss: `1.820442`
+- Val loss: `1.953616`
+- Train seconds: `138.829`
+- Steps per second: `360.155`
+- Total seconds: `171.906`
+
+![004 context window mlp bt loss curve](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_curve.svg)
+
+```text
+to as ople:
+is to live uppe in evereitherse wold aghy Kong Lut that splew onerish too and aalls
+ExEN:
+Rome, me your; wher of to live you the Adwersw will for inton that bodrs, thap and me shel I parce
 ```
