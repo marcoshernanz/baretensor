@@ -155,6 +155,24 @@ class CrossEntropyTests(unittest.TestCase):
         expected = np.asarray(total / valid, dtype=np.float32)
         np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
 
+    def test_cross_entropy_non_contiguous_int64_target(self) -> None:
+        logits = np.asarray(
+            [
+                [[3.0, 2.0, 1.0, 0.0], [0.5, 0.1, 0.2, 0.3], [-1.0, -2.0, -3.0, -4.0]],
+                [[0.0, 1.0, 2.0, 3.0], [2.0, 1.0, 0.0, -1.0], [-0.2, -0.1, 0.0, 0.1]],
+            ],
+            dtype=np.float32,
+        )
+        target_source = np.asarray([[0, 2], [1, 0], [2, 1], [1, 0]], dtype=np.int64)
+        target = bt.tensor(target_source).transpose(0, 1)
+
+        out = F.cross_entropy(bt.tensor(logits), target)
+
+        expected_target = np.asarray(target_source.T, dtype=np.int64)
+        _, total, valid = _expected_losses(logits, expected_target, ignore_index=-100)
+        expected = np.asarray(total / valid, dtype=np.float32)
+        np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
+
     def test_cross_entropy_invalid_reduction_raises(self) -> None:
         logits = bt.tensor(np.asarray([[0.1, 0.2]], dtype=np.float32))
         target = bt.tensor(np.asarray([0], dtype=np.int64))

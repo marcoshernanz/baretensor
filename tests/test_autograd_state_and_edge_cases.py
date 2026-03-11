@@ -138,6 +138,13 @@ class AutogradStateAndEdgeCaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"gradient shape mismatch"):
             y.backward(bt.tensor(np.asarray([1.0], dtype=np.float32)))
 
+    def test_backward_rejects_bad_gradient_dtype(self) -> None:
+        x = bt.tensor(np.asarray([1.0, 2.0], dtype=np.float32), requires_grad=True)
+        y = x * 2.0
+
+        with self.assertRaisesRegex(ValueError, r"gradient dtype mismatch"):
+            y.backward(bt.tensor([1, 1]))
+
     def test_detached_computation_does_not_require_grad(self) -> None:
         x = bt.tensor(np.asarray([1.0, 2.0, 3.0], dtype=np.float32), requires_grad=True)
         y = x.detach()

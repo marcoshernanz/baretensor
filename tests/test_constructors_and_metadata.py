@@ -53,7 +53,7 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         self.assertEqual(tensor.shape, [])
         self.assertEqual(tensor.dtype, bt.int64)
         self.assertEqual(to_numpy(tensor).dtype, np.int64)
-        self.assertEqual(tensor.item(), 7)
+        self.assertEqual(cast(int, tensor.item()), 7)
 
     def test_scalar_tensor_metadata(self) -> None:
         tensor = bt.tensor(np.asarray(3.5, dtype=np.float32))
@@ -65,12 +65,12 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         self.assertTrue(tensor.is_contiguous())
         self.assertEqual(tensor.dtype, bt.float32)
         np.testing.assert_allclose(to_numpy(tensor), np.asarray(3.5, dtype=np.float32))
-        self.assertAlmostEqual(tensor.item(), 3.5)
+        self.assertAlmostEqual(cast(float, tensor.item()), 3.5)
 
     def test_item_accepts_any_tensor_with_single_element(self) -> None:
         tensor = bt.full([1, 1], 2.25)
 
-        self.assertAlmostEqual(tensor.item(), 2.25)
+        self.assertAlmostEqual(cast(float, tensor.item()), 2.25)
 
     def test_item_rejects_tensors_with_more_than_one_element(self) -> None:
         tensor = bt.zeros([2, 3])
@@ -96,6 +96,13 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
 
         self.assertEqual(tensor.dtype, bt.int64)
         np.testing.assert_array_equal(to_numpy(tensor), np.full((2, 2), 3, dtype=np.int64))
+
+    def test_factory_rejects_requires_grad_on_int64(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            r"set_requires_grad\(true\) is only supported for floating-point tensors",
+        ):
+            _ = bt.zeros([2, 2], dtype=bt.int64, requires_grad=True)
 
     def test_negative_shape_raises(self) -> None:
         with self.assertRaisesRegex(
