@@ -3,10 +3,10 @@
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import Any, Protocol, cast
+from typing import Any
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import ArrayLike
 
 from . import _C
 from . import nn
@@ -18,22 +18,11 @@ from ._C import (
     full as _full,
     int64,
     ones as _ones,
+    tensor_from_numpy as _tensor_from_numpy,
     zeros as _zeros,
 )
 
 _INT64_INFO = np.iinfo(np.int64)
-
-
-class _TensorFloat32Ctor(Protocol):
-    def __call__(self, array: NDArray[np.float32], *, requires_grad: bool = False) -> Tensor: ...
-
-
-class _TensorInt64Ctor(Protocol):
-    def __call__(self, array: NDArray[np.int64], *, requires_grad: bool = False) -> Tensor: ...
-
-
-_tensor_float32 = cast(_TensorFloat32Ctor, getattr(_C, "_tensor_float32"))
-_tensor_int64 = cast(_TensorInt64Ctor, getattr(_C, "_tensor_int64"))
 
 
 class _NoGradContext(AbstractContextManager[None]):
@@ -141,8 +130,10 @@ def tensor(data: ArrayLike, *, dtype: DType | None = None, requires_grad: bool =
         else _infer_dtype(array, from_numpy=_is_numpy_input(data))
     )
     if target_dtype == float32:
-        return _tensor_float32(_coerce_to_float32(array), requires_grad=requires_grad)
-    return _tensor_int64(_coerce_to_int64(array), requires_grad=requires_grad)
+        return _tensor_from_numpy(
+            _coerce_to_float32(array), target_dtype, requires_grad=requires_grad
+        )
+    return _tensor_from_numpy(_coerce_to_int64(array), target_dtype, requires_grad=requires_grad)
 
 
 def full(
