@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import random
 from time import perf_counter
+from typing import cast
 
 import bt
 import numpy as np
@@ -70,7 +71,7 @@ def main() -> None:
     log_prob_sum = 0.0
     token_count = 0
     for prev_id, next_id in zip(encoded, encoded[1:]):
-        log_prob_sum += probs[prev_id, next_id].log().item()
+        log_prob_sum += cast(float, probs[prev_id, next_id].log().item())
         token_count += 1
     cross_entropy = -log_prob_sum / token_count
     sample = sample_text(probs, chars, SAMPLE_LEN)
