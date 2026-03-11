@@ -15,6 +15,7 @@ from experiment_artifacts import write_loss_artifacts
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
+HIDDEN_DIM = 64
 BATCH_SIZE = 32
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
@@ -47,18 +48,24 @@ def load_text(path: Path) -> str:
 def model_params(model: Model) -> tuple[bt.Tensor, ...]:
     return (
         model["embedding_table"],
+        model["hidden_weights"],
+        model["hidden_bias"],
         model["output_weights"],
         model["output_bias"],
     )
 
 
 def init_model(vocab_size: int) -> Model:
+    tanh_gain = 5.0 / 3.0
     input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
     model: Model = {
         "embedding_table": bt.tensor(np.random.randn(vocab_size, EMBEDDING_DIM).astype(np.float32))
         * 0.1,
-        "output_weights": bt.tensor(np.random.randn(input_dim, vocab_size).astype(np.float32))
-        * (1.0 / math.sqrt(input_dim)),
+        "hidden_weights": bt.tensor(np.random.randn(input_dim, HIDDEN_DIM).astype(np.float32))
+        * (tanh_gain / math.sqrt(input_dim)),
+        "hidden_bias": bt.zeros((HIDDEN_DIM,)),
+        "output_weights": bt.tensor(np.random.randn(HIDDEN_DIM, vocab_size).astype(np.float32))
+        * (1.0 / math.sqrt(HIDDEN_DIM)),
         "output_bias": bt.zeros((vocab_size,)),
     }
     for param in model_params(model):
@@ -78,7 +85,8 @@ def build_examples(
 
 def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
     embedded = F.embedding(input_ids, model["embedding_table"]).flatten(1)
-    return embedded @ model["output_weights"] + model["output_bias"]
+    hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
+    return hidden @ model["output_weights"] + model["output_bias"]
 
 
 def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
