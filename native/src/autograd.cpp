@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "bt/detail/format.h"
+#include "bt/detail/tensor_validation.h"
 
 /*
  * Namespace: (anonymous)
@@ -62,7 +63,7 @@ void build_topology_from_tensor(const bt::Tensor &tensor,
         << bt::detail::shape_to_string(output.shape) << ".";
     throw std::invalid_argument(oss.str());
   }
-  return bt::ones(output.shape);
+  return bt::ones(output.shape, output.dtype());
 }
 
 /*
@@ -81,6 +82,21 @@ void validate_root_gradient_shape(const bt::Tensor &output, const bt::Tensor &gr
 }
 
 /*
+ * Validates that an explicit backward() gradient matches the output dtype.
+ */
+void validate_root_gradient_dtype(const bt::Tensor &output, const bt::Tensor &gradient) {
+  if (gradient.dtype() == output.dtype()) {
+    return;
+  }
+
+  std::ostringstream oss;
+  oss << "backward() gradient dtype mismatch: output dtype "
+      << bt::scalar_type_name(output.dtype()) << " but got gradient dtype "
+      << bt::scalar_type_name(gradient.dtype()) << ".";
+  throw std::invalid_argument(oss.str());
+}
+
+/*
  * Validates that a node-produced input gradient matches the input shape.
  */
 void validate_input_gradient_shape(const bt::Tensor &input,
@@ -93,6 +109,22 @@ void validate_input_gradient_shape(const bt::Tensor &input,
   oss << "autograd node produced gradient shape "
       << bt::detail::shape_to_string(input_grad.shape) << " for input tensor shape "
       << bt::detail::shape_to_string(input.shape) << ".";
+  throw std::runtime_error(oss.str());
+}
+
+/*
+ * Validates that a node-produced input gradient matches the input dtype.
+ */
+void validate_input_gradient_dtype(const bt::Tensor &input,
+                                   const bt::Tensor &input_grad) {
+  if (input_grad.dtype() == input.dtype()) {
+    return;
+  }
+
+  std::ostringstream oss;
+  oss << "autograd node produced gradient dtype "
+      << bt::scalar_type_name(input_grad.dtype())
+      << " for input tensor dtype " << bt::scalar_type_name(input.dtype()) << ".";
   throw std::runtime_error(oss.str());
 }
 
@@ -193,11 +225,14 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient) {
         "backward() called on a tensor that does not require gradients.");
   }
 
+  bt::detail::ensure_floating_dtype(output, "backward()", "output");
+
   NoGradGuard guard;
 
   Tensor root_grad =
       gradient.has_value() ? gradient.value() : make_default_root_grad(output);
   validate_root_gradient_shape(output, root_grad);
+  validate_root_gradient_dtype(output, root_grad);
 
   const std::shared_ptr<Node> root_fn = output.grad_fn();
   if (root_fn == nullptr) {
@@ -237,6 +272,7 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient) {
 
       const Tensor input_grad = input_grads[input_index];
       validate_input_gradient_shape(input, input_grad);
+      validate_input_gradient_dtype(input, input_grad);
 
       const std::shared_ptr<Node> input_fn = input.grad_fn();
       if (input_fn == nullptr) {

@@ -115,6 +115,13 @@ class MatmulTests(unittest.TestCase):
         ):
             _ = left.matmul(right)
 
+    def test_mixed_dtype_matmul_rejects(self) -> None:
+        left = bt.tensor(np.asarray([[1.0, 2.0]], dtype=np.float32))
+        right = bt.tensor(np.asarray([[1], [2]], dtype=np.int64))
+
+        with self.assertRaisesRegex(ValueError, r"same dtype"):
+            _ = left.matmul(right)
+
 
 if __name__ == "__main__":
     unittest.main()

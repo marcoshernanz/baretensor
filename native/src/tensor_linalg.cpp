@@ -214,6 +214,8 @@ namespace bt {
 Tensor Tensor::matmul(const Tensor &tensor2) const {
   bt::detail::validate_copy_metadata(*this, "matmul");
   bt::detail::validate_copy_metadata(tensor2, "matmul");
+  bt::detail::ensure_same_dtype(*this, tensor2, "matmul");
+  bt::detail::ensure_float32(*this, "matmul", "lhs");
 
   if (ndim() == 0 || tensor2.ndim() == 0) {
     std::ostringstream oss;
@@ -279,9 +281,10 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
         .out_n_stride = out_full.strides[out_full.strides.size() - 1],
     };
 
-    recursive_batched_matmul(0, batch_shape, data_ptr(), tensor2.data_ptr(),
-                             out_full.data_ptr(), lhs_batch_broadcast_strides,
-                             rhs_batch_broadcast_strides, out_batch_strides, params);
+    recursive_batched_matmul(0, batch_shape, data_ptr<float>(),
+                             tensor2.data_ptr<float>(), out_full.data_ptr<float>(),
+                             lhs_batch_broadcast_strides, rhs_batch_broadcast_strides,
+                             out_batch_strides, params);
   }
 
   const std::vector<int64_t> out_shape =

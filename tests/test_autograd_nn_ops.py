@@ -94,7 +94,7 @@ class AutogradNnOpsTests(unittest.TestCase):
 
     def test_cross_entropy_backward_mean_with_ignore_index(self) -> None:
         logits_np = np.asarray([[1.0, -0.5, 2.0], [0.2, 0.3, -1.0]], dtype=np.float32)
-        target_np = np.asarray([2.0, -100.0], dtype=np.float32)
+        target_np = np.asarray([2, -100], dtype=np.int64)
 
         logits = bt.tensor(logits_np, requires_grad=True)
         target = bt.tensor(target_np)
@@ -111,7 +111,7 @@ class AutogradNnOpsTests(unittest.TestCase):
 
     def test_cross_entropy_backward_none_with_explicit_gradient(self) -> None:
         logits_np = np.asarray([[0.4, -0.7, 1.8], [1.3, -2.0, 0.6]], dtype=np.float32)
-        target_np = np.asarray([1.0, 0.0], dtype=np.float32)
+        target_np = np.asarray([1, 0], dtype=np.int64)
         out_grad_np = np.asarray([2.0, -0.5], dtype=np.float32)
 
         logits = bt.tensor(logits_np, requires_grad=True)
@@ -165,7 +165,7 @@ class AutogradNnOpsTests(unittest.TestCase):
         np.testing.assert_allclose(to_numpy(_require_grad(b)), expected_b, rtol=2e-2, atol=2e-2)
 
     def test_embedding_backward_scatter_add(self) -> None:
-        indices_np = np.asarray([[0.0, 2.0, 0.0], [1.0, 2.0, 1.0]], dtype=np.float32)
+        indices_np = np.asarray([[0, 2, 0], [1, 2, 1]], dtype=np.int64)
         weight_np = np.asarray(
             [[1.0, 0.0, -1.0], [2.0, -2.0, 1.0], [0.5, 1.5, -0.5], [3.0, -1.0, 2.0]],
             dtype=np.float32,
@@ -198,20 +198,15 @@ class AutogradNnOpsTests(unittest.TestCase):
         )
 
     def test_embedding_indices_gradient_is_zero(self) -> None:
-        indices_np = np.asarray([[0.0, 1.0], [1.0, 0.0]], dtype=np.float32)
+        indices_np = np.asarray([[0, 1], [1, 0]], dtype=np.int64)
         weight_np = np.asarray([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], dtype=np.float32)
 
-        indices = bt.tensor(indices_np, requires_grad=True)
+        indices = bt.tensor(indices_np)
         weight = bt.tensor(weight_np, requires_grad=True)
 
         F.embedding(indices, weight).sum().backward()
 
-        np.testing.assert_allclose(
-            to_numpy(_require_grad(indices)),
-            np.zeros_like(indices_np, dtype=np.float32),
-            rtol=1e-6,
-            atol=1e-6,
-        )
+        self.assertIsNone(indices.grad)
 
 
 if __name__ == "__main__":

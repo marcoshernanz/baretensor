@@ -11,12 +11,11 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "bt/detail/format.h"
 #include "bt/detail/shape.h"
+#include "bt/detail/tensor_cast.h"
 
 /*
  * Namespace: bt
@@ -25,28 +24,12 @@
 namespace bt {
 
 /*
- * Constructs a tensor and allocates storage for the given shape.
+ * Constructs a tensor and allocates storage for the given shape and dtype.
  */
-Tensor::Tensor(const std::vector<int64_t> &shape) : shape(shape) {
+Tensor::Tensor(const std::vector<int64_t> &shape, const ScalarType dtype) : shape(shape) {
   const int64_t n = detail::checked_numel(shape);
   strides = detail::contiguous_strides(shape);
-  storage = std::make_shared<Storage>(n);
-}
-
-/*
- * Constructs a tensor from provided shape and owned data vector.
- */
-Tensor::Tensor(const std::vector<int64_t> &shape, std::vector<float> data)
-    : shape(shape) {
-  const int64_t n = detail::checked_numel(shape);
-  if (static_cast<int64_t>(data.size()) != n) {
-    throw std::invalid_argument("Tensor data size mismatch for shape " +
-                                detail::shape_to_string(shape) + ": expected " +
-                                std::to_string(n) + " values but got " +
-                                std::to_string(data.size()) + ".");
-  }
-  strides = detail::contiguous_strides(shape);
-  storage = std::make_shared<Storage>(std::move(data));
+  storage = std::make_shared<Storage>(n, dtype);
 }
 
 /*
@@ -94,16 +77,31 @@ bool Tensor::is_contiguous() const noexcept {
 }
 
 /*
- * Returns a const pointer to tensor data at storage offset.
+ * Returns the tensor dtype.
  */
-const float *Tensor::data_ptr() const noexcept {
-  return storage->data_ptr() + storage_offset;
+ScalarType Tensor::dtype() const noexcept {
+  return storage == nullptr ? ScalarType::kFloat32 : storage->dtype();
 }
 
 /*
- * Returns a mutable pointer to tensor data at storage offset.
+ * Returns a const pointer to tensor bytes at storage offset.
  */
-float *Tensor::data_ptr() noexcept { return storage->data_ptr() + storage_offset; }
+const std::byte *Tensor::raw_data_ptr() const noexcept {
+  if (storage == nullptr) {
+    return nullptr;
+  }
+  return storage->raw_data() + (storage_offset * scalar_type_itemsize(dtype()));
+}
+
+/*
+ * Returns a mutable pointer to tensor bytes at storage offset.
+ */
+std::byte *Tensor::raw_data_ptr() noexcept {
+  if (storage == nullptr) {
+    return nullptr;
+  }
+  return storage->raw_data() + (storage_offset * scalar_type_itemsize(dtype()));
+}
 
 /*
  * Returns whether autograd is enabled for this tensor.
@@ -125,6 +123,8 @@ Tensor &Tensor::set_requires_grad(const bool requires_grad) {
     }
     return *this;
   }
+
+  detail::ensure_grad_compatible_dtype(*this, "set_requires_grad(true)");
 
   if (autograd_meta == nullptr) {
     autograd_meta = std::make_shared<AutogradMeta>();
@@ -185,6 +185,9 @@ void Tensor::set_grad_fn(const std::shared_ptr<Node> &grad_fn) {
   if (grad_fn == nullptr) {
     throw std::invalid_argument("set_grad_fn() expected a non-null node.");
   }
+
+  detail::ensure_grad_compatible_dtype(*this, "set_grad_fn()");
+
   if (autograd_meta == nullptr) {
     autograd_meta = std::make_shared<AutogradMeta>();
   }
@@ -209,10 +212,17 @@ std::shared_ptr<Node> Tensor::grad_fn() const {
 void Tensor::accumulate_grad(const Tensor &incoming_grad) {
   if (incoming_grad.shape != shape) {
     std::ostringstream oss;
-    oss << "accumulate_grad failed for tensor with shape "
-        << detail::shape_to_string(shape) << ": gradient shape "
-        << detail::shape_to_string(incoming_grad.shape)
+    oss << "accumulate_grad failed for tensor with shape " << detail::shape_to_string(shape)
+        << ": gradient shape " << detail::shape_to_string(incoming_grad.shape)
         << " does not match tensor shape.";
+    throw std::invalid_argument(oss.str());
+  }
+
+  detail::ensure_grad_compatible_dtype(*this, "accumulate_grad()");
+  if (incoming_grad.dtype() != dtype()) {
+    std::ostringstream oss;
+    oss << "accumulate_grad failed for tensor with dtype " << scalar_type_name(dtype())
+        << ": gradient dtype " << scalar_type_name(incoming_grad.dtype()) << " does not match.";
     throw std::invalid_argument(oss.str());
   }
 
@@ -226,6 +236,22 @@ void Tensor::accumulate_grad(const Tensor &incoming_grad) {
   }
 
   autograd_meta->grad = incoming_grad.contiguous();
+}
+
+/*
+ * Returns a tensor converted to the requested dtype.
+ */
+Tensor Tensor::to(const ScalarType target_dtype) const {
+  if (target_dtype == dtype()) {
+    return *this;
+  }
+
+  if (requires_grad()) {
+    throw std::invalid_argument(
+        "to() does not support dtype conversion for tensors that require gradients.");
+  }
+
+  return detail::cast_tensor_dtype(*this, target_dtype, "to()");
 }
 
 } /* namespace bt */

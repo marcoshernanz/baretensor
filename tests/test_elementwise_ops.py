@@ -180,6 +180,13 @@ class ElementwiseOpsTests(unittest.TestCase):
         ):
             _ = a + b
 
+    def test_mixed_dtype_tensor_tensor_rejects(self) -> None:
+        a = bt.tensor(np.asarray([1.0, 2.0], dtype=np.float32))
+        b = bt.tensor(np.asarray([1, 2], dtype=np.int64))
+
+        with self.assertRaisesRegex(ValueError, r"same dtype"):
+            _ = a + b
+
 
 if __name__ == "__main__":
     unittest.main()

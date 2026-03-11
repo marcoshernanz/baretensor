@@ -122,7 +122,7 @@ Tensor Tensor::contiguous() const {
     return *this;
   }
 
-  Tensor out(shape);
+  Tensor out(shape, dtype());
   bt::detail::validate_copy_metadata(out, "contiguous");
 
   bt::detail::copy_tensor_values(*this, out);

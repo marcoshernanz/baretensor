@@ -1,6 +1,9 @@
 - dtype
 - bt.Tensor.op vs tensor.op(bt.Tensor)
 
+- To many error messages
+- Strict shapes & explicit broadcasting
+
 - bt.tensor() from list (without numpy workaround)
 - param.grad = None
 - in-place operations while requiring grad
