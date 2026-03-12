@@ -14,6 +14,8 @@ Runs recorded on 2026-03-09 and 2026-03-12.
 | 003 | `experiments/003_context_window_linear_bt.py` | 50000 | 2.132292 | 2.228308 | 116.844 | 427.922 | 144.866 | [csv](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_curve.svg) |
 | 004 | `experiments/004_context_window_mlp_torch.py` | 50000 | 1.818081 | 1.962587 | 26.318 | 1899.823 | 28.124 | [csv](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_curve.svg) |
 | 004 | `experiments/004_context_window_mlp_bt.py` | 50000 | 1.820442 | 1.953616 | 138.829 | 360.155 | 171.906 | [csv](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_curve.svg) |
+| 005 | `experiments/005_larger_context_mlp_torch.py` | 50000 | 1.831950 | 1.990602 | 46.127 | 1083.960 | 50.157 | [csv](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_curve.svg) |
+| 005 | `experiments/005_larger_context_mlp_bt.py` | 50000 | 1.823935 | 1.987984 | 613.498 | 81.500 | 753.654 | [csv](../artifacts/experiments/005_larger_context_mlp_bt/20260312_114057_676899/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_bt/20260312_114057_676899/loss_curve.svg) |
 
 ## 001 Bigram Torch
 
@@ -191,4 +193,46 @@ to as ople:
 is to live uppe in evereitherse wold aghy Kong Lut that splew onerish too and aalls
 ExEN:
 Rome, me your; wher of to live you the Adwersw will for inton that bodrs, thap and me shel I parce
+```
+
+## 005 Larger-Context MLP Torch
+
+- Script: `experiments/005_larger_context_mlp_torch.py`
+- Steps: `50000`
+- Train loss: `1.831950`
+- Val loss: `1.990602`
+- Train seconds: `46.127`
+- Steps per second: `1083.960`
+- Total seconds: `50.157`
+
+![005 larger context mlp torch loss curve](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_curve.svg)
+
+```text
+to account this I livemys of thin be you moo in woilser, sects'd sayest,
+That to homes in fir eeverest ceintase lives and Serfory,
+Peave it heaved, the foo my preat he Ladqunes
+go she dirn, tad in cri
+```
+
+## 005 Larger-Context MLP BareTensor
+
+- Script: `experiments/005_larger_context_mlp_bt.py`
+- Steps: `50000`
+- Train loss: `1.823935`
+- Val loss: `1.987984`
+- Train seconds: `613.498`
+- Steps per second: `81.500`
+- Total seconds: `753.654`
+
+![005 larger context mlp bt loss curve](../artifacts/experiments/005_larger_context_mlp_bt/20260312_114057_676899/loss_curve.svg)
+
+```text
+to account this witherbey spon, whise.
+
+FLIET:
+Now tout woh,
+Ammy Cpare your breish. And with sure lifd,
+To hoe, and cand by sturungland.
+The worten, doo at tow will for hewer that andbosis chafier,
+F
 ```
