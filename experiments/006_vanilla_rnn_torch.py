@@ -13,22 +13,16 @@ from experiment_artifacts import write_loss_artifacts
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
-HIDDEN_DIM = 64
 BATCH_SIZE = 32
+HIDDEN_DIM = 16
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 50_000
-CONTEXT_LENGTH = 16
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
 Model = dict[str, torch.Tensor]
-
-
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    torch.manual_seed(seed)  # type: ignore
 
 
 def load_text(path: Path) -> str:
@@ -43,73 +37,66 @@ def load_text(path: Path) -> str:
     return text
 
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)  # type: ignore
+
+
 def model_params(model: Model) -> tuple[torch.Tensor, ...]:
     return (
         model["embedding_table"],
-        model["hidden_weights"],
-        model["hidden_bias"],
-        model["output_weights"],
-        model["output_bias"],
+        model["W_xh"],
+        model["B_xh"],
+        model["W_hh"],
+        model["B_hh"],
+        model["W_hy"],
+        model["B_hy"],
     )
 
 
 def init_model(vocab_size: int) -> Model:
     tanh_gain = 5.0 / 3.0
-    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
     model: Model = {
         "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "hidden_weights": torch.randn((input_dim, HIDDEN_DIM)) * (tanh_gain / math.sqrt(input_dim)),
-        "hidden_bias": torch.zeros((HIDDEN_DIM,)),
-        "output_weights": torch.randn((HIDDEN_DIM, vocab_size)) * (1.0 / math.sqrt(HIDDEN_DIM)),
-        "output_bias": torch.zeros((vocab_size,)),
+        "W_xh": torch.randn((EMBEDDING_DIM, HIDDEN_DIM)) * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
+        "B_xh": torch.zeros((HIDDEN_DIM,)),
+        "W_hh": torch.randn((HIDDEN_DIM, HIDDEN_DIM)) * (tanh_gain / math.sqrt(HIDDEN_DIM)),
+        "B_hh": torch.zeros((HIDDEN_DIM,)),
+        "W_hy": torch.randn((HIDDEN_DIM, vocab_size)) * (tanh_gain / math.sqrt(HIDDEN_DIM)),
+        "B_hy": torch.zeros((vocab_size,)),
     }
     for param in model_params(model):
         param.requires_grad = True
     return model
 
 
-def build_examples(
-    token_ids: torch.Tensor,
-    start_positions: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    offsets = torch.arange(CONTEXT_LENGTH, device=start_positions.device)
-    input_ids = token_ids[start_positions[:, None] + offsets]
-    target_ids = token_ids[start_positions + CONTEXT_LENGTH]
-    return input_ids, target_ids
-
-
 def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).flatten(1)
+    embedded = F.embedding(input_ids, model["embedding_table"])
     hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
     return hidden @ model["output_weights"] + model["output_bias"]
 
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
-        start_positions = torch.arange(len(token_ids) - CONTEXT_LENGTH)
-        input_ids, target_ids = build_examples(token_ids, start_positions)
+        input_ids = token_ids[:-1]
+        target_ids = token_ids[1:]
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
         return float(loss.item())
 
 
-def sample_text(
-    vocab_chars: list[str],
-    sample_length: int,
-    model: Model,
-    seed_token_ids: torch.Tensor,
-) -> str:
+def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
     with torch.no_grad():
-        seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
-        context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH].clone()
-        sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
+        token_id = random.randrange(len(vocab_chars))
+        sample = [vocab_chars[token_id]]
+        current_token = torch.tensor([token_id], dtype=torch.long)
 
-        for _ in range(max(sample_length - len(sample), 0)):
-            logits = forward(context.unsqueeze(0), model)
+        for _ in range(sample_length - 1):
+            logits = forward(current_token, model)
             probs = F.softmax(logits[0], dim=0)
-            next_token_id = int(torch.multinomial(probs, num_samples=1).item())
-            sample.append(vocab_chars[next_token_id])
-            context = torch.cat([context[1:], context.new_tensor([next_token_id])])
+            token_id = int(torch.multinomial(probs, num_samples=1).item())
+            sample.append(vocab_chars[token_id])
+            current_token = torch.tensor([token_id], dtype=torch.long)
 
     return "".join(sample)
 
@@ -127,11 +114,6 @@ def main() -> None:
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
-    if len(train_token_ids) <= CONTEXT_LENGTH or len(val_token_ids) <= CONTEXT_LENGTH:
-        raise ValueError(
-            f"Dataset splits are too small for context length {CONTEXT_LENGTH}. "
-            "Need at least one full context window plus one target token in each split."
-        )
 
     model = init_model(vocab_size)
     loss_history: list[tuple[int, float, float]] = []
@@ -139,8 +121,9 @@ def main() -> None:
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        start_positions = torch.randint(0, len(train_token_ids) - CONTEXT_LENGTH, (BATCH_SIZE,))
-        input_ids, target_ids = build_examples(train_token_ids, start_positions)
+        batch_indices = torch.randint(0, len(train_token_ids) - 1, (BATCH_SIZE,))
+        input_ids = train_token_ids[batch_indices]
+        target_ids = train_token_ids[batch_indices + 1]
         logits = forward(input_ids, model)
         loss = F.cross_entropy(logits, target_ids)
 
@@ -169,7 +152,7 @@ def main() -> None:
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
     total_seconds = perf_counter() - total_start
 
