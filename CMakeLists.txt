@@ -54,12 +54,6 @@ target_include_directories(_C PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/native/include"
 )
 
-if (APPLE)
-  find_library(ACCELERATE_FRAMEWORK Accelerate REQUIRED)
-  target_compile_definitions(_C PRIVATE ACCELERATE_NEW_LAPACK)
-  target_link_libraries(_C PRIVATE "${ACCELERATE_FRAMEWORK}")
-endif()
-
 # Add include dirs here as you grow (native/include, native/src, etc.).
 
 # Make the module importable without installation:
