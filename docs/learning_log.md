@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09 and 2026-03-12.
+Runs recorded on 2026-03-09, 2026-03-12, and 2026-03-14.
 
 ## Summary
 
@@ -9,13 +9,15 @@ Runs recorded on 2026-03-09 and 2026-03-12.
 | 001 | `experiments/001_bigram_torch.py` | 0 | 2.454943 | - | - | - | 15.738 | [csv](../artifacts/experiments/001_bigram_torch/20260309_001835_287317/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_torch/20260309_001835_287317/loss_curve.svg) |
 | 001 | `experiments/001_bigram_bt.py` | 0 | 2.454943 | - | - | - | 2.306 | [csv](../artifacts/experiments/001_bigram_bt/20260309_001819_741240/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_bt/20260309_001819_741240/loss_curve.svg) |
 | 002 | `experiments/002_mlp_torch.py` | 50000 | 2.488925 | 2.523084 | 18.423 | 2713.927 | 19.376 | [csv](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_curve.svg) |
-| 002 | `experiments/002_mlp_bt.py` | 50000 | 2.466264 | 2.502053 | 113.633 | 440.014 | 126.728 | [csv](../artifacts/experiments/002_mlp_bt/20260312_003650_388215/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_bt/20260312_003650_388215/loss_curve.svg) |
+| 002 | `experiments/002_mlp_bt.py` | 50000 | 2.466264 | 2.502053 | 120.537 | 414.812 | 128.662 | [csv](../artifacts/experiments/002_mlp_bt/20260314_130209_063051/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_bt/20260314_130209_063051/loss_curve.svg) |
 | 003 | `experiments/003_context_window_linear_torch.py` | 50000 | 2.129700 | 2.229607 | 19.724 | 2534.987 | 20.977 | [csv](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_curve.svg) |
-| 003 | `experiments/003_context_window_linear_bt.py` | 50000 | 2.132292 | 2.228308 | 116.844 | 427.922 | 144.866 | [csv](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_curve.svg) |
+| 003 | `experiments/003_context_window_linear_bt.py` | 50000 | 2.132292 | 2.228308 | 109.017 | 458.643 | 138.307 | [csv](../artifacts/experiments/003_context_window_linear_bt/20260314_130431_398530/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_bt/20260314_130431_398530/loss_curve.svg) |
 | 004 | `experiments/004_context_window_mlp_torch.py` | 50000 | 1.818081 | 1.962587 | 26.318 | 1899.823 | 28.124 | [csv](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_curve.svg) |
-| 004 | `experiments/004_context_window_mlp_bt.py` | 50000 | 1.820442 | 1.953616 | 138.829 | 360.155 | 171.906 | [csv](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_curve.svg) |
+| 004 | `experiments/004_context_window_mlp_bt.py` | 50000 | 1.820442 | 1.953616 | 146.785 | 340.635 | 181.585 | [csv](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_curve.svg) |
 | 005 | `experiments/005_larger_context_mlp_torch.py` | 50000 | 1.831950 | 1.990602 | 46.127 | 1083.960 | 50.157 | [csv](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_curve.svg) |
-| 005 | `experiments/005_larger_context_mlp_bt.py` | 50000 | 1.823935 | 1.987984 | 613.498 | 81.500 | 753.654 | [csv](../artifacts/experiments/005_larger_context_mlp_bt/20260312_114057_676899/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_bt/20260312_114057_676899/loss_curve.svg) |
+| 005 | `experiments/005_larger_context_mlp_bt.py` | 50000 | 1.823935 | 1.987984 | 615.386 | 81.250 | 757.687 | [csv](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_curve.svg) |
+
+BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
 ## 001 Bigram Torch
 
@@ -89,11 +91,11 @@ RLAurthontoman ble m Yong he ceshas id o bel. we d iblee he-poteemad owis, or pe
 - Steps: `50000`
 - Train loss: `2.466264`
 - Val loss: `2.502053`
-- Train seconds: `113.633`
-- Steps per second: `440.014`
-- Total seconds: `126.728`
+- Train seconds: `120.537`
+- Steps per second: `414.812`
+- Total seconds: `128.662`
 
-![002 mlp bt loss curve](../artifacts/experiments/002_mlp_bt/20260312_003650_388215/loss_curve.svg)
+![002 mlp bt loss curve](../artifacts/experiments/002_mlp_bt/20260314_130209_063051/loss_curve.svg)
 
 ```text
 henome,--kitangrenrde GLANEThorerelyou wo GABNUze
@@ -136,11 +138,11 @@ HAR
 - Steps: `50000`
 - Train loss: `2.132292`
 - Val loss: `2.228308`
-- Train seconds: `116.844`
-- Steps per second: `427.922`
-- Total seconds: `144.866`
+- Train seconds: `109.017`
+- Steps per second: `458.643`
+- Total seconds: `138.307`
 
-![003 context window linear bt loss curve](../artifacts/experiments/003_context_window_linear_bt/20260312_003938_668841/loss_curve.svg)
+![003 context window linear bt loss curve](../artifacts/experiments/003_context_window_linear_bt/20260314_130431_398530/loss_curve.svg)
 
 ```text
 to aurenoghay sould, lowenc.
@@ -182,11 +184,11 @@ Mithee than we with, on youl defrenctlick, andicatund m
 - Steps: `50000`
 - Train loss: `1.820442`
 - Val loss: `1.953616`
-- Train seconds: `138.829`
-- Steps per second: `360.155`
-- Total seconds: `171.906`
+- Train seconds: `146.785`
+- Steps per second: `340.635`
+- Total seconds: `181.585`
 
-![004 context window mlp bt loss curve](../artifacts/experiments/004_context_window_mlp_bt/20260312_004301_722183/loss_curve.svg)
+![004 context window mlp bt loss curve](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_curve.svg)
 
 ```text
 to as ople:
@@ -220,11 +222,11 @@ go she dirn, tad in cri
 - Steps: `50000`
 - Train loss: `1.823935`
 - Val loss: `1.987984`
-- Train seconds: `613.498`
-- Steps per second: `81.500`
-- Total seconds: `753.654`
+- Train seconds: `615.386`
+- Steps per second: `81.250`
+- Total seconds: `757.687`
 
-![005 larger context mlp bt loss curve](../artifacts/experiments/005_larger_context_mlp_bt/20260312_114057_676899/loss_curve.svg)
+![005 larger context mlp bt loss curve](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_curve.svg)
 
 ```text
 to account this witherbey spon, whise.

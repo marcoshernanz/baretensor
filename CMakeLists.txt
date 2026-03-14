@@ -2,14 +2,27 @@ cmake_minimum_required(VERSION 3.28)
 
 project(baretensor LANGUAGES CXX)
 
+include(CheckIPOSupported)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build." FORCE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+  string(APPEND CMAKE_CXX_FLAGS_RELEASE " -ffp-contract=fast")
+elseif (MSVC)
+  string(APPEND CMAKE_CXX_FLAGS_RELEASE " /fp:fast")
+endif()
+
+check_ipo_supported(RESULT BT_IPO_SUPPORTED OUTPUT BT_IPO_ERROR)
+if (BT_IPO_SUPPORTED)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
 find_package(Python 3.13 COMPONENTS Interpreter Development.Module REQUIRED)
