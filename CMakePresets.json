@@ -8,11 +8,11 @@
   "configurePresets": [
     {
       "name": "dev",
-      "displayName": "dev (Ninja, RelWithDebInfo)",
+      "displayName": "dev (Ninja, Release)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_BUILD_TYPE": "Release",
         "Python_EXECUTABLE": "${sourceDir}/.venv/bin/python"
       }
     }

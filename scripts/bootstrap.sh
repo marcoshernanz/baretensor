@@ -13,8 +13,8 @@ fi
 
 uv sync --dev
 
-cmake -S . -B build -G Ninja -DPython_EXECUTABLE="$(pwd)/.venv/bin/python"
-cmake --build build
+cmake --preset dev
+cmake --build --preset dev
 
 PYTHONPATH=src uv run python -c "import bt, numpy as np; print(bt.tensor(np.arange(4, dtype=np.float32)).shape)"
 PYTHONPATH=src uv run python -m unittest discover -v -s tests -p "test_*.py"
