@@ -71,27 +71,27 @@ def init_model(vocab_size: int) -> Model:
     return model
 
 
-def forward(batch_indices: torch.Tensor, token_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    prev_hidden: torch.Tensor | None = None
+def rnn_step(input_ids: torch.Tensor, prev_hidden: torch.Tensor, model: Model):
+    embedded = F.embedding(input_ids, model["embedding_table"])
+    hidden = (
+        embedded @ model["W_xh"] + model["B_xh"] + prev_hidden @ model["W_hh"] + model["B_hh"]
+    ).tanh()
+    logits = hidden @ model["W_hy"] + model["B_hy"]
+    return logits, hidden
+
+
+def forward_sequence(
+    batch_indices: torch.Tensor, token_ids: torch.Tensor, model: Model
+) -> torch.Tensor:
+    prev_hidden: torch.Tensor = torch.zeros(EMBEDDING_DIM, HIDDEN_DIM)
     total_loss = torch.tensor(0)
 
     for i in range(SEQUENCE_LENGTH):
         input_ids = token_ids[batch_indices + i]
         target_ids = token_ids[batch_indices + i + 1]
 
-        embedded = F.embedding(input_ids, model["embedding_table"])
-        if prev_hidden:
-            hidden = (
-                embedded @ model["W_xh"]
-                + model["B_xh"]
-                + prev_hidden @ model["W_hh"]
-                + model["B_hh"]
-            ).tanh()
-        else:
-            hidden = (embedded @ model["W_xh"] + model["B_xh"]).tanh()
-        prev_hidden = hidden
+        logits, prev_hidden = rnn_step(input_ids, prev_hidden, model)
 
-        logits = hidden @ model["W_hy"] + model["B_hy"]
         loss = F.cross_entropy(logits, target_ids)
         total_loss += loss
 
@@ -102,9 +102,14 @@ def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
         input_ids = token_ids[:-1]
         target_ids = token_ids[1:]
-        logits = forward(input_ids, model)
-        loss = F.cross_entropy(logits, target_ids)
-        return float(loss.item())
+        prev_hidden: torch.Tensor = torch.zeros(HIDDEN_DIM)
+        total_loss = torch.tensor(0)
+
+        for i in range(input_ids):
+            logits, prev_hidden = rnn_step(input_ids[i], prev_hidden, model)
+            total_loss += F.cross_entropy(logits, target_ids[i])
+
+        return (total_loss / (len(token_ids) - 1)).item()
 
 
 def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str:
@@ -112,9 +117,10 @@ def sample_text(vocab_chars: list[str], sample_length: int, model: Model) -> str
         token_id = random.randrange(len(vocab_chars))
         sample = [vocab_chars[token_id]]
         current_token = torch.tensor([token_id], dtype=torch.long)
+        prev_hidden: torch.Tensor = torch.zeros(HIDDEN_DIM)
 
         for _ in range(sample_length - 1):
-            logits = forward(current_token, model)
+            logits, prev_hidden = rnn_step(current_token, prev_hidden, model)
             probs = F.softmax(logits[0], dim=0)
             token_id = int(torch.multinomial(probs, num_samples=1).item())
             sample.append(vocab_chars[token_id])
@@ -144,7 +150,7 @@ def main() -> None:
 
     for step in range(TRAIN_STEPS):
         batch_indices = torch.randint(0, len(train_token_ids) - SEQUENCE_LENGTH, (BATCH_SIZE,))
-        loss = forward(batch_indices, train_token_ids, model)
+        loss = forward_sequence(batch_indices, train_token_ids, model)
 
         for param in model_params(model):
             param.grad = None
