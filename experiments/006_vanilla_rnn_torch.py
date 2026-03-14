@@ -13,8 +13,9 @@ from experiment_artifacts import write_loss_artifacts
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
+HIDDEN_DIM = 64
+SEQUENCE_LENGTH = 16
 BATCH_SIZE = 32
-HIDDEN_DIM = 16
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 50_000
@@ -70,10 +71,31 @@ def init_model(vocab_size: int) -> Model:
     return model
 
 
-def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"])
-    hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
-    return hidden @ model["output_weights"] + model["output_bias"]
+def forward(batch_indices: torch.Tensor, token_ids: torch.Tensor, model: Model) -> torch.Tensor:
+    prev_hidden: torch.Tensor | None = None
+    total_loss = torch.tensor(0)
+
+    for i in range(SEQUENCE_LENGTH):
+        input_ids = token_ids[batch_indices + i]
+        target_ids = token_ids[batch_indices + i + 1]
+
+        embedded = F.embedding(input_ids, model["embedding_table"])
+        if prev_hidden:
+            hidden = (
+                embedded @ model["W_xh"]
+                + model["B_xh"]
+                + prev_hidden @ model["W_hh"]
+                + model["B_hh"]
+            ).tanh()
+        else:
+            hidden = (embedded @ model["W_xh"] + model["B_xh"]).tanh()
+        prev_hidden = hidden
+
+        logits = hidden @ model["W_hy"] + model["B_hy"]
+        loss = F.cross_entropy(logits, target_ids)
+        total_loss += loss
+
+    return total_loss
 
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
@@ -121,11 +143,8 @@ def main() -> None:
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        batch_indices = torch.randint(0, len(train_token_ids) - 1, (BATCH_SIZE,))
-        input_ids = train_token_ids[batch_indices]
-        target_ids = train_token_ids[batch_indices + 1]
-        logits = forward(input_ids, model)
-        loss = F.cross_entropy(logits, target_ids)
+        batch_indices = torch.randint(0, len(train_token_ids) - SEQUENCE_LENGTH, (BATCH_SIZE,))
+        loss = forward(batch_indices, train_token_ids, model)
 
         for param in model_params(model):
             param.grad = None
