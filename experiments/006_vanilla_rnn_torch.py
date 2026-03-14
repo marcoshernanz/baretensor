@@ -106,10 +106,8 @@ def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
         total_loss = torch.tensor(0.0)
 
         for i in range(len(input_ids)):
-            logits, prev_hidden = rnn_step(
-                input_ids.view(1), prev_hidden.view(1, HIDDEN_DIM), model
-            )
-            total_loss += F.cross_entropy(logits, target_ids[i].view(1))
+            logits, prev_hidden = rnn_step(input_ids[i : i + 1], prev_hidden, model)
+            total_loss += F.cross_entropy(logits, target_ids[i : i + 1])
 
         return (total_loss / (len(token_ids) - 1)).item()
 
