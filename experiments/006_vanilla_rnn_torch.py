@@ -83,7 +83,7 @@ def rnn_step(input_ids: torch.Tensor, prev_hidden: torch.Tensor, model: Model):
 def forward_sequence(
     batch_indices: torch.Tensor, token_ids: torch.Tensor, model: Model
 ) -> torch.Tensor:
-    prev_hidden: torch.Tensor = torch.zeros(BATCH_SIZE, HIDDEN_DIM)
+    prev_hidden: torch.Tensor = torch.zeros(batch_indices.shape[0], HIDDEN_DIM)
     total_loss = torch.tensor(0.0)
 
     for i in range(SEQUENCE_LENGTH):
@@ -95,7 +95,7 @@ def forward_sequence(
         loss = F.cross_entropy(logits, target_ids)
         total_loss += loss
 
-    return total_loss
+    return total_loss / SEQUENCE_LENGTH
 
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
@@ -106,8 +106,10 @@ def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
         total_loss = torch.tensor(0.0)
 
         for i in range(len(input_ids)):
-            logits, prev_hidden = rnn_step(input_ids[i], prev_hidden, model)
-            total_loss += F.cross_entropy(logits, target_ids[i])
+            logits, prev_hidden = rnn_step(
+                input_ids.view(1), prev_hidden.view(1, HIDDEN_DIM), model
+            )
+            total_loss += F.cross_entropy(logits, target_ids[i].view(1))
 
         return (total_loss / (len(token_ids) - 1)).item()
 
