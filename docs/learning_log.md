@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09, 2026-03-12, and 2026-03-14.
+Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, and 2026-03-15.
 
 ## Summary
 
@@ -16,6 +16,7 @@ Runs recorded on 2026-03-09, 2026-03-12, and 2026-03-14.
 | 004 | `experiments/004_context_window_mlp_bt.py` | 50000 | 1.820442 | 1.953616 | 146.785 | 340.635 | 181.585 | [csv](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_curve.svg) |
 | 005 | `experiments/005_larger_context_mlp_torch.py` | 50000 | 1.831950 | 1.990602 | 46.127 | 1083.960 | 50.157 | [csv](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_curve.svg) |
 | 005 | `experiments/005_larger_context_mlp_bt.py` | 50000 | 1.823935 | 1.987984 | 615.386 | 81.250 | 757.687 | [csv](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_curve.svg) |
+| 006 | `experiments/006_vanilla_rnn_torch.py` | 50000 | 1.876595 | 2.006060 | 117.845 | 424.285 | 119.276 | [csv](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -237,4 +238,32 @@ Ammy Cpare your breish. And with sure lifd,
 To hoe, and cand by sturungland.
 The worten, doo at tow will for hewer that andbosis chafier,
 F
+```
+
+## 006 Vanilla RNN Torch
+
+- Script: `experiments/006_vanilla_rnn_torch.py`
+- Steps: `50000`
+- Train loss: `1.876595`
+- Val loss: `2.006060`
+- Train seconds: `117.845`
+- Steps per second: `424.285`
+- Total seconds: `119.276`
+
+![006 vanilla rnn torch loss curve](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_curve.svg)
+
+```text
+ting were and slaive shaplfy, an
+Is then, somy;
+In yaur, O, the pay stincesite so meaclous sars' poak?
+But 'dow lord in ondures deed:
+King, and,
+ands.
+
+DUSKINGAR:
+
+vike
+Ameh!
+Is mane ivou swean?
+We tw
 ```
