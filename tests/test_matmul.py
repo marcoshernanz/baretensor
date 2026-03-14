@@ -78,7 +78,9 @@ class MatmulTests(unittest.TestCase):
     def test_non_contiguous_inputs(self) -> None:
         left = bt.tensor(_as_f32(np.arange(12).reshape(3, 4))).transpose(0, 1)
         right = bt.tensor(_as_f32(np.arange(15).reshape(3, 5)))
-        expected = _as_f32(np.matmul(_as_f32(np.arange(12).reshape(3, 4)).T, np.arange(15).reshape(3, 5)))
+        expected = _as_f32(
+            np.matmul(_as_f32(np.arange(12).reshape(3, 4)).T, np.arange(15).reshape(3, 5))
+        )
 
         out = left.matmul(right)
         np.testing.assert_allclose(to_numpy(out), expected, rtol=1e-6, atol=1e-6)
