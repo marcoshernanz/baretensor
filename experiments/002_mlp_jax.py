@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import math
+from functools import partial
 from pathlib import Path
 from time import perf_counter
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -79,13 +81,39 @@ def loss_fn(model: Model, input_ids: jax.Array, target_ids: jax.Array) -> jax.Ar
     return -jnp.mean(log_probs[jnp.arange(target_ids.shape[0]), target_ids])
 
 
-@jax.jit
 def train_step(
     model: Model, input_ids: jax.Array, target_ids: jax.Array
 ) -> tuple[Model, jax.Array]:
     loss, grads = jax.value_and_grad(loss_fn)(model, input_ids, target_ids)
     model = jax.tree_util.tree_map(lambda param, grad: param - LEARNING_RATE * grad, model, grads)
     return model, loss
+
+
+@partial(jax.jit, static_argnames=("num_steps",))
+def train_steps(
+    model: Model,
+    token_ids: jax.Array,
+    rng: jax.Array,
+    num_steps: int,
+) -> tuple[Model, jax.Array, jax.Array]:
+    def scan_step(
+        carry: tuple[Model, jax.Array], _: None
+    ) -> tuple[tuple[Model, jax.Array], jax.Array]:
+        current_model, current_rng = carry
+        current_rng, batch_rng = jax.random.split(current_rng)
+        batch_indices = jax.random.randint(
+            batch_rng,
+            shape=(BATCH_SIZE,),
+            minval=0,
+            maxval=token_ids.shape[0] - 1,
+        )
+        input_ids = token_ids[batch_indices]
+        target_ids = token_ids[batch_indices + 1]
+        current_model, loss = train_step(current_model, input_ids, target_ids)
+        return (current_model, current_rng), loss
+
+    (model, rng), losses = jax.lax.scan(scan_step, (model, rng), length=num_steps)
+    return model, rng, losses
 
 
 @jax.jit
@@ -140,28 +168,25 @@ def main() -> None:
     ema_loss: float | None = None
     train_start = perf_counter()
 
-    for step in range(TRAIN_STEPS):
-        rng, batch_rng = jax.random.split(rng)
-        batch_indices = jax.random.randint(
-            batch_rng,
-            shape=(BATCH_SIZE,),
-            minval=0,
-            maxval=train_token_ids.shape[0] - 1,
-        )
-        input_ids = train_token_ids[batch_indices]
-        target_ids = train_token_ids[batch_indices + 1]
-        model, loss = train_step(model, input_ids, target_ids)
+    for chunk_start in range(0, TRAIN_STEPS, LOG_INTERVAL):
+        chunk_steps = min(LOG_INTERVAL, TRAIN_STEPS - chunk_start)
+        model, rng, losses = train_steps(model, train_token_ids, rng, chunk_steps)
+        losses_np = np.asarray(jax.device_get(losses), dtype=np.float32)
 
-        raw_loss = float(loss.item())
-        ema_loss = (
-            raw_loss
-            if ema_loss is None
-            else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
-        )
-        loss_history.append((step, raw_loss, ema_loss))
+        for offset, raw_loss in enumerate(losses_np):
+            step = chunk_start + offset
+            raw_loss_value = float(raw_loss)
+            ema_loss = (
+                raw_loss_value
+                if ema_loss is None
+                else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss_value
+            )
+            loss_history.append((step, raw_loss_value, ema_loss))
 
-        if step % LOG_INTERVAL == 0:
-            print(f"step={step} loss={raw_loss:.6f} ema_loss={ema_loss:.6f}")
+        print(
+            f"step={chunk_start} loss={losses_np[0]:.6f} "
+            f"ema_loss={loss_history[chunk_start][2]:.6f}"
+        )
 
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
