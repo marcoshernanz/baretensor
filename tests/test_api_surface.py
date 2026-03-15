@@ -14,6 +14,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt, "ones"))
         self.assertTrue(hasattr(bt, "tensor"))
         self.assertTrue(hasattr(bt, "cat"))
+        self.assertTrue(hasattr(bt, "stack"))
         self.assertTrue(hasattr(bt, "nn"))
         self.assertTrue(hasattr(bt, "no_grad"))
         self.assertTrue(hasattr(bt.nn, "functional"))
