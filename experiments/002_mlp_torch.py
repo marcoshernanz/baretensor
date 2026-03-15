@@ -39,7 +39,7 @@ def load_text(path: Path) -> str:
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    torch.manual_seed(seed)  # type: ignore
+    torch.manual_seed(seed)
 
 
 def model_params(model: Model) -> tuple[torch.Tensor, ...]:
@@ -127,7 +127,7 @@ def main() -> None:
         for param in model_params(model):
             param.grad = None
 
-        loss.backward()  # type: ignore
+        loss.backward()
 
         with torch.no_grad():
             for param in model_params(model):
@@ -136,7 +136,11 @@ def main() -> None:
                 param -= LEARNING_RATE * grad
 
         raw_loss = float(loss.item())
-        ema_loss = raw_loss if ema_loss is None else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
+        ema_loss = (
+            raw_loss
+            if ema_loss is None
+            else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
+        )
         loss_history.append((step, raw_loss, ema_loss))
 
         if step % LOG_INTERVAL == 0:

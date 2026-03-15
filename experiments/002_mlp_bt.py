@@ -132,7 +132,7 @@ def main() -> None:
         for param in model_params(model):
             param.zero_grad()
 
-        loss.backward()  # type: ignore
+        loss.backward()
 
         with bt.no_grad():
             for param in model_params(model):
