@@ -17,6 +17,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, and 2026-03-15.
 | 005 | `experiments/005_larger_context_mlp_torch.py` | 50000 | 1.831950 | 1.990602 | 46.127 | 1083.960 | 50.157 | [csv](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_curve.svg) |
 | 005 | `experiments/005_larger_context_mlp_bt.py` | 50000 | 1.823935 | 1.987984 | 615.386 | 81.250 | 757.687 | [csv](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_curve.svg) |
 | 006 | `experiments/006_vanilla_rnn_torch.py` | 50000 | 1.876595 | 2.006060 | 117.845 | 424.285 | 119.276 | [csv](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_curve.svg) |
+| 006 | `experiments/006_vanilla_rnn_bt.py` | 50000 | 1.872256 | 2.000917 | 820.450 | 60.942 | 832.126 | [csv](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -266,4 +267,28 @@ vike
 Ameh!
 Is mane ivou swean?
 We tw
+```
+
+## 006 Vanilla RNN BareTensor
+
+- Script: `experiments/006_vanilla_rnn_bt.py`
+- Steps: `50000`
+- Train loss: `1.872256`
+- Val loss: `2.000917`
+- Train seconds: `820.450`
+- Steps per second: `60.942`
+- Total seconds: `832.126`
+
+![006 vanilla rnn bt loss curve](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_curve.svg)
+
+```text
+to not piver; be therefo, a crown.
+
+Muspaymace coze, do Rusirfer spirver quisilks?
+
+KING OMIALY:
+I mone in dy; to: son of triedry which siads, wrath lopion furratl of lay:
+I:
+Be,
+She give, I foop boon
 ```
