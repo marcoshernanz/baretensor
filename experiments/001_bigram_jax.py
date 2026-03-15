@@ -46,7 +46,7 @@ def sample_text(probs: jax.Array, chars: list[str], sample_len: int, rng: jax.Ar
     sample = [chars[sample_id]]
     for _ in range(sample_len - 1):
         rng, sample_rng = jax.random.split(rng)
-        sample_id = int(jax.random.multinomial(sample_rng, 1, probs[sample_id]).item())
+        sample_id = int(jax.random.categorical(sample_rng, jnp.log(probs[sample_id])).item())
         sample.append(chars[sample_id])
     return "".join(sample)
 
