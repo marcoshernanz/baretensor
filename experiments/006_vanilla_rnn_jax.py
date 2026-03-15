@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import math
+from functools import partial
 from pathlib import Path
-import random
 from time import perf_counter
 
-import torch
-import torch.nn.functional as F
+import jax
+import jax.numpy as jnp
+import numpy as np
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -24,7 +25,7 @@ LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
-Model = dict[str, torch.Tensor]
+Model = dict[str, jax.Array]
 
 
 def load_text(path: Path) -> str:
@@ -39,205 +40,246 @@ def load_text(path: Path) -> str:
     return text
 
 
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    torch.manual_seed(seed)
+def set_seed(seed: int) -> jax.Array:
+    return jax.random.key(seed)
 
 
-def model_params(model: Model) -> tuple[torch.Tensor, ...]:
-    return (
-        model["embedding_table"],
-        model["input_weights"],
-        model["recurrent_weights"],
-        model["hidden_bias"],
-        model["output_weights"],
-        model["output_bias"],
-    )
-
-
-def init_model(vocab_size: int) -> Model:
+def init_model(vocab_size: int, rng: jax.Array) -> Model:
     tanh_gain = 5.0 / 3.0
-    model: Model = {
-        "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "input_weights": torch.randn((EMBEDDING_DIM, HIDDEN_DIM))
+    embedding_rng, input_rng, recurrent_rng, output_rng = jax.random.split(rng, 4)
+    return {
+        "embedding_table": jax.random.normal(
+            embedding_rng,
+            (vocab_size, EMBEDDING_DIM),
+            dtype=jnp.float32,
+        )
+        * 0.1,
+        "input_weights": jax.random.normal(
+            input_rng,
+            (EMBEDDING_DIM, HIDDEN_DIM),
+            dtype=jnp.float32,
+        )
         * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
-        "recurrent_weights": torch.randn((HIDDEN_DIM, HIDDEN_DIM))
+        "recurrent_weights": jax.random.normal(
+            recurrent_rng,
+            (HIDDEN_DIM, HIDDEN_DIM),
+            dtype=jnp.float32,
+        )
         * (tanh_gain / math.sqrt(HIDDEN_DIM)),
-        "hidden_bias": torch.zeros((HIDDEN_DIM,)),
-        "output_weights": torch.randn((HIDDEN_DIM, vocab_size)) * (1.0 / math.sqrt(HIDDEN_DIM)),
-        "output_bias": torch.zeros((vocab_size,)),
+        "hidden_bias": jnp.zeros((HIDDEN_DIM,), dtype=jnp.float32),
+        "output_weights": jax.random.normal(
+            output_rng,
+            (HIDDEN_DIM, vocab_size),
+            dtype=jnp.float32,
+        )
+        * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "output_bias": jnp.zeros((vocab_size,), dtype=jnp.float32),
     }
-    for param in model_params(model):
-        param.requires_grad = True
-    return model
 
 
-def init_hidden_state(batch_size: int, model: Model) -> torch.Tensor:
-    return model["hidden_bias"].new_zeros((batch_size, HIDDEN_DIM))
+def init_hidden_state(batch_size: int) -> jax.Array:
+    return jnp.zeros((batch_size, HIDDEN_DIM), dtype=jnp.float32)
 
 
 def build_sequences(
-    token_ids: torch.Tensor,
-    start_positions: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    offsets = torch.arange(SEQUENCE_LENGTH + 1, device=start_positions.device)
+    token_ids: jax.Array,
+    start_positions: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
+    offsets = jnp.arange(SEQUENCE_LENGTH + 1, dtype=start_positions.dtype)
     sequence_token_ids = token_ids[start_positions[:, None] + offsets]
     return sequence_token_ids[:, :-1], sequence_token_ids[:, 1:]
 
 
 def rnn_step(
-    input_token_ids: torch.Tensor,
-    previous_hidden_state: torch.Tensor,
+    input_token_ids: jax.Array,
+    previous_hidden_state: jax.Array,
     model: Model,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    embedded_tokens = F.embedding(input_token_ids, model["embedding_table"])
-    hidden_state = (
+) -> tuple[jax.Array, jax.Array]:
+    embedded_tokens = model["embedding_table"][input_token_ids]
+    hidden_state = jnp.tanh(
         embedded_tokens @ model["input_weights"]
         + previous_hidden_state @ model["recurrent_weights"]
         + model["hidden_bias"]
-    ).tanh()
+    )
     logits = hidden_state @ model["output_weights"] + model["output_bias"]
     return logits, hidden_state
 
 
 def forward_sequence(
-    input_token_ids: torch.Tensor,
+    input_token_ids: jax.Array,
     model: Model,
-    initial_hidden_state: torch.Tensor | None = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    batch_size, sequence_length = input_token_ids.shape
-    hidden_state = (
-        init_hidden_state(batch_size, model)
-        if initial_hidden_state is None
-        else initial_hidden_state
-    )
-    logits_by_step: list[torch.Tensor] = []
+    initial_hidden_state: jax.Array | None = None,
+) -> tuple[jax.Array, jax.Array]:
+    batch_size = input_token_ids.shape[0]
+    hidden_state = init_hidden_state(batch_size) if initial_hidden_state is None else initial_hidden_state
 
-    for time_step in range(sequence_length):
-        step_input_token_ids = input_token_ids[:, time_step]
-        step_logits, hidden_state = rnn_step(step_input_token_ids, hidden_state, model)
-        logits_by_step.append(step_logits)
+    def scan_step(
+        current_hidden_state: jax.Array,
+        step_input_token_ids: jax.Array,
+    ) -> tuple[jax.Array, jax.Array]:
+        step_logits, next_hidden_state = rnn_step(step_input_token_ids, current_hidden_state, model)
+        return next_hidden_state, step_logits
 
-    return torch.stack(logits_by_step, dim=1), hidden_state
+    hidden_state, logits_by_step = jax.lax.scan(scan_step, hidden_state, input_token_ids.T)
+    return jnp.swapaxes(logits_by_step, 0, 1), hidden_state
 
 
-def sequence_loss(logits_by_step: torch.Tensor, target_token_ids: torch.Tensor) -> torch.Tensor:
+def sequence_loss(logits_by_step: jax.Array, target_token_ids: jax.Array) -> jax.Array:
     vocab_size = logits_by_step.shape[-1]
-    return F.cross_entropy(
-        logits_by_step.reshape(-1, vocab_size),
-        target_token_ids.reshape(-1),
-    )
+    logits = logits_by_step.reshape((-1, vocab_size))
+    targets = target_token_ids.reshape((-1,))
+    log_probs = jax.nn.log_softmax(logits, axis=-1)
+    return -jnp.mean(log_probs[jnp.arange(targets.shape[0]), targets])
 
 
-def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
-    with torch.no_grad():
-        start_positions = torch.arange(
-            0,
-            len(token_ids) - SEQUENCE_LENGTH,
-            SEQUENCE_LENGTH,
-            device=token_ids.device,
+def loss_fn(model: Model, input_token_ids: jax.Array, target_token_ids: jax.Array) -> jax.Array:
+    logits_by_step, _ = forward_sequence(input_token_ids, model)
+    return sequence_loss(logits_by_step, target_token_ids)
+
+
+def train_step(
+    model: Model,
+    input_token_ids: jax.Array,
+    target_token_ids: jax.Array,
+) -> tuple[Model, jax.Array]:
+    loss, grads = jax.value_and_grad(loss_fn)(model, input_token_ids, target_token_ids)
+    model = jax.tree_util.tree_map(lambda param, grad: param - LEARNING_RATE * grad, model, grads)
+    return model, loss
+
+
+@partial(jax.jit, static_argnames=("num_steps",))
+def train_steps(
+    model: Model,
+    token_ids: jax.Array,
+    rng: jax.Array,
+    num_steps: int,
+) -> tuple[Model, jax.Array, jax.Array]:
+    def scan_step(carry: tuple[Model, jax.Array], _: None) -> tuple[tuple[Model, jax.Array], jax.Array]:
+        current_model, current_rng = carry
+        current_rng, batch_rng = jax.random.split(current_rng)
+        start_positions = jax.random.randint(
+            batch_rng,
+            shape=(BATCH_SIZE,),
+            minval=0,
+            maxval=token_ids.shape[0] - SEQUENCE_LENGTH,
         )
-        total_loss = 0.0
-        total_sequences = 0
+        input_token_ids, target_token_ids = build_sequences(token_ids, start_positions)
+        current_model, loss = train_step(current_model, input_token_ids, target_token_ids)
+        return (current_model, current_rng), loss
 
-        for batch_start in range(0, len(start_positions), EVAL_BATCH_SIZE):
-            batch_positions = start_positions[batch_start : batch_start + EVAL_BATCH_SIZE]
-            input_token_ids, target_token_ids = build_sequences(token_ids, batch_positions)
-            logits_by_step, _ = forward_sequence(input_token_ids, model)
-            batch_loss = sequence_loss(logits_by_step, target_token_ids)
-            batch_sequence_count = int(batch_positions.numel())
-            total_loss += float(batch_loss.item()) * batch_sequence_count
-            total_sequences += batch_sequence_count
+    (model, rng), losses = jax.lax.scan(scan_step, (model, rng), length=num_steps)
+    return model, rng, losses
 
-        return total_loss / total_sequences
+
+@jax.jit
+def evaluate_batch_loss(
+    token_ids: jax.Array,
+    start_positions: jax.Array,
+    model: Model,
+) -> jax.Array:
+    input_token_ids, target_token_ids = build_sequences(token_ids, start_positions)
+    return loss_fn(model, input_token_ids, target_token_ids)
+
+
+def evaluate_split(token_ids: jax.Array, model: Model) -> float:
+    start_positions = jnp.arange(0, token_ids.shape[0] - SEQUENCE_LENGTH, SEQUENCE_LENGTH, dtype=jnp.int32)
+    total_loss = 0.0
+    total_sequences = 0
+
+    for batch_start in range(0, start_positions.shape[0], EVAL_BATCH_SIZE):
+        batch_positions = start_positions[batch_start : batch_start + EVAL_BATCH_SIZE]
+        batch_loss = evaluate_batch_loss(token_ids, batch_positions, model)
+        batch_sequence_count = int(batch_positions.shape[0])
+        total_loss += float(batch_loss.item()) * batch_sequence_count
+        total_sequences += batch_sequence_count
+
+    return total_loss / total_sequences
 
 
 def sample_text(
     vocab_chars: list[str],
     sample_length: int,
     model: Model,
-    seed_token_ids: torch.Tensor,
+    seed_token_ids: jax.Array,
+    rng: jax.Array,
 ) -> str:
     if sample_length <= 0:
         return ""
 
-    with torch.no_grad():
-        seed_token_id = int(seed_token_ids[random.randrange(len(seed_token_ids))].item())
-        sample = [vocab_chars[seed_token_id]]
-        current_token_ids = seed_token_ids.new_tensor([seed_token_id])
-        hidden_state = init_hidden_state(1, model)
+    rng, seed_rng = jax.random.split(rng)
+    seed_index = int(
+        jax.random.randint(
+            seed_rng,
+            shape=(),
+            minval=0,
+            maxval=seed_token_ids.shape[0],
+        ).item()
+    )
+    token_id = int(seed_token_ids[seed_index].item())
+    sample = [vocab_chars[token_id]]
+    current_token_ids = jnp.asarray([token_id], dtype=jnp.int32)
+    hidden_state = init_hidden_state(1)
 
-        for _ in range(sample_length - 1):
-            logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
-            probabilities = F.softmax(logits[0], dim=0)
-            next_token_id = int(torch.multinomial(probabilities, num_samples=1).item())
-            sample.append(vocab_chars[next_token_id])
-            current_token_ids = seed_token_ids.new_tensor([next_token_id])
+    for _ in range(sample_length - 1):
+        logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
+        rng, token_rng = jax.random.split(rng)
+        token_id = int(jax.random.categorical(token_rng, logits[0]).item())
+        sample.append(vocab_chars[token_id])
+        current_token_ids = jnp.asarray([token_id], dtype=jnp.int32)
 
     return "".join(sample)
 
 
 def main() -> None:
     total_start = perf_counter()
-    set_seed(SEED)
+    rng = set_seed(SEED)
     text = load_text(DATA_PATH)
 
     vocab_chars = sorted(set(text))
     char_to_index = {char: idx for idx, char in enumerate(vocab_chars)}
     vocab_size = len(char_to_index)
 
-    token_ids = torch.tensor([char_to_index[ch] for ch in text], dtype=torch.long)
-    num_tokens = len(token_ids)
+    token_ids = jnp.asarray([char_to_index[ch] for ch in text], dtype=jnp.int32)
+    num_tokens = token_ids.shape[0]
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
-    if len(train_token_ids) <= SEQUENCE_LENGTH or len(val_token_ids) <= SEQUENCE_LENGTH:
+    if train_token_ids.shape[0] <= SEQUENCE_LENGTH or val_token_ids.shape[0] <= SEQUENCE_LENGTH:
         raise ValueError(
             f"Dataset splits are too small for sequence length {SEQUENCE_LENGTH}. "
             "Need at least one full input sequence plus one target token in each split."
         )
 
-    model = init_model(vocab_size)
+    rng, model_rng = jax.random.split(rng)
+    model = init_model(vocab_size, model_rng)
     loss_history: list[tuple[int, float, float]] = []
     ema_loss: float | None = None
     train_start = perf_counter()
 
-    for step in range(TRAIN_STEPS):
-        start_positions = torch.randint(
-            0,
-            len(train_token_ids) - SEQUENCE_LENGTH,
-            (BATCH_SIZE,),
-            device=train_token_ids.device,
+    for chunk_start in range(0, TRAIN_STEPS, LOG_INTERVAL):
+        chunk_steps = min(LOG_INTERVAL, TRAIN_STEPS - chunk_start)
+        model, rng, losses = train_steps(model, train_token_ids, rng, chunk_steps)
+        losses_np = np.asarray(jax.device_get(losses), dtype=np.float32)
+
+        for offset, raw_loss in enumerate(losses_np):
+            step = chunk_start + offset
+            raw_loss_value = float(raw_loss)
+            ema_loss = (
+                raw_loss_value
+                if ema_loss is None
+                else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss_value
+            )
+            loss_history.append((step, raw_loss_value, ema_loss))
+
+        print(
+            f"step={chunk_start} loss={losses_np[0]:.6f} "
+            f"ema_loss={loss_history[chunk_start][2]:.6f}"
         )
-        input_token_ids, target_token_ids = build_sequences(train_token_ids, start_positions)
-        logits_by_step, _ = forward_sequence(input_token_ids, model)
-        loss = sequence_loss(logits_by_step, target_token_ids)
-
-        for param in model_params(model):
-            param.grad = None
-
-        loss.backward()
-
-        with torch.no_grad():
-            for param in model_params(model):
-                grad = param.grad
-                assert grad is not None
-                param -= LEARNING_RATE * grad
-
-        raw_loss = float(loss.item())
-        ema_loss = (
-            raw_loss
-            if ema_loss is None
-            else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
-        )
-        loss_history.append((step, raw_loss, ema_loss))
-
-        if step % LOG_INTERVAL == 0:
-            print(f"step={step} loss={raw_loss:.6f} ema_loss={ema_loss:.6f}")
 
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids)
+    rng, sample_rng = jax.random.split(rng)
+    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids, sample_rng)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
     total_seconds = perf_counter() - total_start
 
