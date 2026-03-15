@@ -4,9 +4,11 @@ import math
 from pathlib import Path
 import random
 from time import perf_counter
+from typing import cast
 
-import torch
-import torch.nn.functional as F
+import bt
+import bt.nn.functional as F
+import numpy as np
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -24,7 +26,7 @@ LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
-Model = dict[str, torch.Tensor]
+Model = dict[str, bt.Tensor]
 
 
 def load_text(path: Path) -> str:
@@ -41,10 +43,10 @@ def load_text(path: Path) -> str:
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    torch.manual_seed(seed)  # type: ignore
+    np.random.seed(seed)
 
 
-def model_params(model: Model) -> tuple[torch.Tensor, ...]:
+def model_params(model: Model) -> tuple[bt.Tensor, ...]:
     return (
         model["embedding_table"],
         model["input_weights"],
@@ -58,38 +60,40 @@ def model_params(model: Model) -> tuple[torch.Tensor, ...]:
 def init_model(vocab_size: int) -> Model:
     tanh_gain = 5.0 / 3.0
     model: Model = {
-        "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "input_weights": torch.randn((EMBEDDING_DIM, HIDDEN_DIM))
+        "embedding_table": bt.tensor(np.random.randn(vocab_size, EMBEDDING_DIM).astype(np.float32))
+        * 0.1,
+        "input_weights": bt.tensor(np.random.randn(EMBEDDING_DIM, HIDDEN_DIM).astype(np.float32))
         * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
-        "recurrent_weights": torch.randn((HIDDEN_DIM, HIDDEN_DIM))
+        "recurrent_weights": bt.tensor(np.random.randn(HIDDEN_DIM, HIDDEN_DIM).astype(np.float32))
         * (tanh_gain / math.sqrt(HIDDEN_DIM)),
-        "hidden_bias": torch.zeros((HIDDEN_DIM,)),
-        "output_weights": torch.randn((HIDDEN_DIM, vocab_size)) * (1.0 / math.sqrt(HIDDEN_DIM)),
-        "output_bias": torch.zeros((vocab_size,)),
+        "hidden_bias": bt.zeros((HIDDEN_DIM,)),
+        "output_weights": bt.tensor(np.random.randn(HIDDEN_DIM, vocab_size).astype(np.float32))
+        * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "output_bias": bt.zeros((vocab_size,)),
     }
     for param in model_params(model):
         param.requires_grad = True
     return model
 
 
-def init_hidden_state(batch_size: int, model: Model) -> torch.Tensor:
-    return model["hidden_bias"].new_zeros((batch_size, HIDDEN_DIM))
+def init_hidden_state(batch_size: int) -> bt.Tensor:
+    return bt.zeros((batch_size, HIDDEN_DIM))
 
 
 def build_sequences(
-    token_ids: torch.Tensor,
-    start_positions: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    offsets = torch.arange(SEQUENCE_LENGTH + 1, device=start_positions.device)
+    token_ids: np.ndarray,
+    start_positions: np.ndarray,
+) -> tuple[bt.Tensor, bt.Tensor]:
+    offsets = np.arange(SEQUENCE_LENGTH + 1, dtype=np.int64)
     sequence_token_ids = token_ids[start_positions[:, None] + offsets]
-    return sequence_token_ids[:, :-1], sequence_token_ids[:, 1:]
+    return bt.tensor(sequence_token_ids[:, :-1]), bt.tensor(sequence_token_ids[:, 1:])
 
 
 def rnn_step(
-    input_token_ids: torch.Tensor,
-    previous_hidden_state: torch.Tensor,
+    input_token_ids: bt.Tensor,
+    previous_hidden_state: bt.Tensor,
     model: Model,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[bt.Tensor, bt.Tensor]:
     embedded_tokens = F.embedding(input_token_ids, model["embedding_table"])
     hidden_state = (
         embedded_tokens @ model["input_weights"]
@@ -101,42 +105,29 @@ def rnn_step(
 
 
 def forward_sequence(
-    input_token_ids: torch.Tensor,
+    input_token_ids: bt.Tensor,
     model: Model,
-    initial_hidden_state: torch.Tensor | None = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
+    initial_hidden_state: bt.Tensor | None = None,
+) -> tuple[bt.Tensor, bt.Tensor]:
     batch_size, sequence_length = input_token_ids.shape
-    hidden_state = (
-        init_hidden_state(batch_size, model)
-        if initial_hidden_state is None
-        else initial_hidden_state
-    )
-    logits_by_step: list[torch.Tensor] = []
+    hidden_state = init_hidden_state(batch_size) if initial_hidden_state is None else initial_hidden_state
+    logits_by_step: list[bt.Tensor] = []
 
     for time_step in range(sequence_length):
         step_input_token_ids = input_token_ids[:, time_step]
         step_logits, hidden_state = rnn_step(step_input_token_ids, hidden_state, model)
-        logits_by_step.append(step_logits)
+        logits_by_step.append(step_logits.reshape((batch_size, step_logits.shape[1], 1)))
 
-    return torch.stack(logits_by_step, dim=1), hidden_state
-
-
-def sequence_loss(logits_by_step: torch.Tensor, target_token_ids: torch.Tensor) -> torch.Tensor:
-    vocab_size = logits_by_step.shape[-1]
-    return F.cross_entropy(
-        logits_by_step.reshape(-1, vocab_size),
-        target_token_ids.reshape(-1),
-    )
+    return bt.cat(logits_by_step, dim=2), hidden_state
 
 
-def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
-    with torch.no_grad():
-        start_positions = torch.arange(
-            0,
-            len(token_ids) - SEQUENCE_LENGTH,
-            SEQUENCE_LENGTH,
-            device=token_ids.device,
-        )
+def sequence_loss(logits_by_step: bt.Tensor, target_token_ids: bt.Tensor) -> bt.Tensor:
+    return F.cross_entropy(logits_by_step, target_token_ids)
+
+
+def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
+    with bt.no_grad():
+        start_positions = np.arange(0, len(token_ids) - SEQUENCE_LENGTH, SEQUENCE_LENGTH)
         total_loss = 0.0
         total_sequences = 0
 
@@ -145,8 +136,8 @@ def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
             input_token_ids, target_token_ids = build_sequences(token_ids, batch_positions)
             logits_by_step, _ = forward_sequence(input_token_ids, model)
             batch_loss = sequence_loss(logits_by_step, target_token_ids)
-            batch_sequence_count = int(batch_positions.numel())
-            total_loss += float(batch_loss.item()) * batch_sequence_count
+            batch_sequence_count = len(batch_positions)
+            total_loss += cast(float, batch_loss.item()) * batch_sequence_count
             total_sequences += batch_sequence_count
 
         return total_loss / total_sequences
@@ -156,23 +147,24 @@ def sample_text(
     vocab_chars: list[str],
     sample_length: int,
     model: Model,
-    seed_token_ids: torch.Tensor,
+    seed_token_ids: np.ndarray,
 ) -> str:
     if sample_length <= 0:
         return ""
 
-    with torch.no_grad():
-        seed_token_id = int(seed_token_ids[random.randrange(len(seed_token_ids))].item())
+    with bt.no_grad():
+        seed_token_id = int(seed_token_ids[random.randrange(len(seed_token_ids))])
         sample = [vocab_chars[seed_token_id]]
-        current_token_ids = seed_token_ids.new_tensor([seed_token_id])
-        hidden_state = init_hidden_state(1, model)
+        current_token_ids = bt.tensor([seed_token_id])
+        hidden_state = init_hidden_state(1)
 
         for _ in range(sample_length - 1):
             logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
-            probabilities = F.softmax(logits[0], dim=0)
-            next_token_id = int(torch.multinomial(probabilities, num_samples=1).item())
+            probabilities = logits[0].softmax(0)
+            weights = np.asarray(probabilities.numpy(), dtype=np.float32).tolist()
+            next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
             sample.append(vocab_chars[next_token_id])
-            current_token_ids = seed_token_ids.new_tensor([next_token_id])
+            current_token_ids = bt.tensor([next_token_id])
 
     return "".join(sample)
 
@@ -186,7 +178,7 @@ def main() -> None:
     char_to_index = {char: idx for idx, char in enumerate(vocab_chars)}
     vocab_size = len(char_to_index)
 
-    token_ids = torch.tensor([char_to_index[ch] for ch in text], dtype=torch.long)
+    token_ids = np.array([char_to_index[ch] for ch in text], dtype=np.int64)
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
@@ -202,28 +194,23 @@ def main() -> None:
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        start_positions = torch.randint(
-            0,
-            len(train_token_ids) - SEQUENCE_LENGTH,
-            (BATCH_SIZE,),
-            device=train_token_ids.device,
-        )
+        start_positions = np.random.randint(0, len(train_token_ids) - SEQUENCE_LENGTH, (BATCH_SIZE,))
         input_token_ids, target_token_ids = build_sequences(train_token_ids, start_positions)
         logits_by_step, _ = forward_sequence(input_token_ids, model)
         loss = sequence_loss(logits_by_step, target_token_ids)
 
         for param in model_params(model):
-            param.grad = None
+            param.zero_grad()
 
         loss.backward()  # type: ignore
 
-        with torch.no_grad():
+        with bt.no_grad():
             for param in model_params(model):
                 grad = param.grad
                 assert grad is not None
                 param -= LEARNING_RATE * grad
 
-        raw_loss = float(loss.item())
+        raw_loss = cast(float, loss.item())
         ema_loss = (
             raw_loss
             if ema_loss is None
