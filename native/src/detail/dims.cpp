@@ -35,9 +35,8 @@ namespace {
 /*
  * Normalizes and validates a single dimension for an operation.
  */
-int64_t normalize_dim_checked(std::string_view operation_name,
-                              const std::vector<int64_t> &shape, const int64_t dim,
-                              std::string_view dim_name) {
+int64_t normalize_dim_checked(std::string_view operation_name, const std::vector<int64_t> &shape,
+                              const int64_t dim, std::string_view dim_name) {
   const int64_t rank = static_cast<int64_t>(shape.size());
   const int64_t normalized = normalize_dim(dim, rank);
   if (normalized >= 0 && normalized < rank) {
@@ -45,8 +44,26 @@ int64_t normalize_dim_checked(std::string_view operation_name,
   }
 
   std::ostringstream oss;
-  oss << operation_name << " failed for tensor with shape " << shape_to_string(shape)
-      << ": " << dim_name << "=" << dim << " is out of range for rank " << rank << ".";
+  oss << operation_name << " failed for tensor with shape " << shape_to_string(shape) << ": "
+      << dim_name << "=" << dim << " is out of range for rank " << rank << ".";
+  throw std::invalid_argument(oss.str());
+}
+
+/*
+ * Normalizes and validates a single insertion dimension.
+ */
+int64_t normalize_insertion_dim_checked(std::string_view operation_name,
+                                        const std::vector<int64_t> &shape, const int64_t dim,
+                                        std::string_view dim_name) {
+  const int64_t insertion_rank = static_cast<int64_t>(shape.size()) + 1;
+  const int64_t normalized = normalize_dim(dim, insertion_rank);
+  if (normalized >= 0 && normalized < insertion_rank) {
+    return normalized;
+  }
+
+  std::ostringstream oss;
+  oss << operation_name << " failed for tensor with shape " << shape_to_string(shape) << ": "
+      << dim_name << "=" << dim << " is out of range for insertion rank " << insertion_rank << ".";
   throw std::invalid_argument(oss.str());
 }
 

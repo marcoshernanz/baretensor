@@ -225,6 +225,36 @@ Tensor Tensor::flatten(const int64_t start_dim, const int64_t end_dim) const {
 }
 
 /*
+ * Returns a view with a new size-1 dimension inserted at dim.
+ * Supports negative dimensions using Python-style indexing over the output
+ * rank.
+ */
+Tensor Tensor::unsqueeze(const int64_t dim) const {
+  bt::detail::validate_copy_metadata(*this, "unsqueeze");
+
+  const int64_t normalized_dim =
+      detail::normalize_insertion_dim_checked("unsqueeze", shape, dim, "dim");
+
+  std::vector<int64_t> target_shape = shape;
+  target_shape.insert(target_shape.begin() + static_cast<std::ptrdiff_t>(normalized_dim), 1);
+
+  std::vector<int64_t> target_strides = strides;
+  int64_t inserted_stride = 1;
+  if (ndim() != 0 && normalized_dim < ndim()) {
+    inserted_stride = shape[static_cast<size_t>(normalized_dim)] *
+                      strides[static_cast<size_t>(normalized_dim)];
+  }
+  target_strides.insert(target_strides.begin() + static_cast<std::ptrdiff_t>(normalized_dim),
+                        inserted_stride);
+
+  Tensor out(storage, storage_offset, std::move(target_shape), std::move(target_strides));
+  if (bt::detail::should_record_unary(*this)) {
+    out.set_grad_fn(std::make_shared<ViewNode>(*this));
+  }
+  return out;
+}
+
+/*
  * Returns a view with dimensions reordered according to dims.
  * Supports negative dimensions using Python-style indexing and requires
  * dims to be a full permutation of [0, ..., ndim()-1].

@@ -18,6 +18,7 @@ from ._C import (
     full as _full,
     int64,
     ones as _ones,
+    stack as _stack,
     tensor_from_numpy as _tensor_from_numpy,
     zeros as _zeros,
 )
@@ -162,6 +163,11 @@ def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
     return _cat(list(tensors), dim=dim)
 
 
+def stack(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
+    """Stack tensors along a new dimension."""
+    return _stack(list(tensors), dim=dim)
+
+
 __all__ = [
     "DType",
     "Tensor",
@@ -172,6 +178,7 @@ __all__ = [
     "nn",
     "no_grad",
     "ones",
+    "stack",
     "tensor",
     "zeros",
 ]

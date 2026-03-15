@@ -173,6 +173,65 @@ class ReshapeTests(unittest.TestCase):
         ):
             _ = tensor.flatten(1, 0)
 
+    def test_unsqueeze_inserts_leading_dimension(self) -> None:
+        source = np.arange(6, dtype=np.float32).reshape(2, 3)
+        tensor = bt.tensor(source)
+
+        expanded = tensor.unsqueeze(0)
+
+        self.assertEqual(expanded.shape, [1, 2, 3])
+        np.testing.assert_allclose(to_numpy(expanded), np.expand_dims(source, axis=0))
+
+    def test_unsqueeze_inserts_middle_dimension(self) -> None:
+        source = np.arange(6, dtype=np.float32).reshape(2, 3)
+        tensor = bt.tensor(source)
+
+        expanded = tensor.unsqueeze(1)
+
+        self.assertEqual(expanded.shape, [2, 1, 3])
+        np.testing.assert_allclose(to_numpy(expanded), np.expand_dims(source, axis=1))
+
+    def test_unsqueeze_accepts_negative_dimension(self) -> None:
+        source = np.arange(6, dtype=np.float32).reshape(2, 3)
+        tensor = bt.tensor(source)
+
+        expanded = tensor.unsqueeze(-1)
+
+        self.assertEqual(expanded.shape, [2, 3, 1])
+        np.testing.assert_allclose(to_numpy(expanded), np.expand_dims(source, axis=-1))
+
+    def test_unsqueeze_supports_scalar_tensor(self) -> None:
+        tensor = bt.tensor(np.asarray(3.5, dtype=np.float32))
+
+        expanded = tensor.unsqueeze(0)
+
+        self.assertEqual(expanded.shape, [1])
+        np.testing.assert_allclose(to_numpy(expanded), np.asarray([3.5], dtype=np.float32))
+
+    def test_unsqueeze_supports_non_contiguous_input(self) -> None:
+        source = np.arange(12, dtype=np.float32).reshape(3, 4)
+        tensor = bt.tensor(source).transpose(0, 1)
+
+        expanded = tensor.unsqueeze(1)
+
+        self.assertEqual(expanded.shape, [4, 1, 3])
+        np.testing.assert_allclose(to_numpy(expanded), np.expand_dims(source.T, axis=1))
+
+    def test_unsqueeze_rejects_out_of_range_dimension(self) -> None:
+        tensor = bt.tensor(np.arange(6, dtype=np.float32).reshape(2, 3))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"dim=3 is out of range for insertion rank 3",
+        ):
+            _ = tensor.unsqueeze(3)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"dim=-4 is out of range for insertion rank 3",
+        ):
+            _ = tensor.unsqueeze(-4)
+
 
 if __name__ == "__main__":
     unittest.main()

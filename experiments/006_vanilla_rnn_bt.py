@@ -16,21 +16,17 @@ DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespea
 SEED = 1337
 EMBEDDING_DIM = 64
 HIDDEN_DIM = 64
+SEQUENCE_LENGTH = 16
 BATCH_SIZE = 32
+EVAL_BATCH_SIZE = 256
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 50_000
-CONTEXT_LENGTH = 4
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
 Model = dict[str, bt.Tensor]
-
-
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
 
 
 def load_text(path: Path) -> str:
@@ -45,10 +41,16 @@ def load_text(path: Path) -> str:
     return text
 
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 def model_params(model: Model) -> tuple[bt.Tensor, ...]:
     return (
         model["embedding_table"],
-        model["hidden_weights"],
+        model["input_weights"],
+        model["recurrent_weights"],
         model["hidden_bias"],
         model["output_weights"],
         model["output_bias"],
@@ -57,12 +59,13 @@ def model_params(model: Model) -> tuple[bt.Tensor, ...]:
 
 def init_model(vocab_size: int) -> Model:
     tanh_gain = 5.0 / 3.0
-    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
     model: Model = {
         "embedding_table": bt.tensor(np.random.randn(vocab_size, EMBEDDING_DIM).astype(np.float32))
         * 0.1,
-        "hidden_weights": bt.tensor(np.random.randn(input_dim, HIDDEN_DIM).astype(np.float32))
-        * (tanh_gain / math.sqrt(input_dim)),
+        "input_weights": bt.tensor(np.random.randn(EMBEDDING_DIM, HIDDEN_DIM).astype(np.float32))
+        * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
+        "recurrent_weights": bt.tensor(np.random.randn(HIDDEN_DIM, HIDDEN_DIM).astype(np.float32))
+        * (tanh_gain / math.sqrt(HIDDEN_DIM)),
         "hidden_bias": bt.zeros((HIDDEN_DIM,)),
         "output_weights": bt.tensor(np.random.randn(HIDDEN_DIM, vocab_size).astype(np.float32))
         * (1.0 / math.sqrt(HIDDEN_DIM)),
@@ -73,29 +76,71 @@ def init_model(vocab_size: int) -> Model:
     return model
 
 
-def build_examples(
+def init_hidden_state(batch_size: int) -> bt.Tensor:
+    return bt.zeros((batch_size, HIDDEN_DIM))
+
+
+def build_sequences(
     token_ids: np.ndarray,
     start_positions: np.ndarray,
 ) -> tuple[bt.Tensor, bt.Tensor]:
-    offsets = np.arange(CONTEXT_LENGTH, dtype=np.int64)
-    input_ids = bt.tensor(token_ids[start_positions[:, None] + offsets])
-    target_ids = bt.tensor(token_ids[start_positions + CONTEXT_LENGTH])
-    return input_ids, target_ids
+    offsets = np.arange(SEQUENCE_LENGTH + 1, dtype=np.int64)
+    sequence_token_ids = token_ids[start_positions[:, None] + offsets]
+    return bt.tensor(sequence_token_ids[:, :-1]), bt.tensor(sequence_token_ids[:, 1:])
 
 
-def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
-    embedded = F.embedding(input_ids, model["embedding_table"]).flatten(1)
-    hidden = (embedded @ model["hidden_weights"] + model["hidden_bias"]).tanh()
-    return hidden @ model["output_weights"] + model["output_bias"]
+def rnn_step(
+    input_token_ids: bt.Tensor,
+    previous_hidden_state: bt.Tensor,
+    model: Model,
+) -> tuple[bt.Tensor, bt.Tensor]:
+    embedded_tokens = F.embedding(input_token_ids, model["embedding_table"])
+    hidden_state = (
+        embedded_tokens @ model["input_weights"]
+        + previous_hidden_state @ model["recurrent_weights"]
+        + model["hidden_bias"]
+    ).tanh()
+    logits = hidden_state @ model["output_weights"] + model["output_bias"]
+    return logits, hidden_state
+
+
+def forward_sequence(
+    input_token_ids: bt.Tensor,
+    model: Model,
+    initial_hidden_state: bt.Tensor | None = None,
+) -> tuple[bt.Tensor, bt.Tensor]:
+    batch_size, sequence_length = input_token_ids.shape
+    hidden_state = init_hidden_state(batch_size) if initial_hidden_state is None else initial_hidden_state
+    logits_by_step: list[bt.Tensor] = []
+
+    for time_step in range(sequence_length):
+        step_input_token_ids = input_token_ids[:, time_step]
+        step_logits, hidden_state = rnn_step(step_input_token_ids, hidden_state, model)
+        logits_by_step.append(step_logits)
+
+    return bt.stack(logits_by_step, dim=2), hidden_state
+
+
+def sequence_loss(logits_by_step: bt.Tensor, target_token_ids: bt.Tensor) -> bt.Tensor:
+    return F.cross_entropy(logits_by_step, target_token_ids)
 
 
 def evaluate_split(token_ids: np.ndarray, model: Model) -> float:
     with bt.no_grad():
-        start_positions = np.arange(len(token_ids) - CONTEXT_LENGTH)
-        input_ids, target_ids = build_examples(token_ids, start_positions)
-        logits = forward(input_ids, model)
-        loss = F.cross_entropy(logits, target_ids)
-        return cast(float, loss.item())
+        start_positions = np.arange(0, len(token_ids) - SEQUENCE_LENGTH, SEQUENCE_LENGTH)
+        total_loss = 0.0
+        total_sequences = 0
+
+        for batch_start in range(0, len(start_positions), EVAL_BATCH_SIZE):
+            batch_positions = start_positions[batch_start : batch_start + EVAL_BATCH_SIZE]
+            input_token_ids, target_token_ids = build_sequences(token_ids, batch_positions)
+            logits_by_step, _ = forward_sequence(input_token_ids, model)
+            batch_loss = sequence_loss(logits_by_step, target_token_ids)
+            batch_sequence_count = len(batch_positions)
+            total_loss += cast(float, batch_loss.item()) * batch_sequence_count
+            total_sequences += batch_sequence_count
+
+        return total_loss / total_sequences
 
 
 def sample_text(
@@ -104,19 +149,22 @@ def sample_text(
     model: Model,
     seed_token_ids: np.ndarray,
 ) -> str:
-    with bt.no_grad():
-        seed_start = random.randrange(len(seed_token_ids) - CONTEXT_LENGTH + 1)
-        seed_context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
-        context = bt.tensor(seed_context)
-        sample = [vocab_chars[int(token_id)] for token_id in seed_context[:sample_length]]
+    if sample_length <= 0:
+        return ""
 
-        for _ in range(max(sample_length - len(sample), 0)):
-            logits = forward(context.unsqueeze(0), model)
-            probs = logits[0].softmax(0)
-            weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
+    with bt.no_grad():
+        seed_token_id = int(seed_token_ids[random.randrange(len(seed_token_ids))])
+        sample = [vocab_chars[seed_token_id]]
+        current_token_ids = bt.tensor([seed_token_id])
+        hidden_state = init_hidden_state(1)
+
+        for _ in range(sample_length - 1):
+            logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
+            probabilities = logits[0].softmax(0)
+            weights = np.asarray(probabilities.numpy(), dtype=np.float32).tolist()
             next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])
             sample.append(vocab_chars[next_token_id])
-            context = bt.cat([context[1:], bt.tensor([next_token_id])], dim=0)
+            current_token_ids = bt.tensor([next_token_id])
 
     return "".join(sample)
 
@@ -134,10 +182,10 @@ def main() -> None:
     num_tokens = len(token_ids)
     train_token_ids = token_ids[: int(num_tokens * 0.8)]
     val_token_ids = token_ids[int(num_tokens * 0.8) :]
-    if len(train_token_ids) <= CONTEXT_LENGTH or len(val_token_ids) <= CONTEXT_LENGTH:
+    if len(train_token_ids) <= SEQUENCE_LENGTH or len(val_token_ids) <= SEQUENCE_LENGTH:
         raise ValueError(
-            f"Dataset splits are too small for context length {CONTEXT_LENGTH}. "
-            "Need at least one full context window plus one target token in each split."
+            f"Dataset splits are too small for sequence length {SEQUENCE_LENGTH}. "
+            "Need at least one full input sequence plus one target token in each split."
         )
 
     model = init_model(vocab_size)
@@ -146,10 +194,10 @@ def main() -> None:
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        start_positions = np.random.randint(0, len(train_token_ids) - CONTEXT_LENGTH, (BATCH_SIZE,))
-        input_ids, target_ids = build_examples(train_token_ids, start_positions)
-        logits = forward(input_ids, model)
-        loss = F.cross_entropy(logits, target_ids)
+        start_positions = np.random.randint(0, len(train_token_ids) - SEQUENCE_LENGTH, (BATCH_SIZE,))
+        input_token_ids, target_token_ids = build_sequences(train_token_ids, start_positions)
+        logits_by_step, _ = forward_sequence(input_token_ids, model)
+        loss = sequence_loss(logits_by_step, target_token_ids)
 
         for param in model_params(model):
             param.zero_grad()

@@ -24,6 +24,15 @@ namespace bt::detail {
                                             int64_t dim, std::string_view dim_name);
 
 /*
+ * Normalizes and validates a single insertion dimension for an operation that
+ * produces a tensor with one additional axis, such as stack().
+ */
+[[nodiscard]] int64_t normalize_insertion_dim_checked(std::string_view operation_name,
+                                                      const std::vector<int64_t> &shape,
+                                                      int64_t dim,
+                                                      std::string_view dim_name);
+
+/*
  * Normalizes and validates a full permutation for an operation.
  */
 [[nodiscard]] std::vector<int64_t>

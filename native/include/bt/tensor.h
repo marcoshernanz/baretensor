@@ -191,6 +191,12 @@ public:
   [[nodiscard]] Tensor flatten(int64_t start_dim = 0, int64_t end_dim = -1) const;
 
   /*
+   * Returns a view with a new size-1 dimension inserted at dim.
+   * Supports negative dimensions using Python-style indexing over the output rank.
+   */
+  [[nodiscard]] Tensor unsqueeze(int64_t dim) const;
+
+  /*
    * Returns a view with dimensions reordered according to dims.
    * Supports negative dimensions using Python-style indexing and requires
    * dims to be a full permutation of [0, ..., ndim()-1].
@@ -547,6 +553,13 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
  * special case and do not affect the result shape.
  */
 [[nodiscard]] Tensor cat(const std::vector<Tensor> &tensors, int64_t dim = 0);
+
+/*
+ * Stacks tensors along a new dimension.
+ * All tensors must have identical shapes and dtypes. Unlike cat(), scalar
+ * tensors are supported because stack() creates the new axis in the output.
+ */
+[[nodiscard]] Tensor stack(const std::vector<Tensor> &tensors, int64_t dim = 0);
 
 /*
  * Computes cross-entropy loss between logits and class-index targets.

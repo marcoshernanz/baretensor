@@ -111,7 +111,7 @@ def sample_text(
         sample = [vocab_chars[int(token_id)] for token_id in seed_context[:sample_length]]
 
         for _ in range(max(sample_length - len(sample), 0)):
-            logits = forward(context.reshape((1, CONTEXT_LENGTH)), model)
+            logits = forward(context.unsqueeze(0), model)
             probs = logits[0].softmax(0)
             weights = np.asarray(probs.numpy(), dtype=np.float32).tolist()
             next_token_id = int(random.choices(range(len(vocab_chars)), weights=weights, k=1)[0])

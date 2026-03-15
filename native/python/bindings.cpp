@@ -392,6 +392,7 @@ NB_MODULE(_C, m) {
       .def("view", &bt::Tensor::view, nb::arg("shape"))
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
       .def("flatten", &bt::Tensor::flatten, nb::arg("start_dim") = 0, nb::arg("end_dim") = -1)
+      .def("unsqueeze", &bt::Tensor::unsqueeze, nb::arg("dim"))
       .def("permute", &bt::Tensor::permute, nb::arg("dims"))
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"), nb::arg("dim1"))
       .def("__getitem__", &tensor_getitem, nb::arg("index").none())
@@ -496,6 +497,7 @@ NB_MODULE(_C, m) {
   m.def("ones", &bt::ones, nb::arg("shape"), nb::arg("dtype") = bt::ScalarType::kFloat32,
         nb::arg("requires_grad") = false);
   m.def("cat", &bt::cat, nb::arg("tensors"), nb::arg("dim") = 0);
+  m.def("stack", &bt::stack, nb::arg("tensors"), nb::arg("dim") = 0);
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"), nb::arg("target"),
         nb::arg("ignore_index") = -100, nb::arg("reduction") = "mean");
   m.def("layer_norm", &bt::layer_norm, nb::arg("input"), nb::arg("normalized_shape"),
