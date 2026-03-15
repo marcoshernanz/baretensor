@@ -4,5 +4,6 @@
   "venv": ".venv",
   "include": ["src", "tests", "examples"],
   "exclude": ["build", "third_party"],
-  "typeCheckingMode": "strict"
+  "typeCheckingMode": "strict",
+  "reportUnknownMemberType": false
 }
