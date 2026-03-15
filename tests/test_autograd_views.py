@@ -54,6 +54,35 @@ class AutogradViewAndShapeTests(unittest.TestCase):
         expected = weight_np.reshape(2, 3, 4)
         np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
 
+    def test_unsqueeze_backward_maps_gradients_to_original_shape(self) -> None:
+        x = bt.tensor(np.arange(6, dtype=np.float32).reshape(2, 3), requires_grad=True)
+
+        y = x.unsqueeze(1)
+        weight_np = np.arange(6, dtype=np.float32).reshape(2, 1, 3)
+        weight = bt.tensor(weight_np)
+
+        loss = (y * weight).sum()
+        loss.backward()
+
+        expected = weight_np.reshape(2, 3)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
+    def test_unsqueeze_backward_supports_scalar_input(self) -> None:
+        x = bt.tensor(np.asarray(3.5, dtype=np.float32), requires_grad=True)
+
+        y = x.unsqueeze(0)
+        weight = bt.tensor(np.asarray([2.0], dtype=np.float32))
+
+        loss = (y * weight).sum()
+        loss.backward()
+
+        np.testing.assert_allclose(
+            to_numpy(_require_grad(x)),
+            np.asarray(2.0, dtype=np.float32),
+            rtol=1e-6,
+            atol=1e-6,
+        )
+
     def test_permute_backward_uses_inverse_permutation(self) -> None:
         x = bt.tensor(np.arange(24, dtype=np.float32).reshape(2, 3, 4), requires_grad=True)
 

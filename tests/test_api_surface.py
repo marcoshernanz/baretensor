@@ -30,6 +30,7 @@ class ApiSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(bt.Tensor, "mean"))
         self.assertTrue(hasattr(bt.Tensor, "max"))
         self.assertTrue(hasattr(bt.Tensor, "flatten"))
+        self.assertTrue(hasattr(bt.Tensor, "unsqueeze"))
         self.assertTrue(hasattr(bt.Tensor, "item"))
         self.assertTrue(hasattr(bt.Tensor, "dtype"))
         self.assertTrue(hasattr(bt.Tensor, "to"))
