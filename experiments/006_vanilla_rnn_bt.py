@@ -116,9 +116,9 @@ def forward_sequence(
     for time_step in range(sequence_length):
         step_input_token_ids = input_token_ids[:, time_step]
         step_logits, hidden_state = rnn_step(step_input_token_ids, hidden_state, model)
-        logits_by_step.append(step_logits.reshape((batch_size, step_logits.shape[1], 1)))
+        logits_by_step.append(step_logits)
 
-    return bt.cat(logits_by_step, dim=2), hidden_state
+    return bt.stack(logits_by_step, dim=2), hidden_state
 
 
 def sequence_loss(logits_by_step: bt.Tensor, target_token_ids: bt.Tensor) -> bt.Tensor:
