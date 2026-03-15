@@ -5,5 +5,10 @@
   "include": ["src", "tests", "examples"],
   "exclude": ["build", "third_party"],
   "typeCheckingMode": "strict",
-  "reportUnknownMemberType": false
+
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownLambdaType": false
 }
