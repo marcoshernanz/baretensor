@@ -19,6 +19,7 @@ __all__ = [
     "nn",
     "no_grad",
     "ones",
+    "stack",
     "tensor",
     "zeros",
 ]
@@ -46,3 +47,5 @@ def ones(
 ) -> Tensor: ...
 
 def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor: ...
+
+def stack(tensors: Sequence[Tensor], dim: int = 0) -> Tensor: ...
