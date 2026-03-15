@@ -191,6 +191,12 @@ public:
   [[nodiscard]] Tensor flatten(int64_t start_dim = 0, int64_t end_dim = -1) const;
 
   /*
+   * Returns a view with a new size-1 dimension inserted at dim.
+   * Supports negative dimensions using Python-style indexing over the output rank.
+   */
+  [[nodiscard]] Tensor unsqueeze(int64_t dim) const;
+
+  /*
    * Returns a view with dimensions reordered according to dims.
    * Supports negative dimensions using Python-style indexing and requires
    * dims to be a full permutation of [0, ..., ndim()-1].
