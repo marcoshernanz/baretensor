@@ -549,6 +549,13 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
 [[nodiscard]] Tensor cat(const std::vector<Tensor> &tensors, int64_t dim = 0);
 
 /*
+ * Stacks tensors along a new dimension.
+ * All tensors must have identical shapes and dtypes. Unlike cat(), scalar
+ * tensors are supported because stack() creates the new axis in the output.
+ */
+[[nodiscard]] Tensor stack(const std::vector<Tensor> &tensors, int64_t dim = 0);
+
+/*
  * Computes cross-entropy loss between logits and class-index targets.
  * TinyGPT-focused scope:
  * - input shape [C] is supported with scalar target []
