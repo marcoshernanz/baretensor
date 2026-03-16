@@ -24,6 +24,7 @@ TRAIN_STEPS = 50_000
 GRAD_CLIP_NORM = 1.0
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
+GRU_GATE_COUNT = 3
 
 
 Model = dict[str, jax.Array]
@@ -46,23 +47,34 @@ def set_seed(seed: int) -> jax.Array:
 
 
 def init_model(vocab_size: int, rng: jax.Array) -> Model:
-    tanh_gain = 5.0 / 3.0
+    gate_dim = GRU_GATE_COUNT * HIDDEN_DIM
     embedding_rng, input_rng, recurrent_rng, output_rng = jax.random.split(rng, 4)
     return {
         "embedding_table": jax.random.normal(
-            embedding_rng, (vocab_size, EMBEDDING_DIM), dtype=jnp.float32
+            embedding_rng,
+            (vocab_size, EMBEDDING_DIM),
+            dtype=jnp.float32,
         )
         * 0.1,
         "input_weights": jax.random.normal(
-            input_rng, (EMBEDDING_DIM, HIDDEN_DIM), dtype=jnp.float32
+            input_rng,
+            (EMBEDDING_DIM, gate_dim),
+            dtype=jnp.float32,
         )
-        * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
+        * (1.0 / math.sqrt(EMBEDDING_DIM)),
+        "input_bias": jnp.zeros((gate_dim,), dtype=jnp.float32),
         "recurrent_weights": jax.random.normal(
-            recurrent_rng, (HIDDEN_DIM, HIDDEN_DIM), dtype=jnp.float32
+            recurrent_rng,
+            (HIDDEN_DIM, gate_dim),
+            dtype=jnp.float32,
         )
-        * (tanh_gain / math.sqrt(HIDDEN_DIM)),
-        "hidden_bias": jnp.zeros((HIDDEN_DIM,), dtype=jnp.float32),
-        "output_weights": jax.random.normal(output_rng, (HIDDEN_DIM, vocab_size), dtype=jnp.float32)
+        * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "recurrent_bias": jnp.zeros((gate_dim,), dtype=jnp.float32),
+        "output_weights": jax.random.normal(
+            output_rng,
+            (HIDDEN_DIM, vocab_size),
+            dtype=jnp.float32,
+        )
         * (1.0 / math.sqrt(HIDDEN_DIM)),
         "output_bias": jnp.zeros((vocab_size,), dtype=jnp.float32),
     }
@@ -96,24 +108,45 @@ def get_sequence_chunk(
 ) -> tuple[jax.Array, jax.Array]:
     chunk_start = jnp.asarray(chunk_start, dtype=jnp.int32)
     input_chunk = jax.lax.dynamic_slice(
-        input_streams, (0, chunk_start), (input_streams.shape[0], SEQUENCE_LENGTH)
+        input_streams,
+        (0, chunk_start),
+        (input_streams.shape[0], SEQUENCE_LENGTH),
     )
     target_chunk = jax.lax.dynamic_slice(
-        target_streams, (0, chunk_start), (target_streams.shape[0], SEQUENCE_LENGTH)
+        target_streams,
+        (0, chunk_start),
+        (target_streams.shape[0], SEQUENCE_LENGTH),
     )
     return input_chunk, target_chunk
 
 
-def rnn_step(
+def split_gru_activations(
+    activations: jax.Array,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+    reset, update, candidate = jnp.split(activations, GRU_GATE_COUNT, axis=1)
+    return reset, update, candidate
+
+
+def gru_step(
     input_token_ids: jax.Array,
     previous_hidden_state: jax.Array,
     model: Model,
 ) -> tuple[jax.Array, jax.Array]:
     embedded_tokens = model["embedding_table"][input_token_ids]
-    hidden_state = jnp.tanh(
-        embedded_tokens @ model["input_weights"]
-        + previous_hidden_state @ model["recurrent_weights"]
-        + model["hidden_bias"]
+    input_activations = embedded_tokens @ model["input_weights"] + model["input_bias"]
+    recurrent_activations = (
+        previous_hidden_state @ model["recurrent_weights"] + model["recurrent_bias"]
+    )
+    input_reset, input_update, input_candidate = split_gru_activations(input_activations)
+    recurrent_reset, recurrent_update, recurrent_candidate = split_gru_activations(
+        recurrent_activations
+    )
+
+    reset_gate = jax.nn.sigmoid(input_reset + recurrent_reset)
+    update_gate = jax.nn.sigmoid(input_update + recurrent_update)
+    candidate_hidden_state = jnp.tanh(input_candidate + reset_gate * recurrent_candidate)
+    hidden_state = (
+        update_gate * previous_hidden_state + (1.0 - update_gate) * candidate_hidden_state
     )
     logits = hidden_state @ model["output_weights"] + model["output_bias"]
     return logits, hidden_state
@@ -133,7 +166,7 @@ def forward_sequence(
         current_hidden_state: jax.Array,
         step_input_token_ids: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        step_logits, next_hidden_state = rnn_step(step_input_token_ids, current_hidden_state, model)
+        step_logits, next_hidden_state = gru_step(step_input_token_ids, current_hidden_state, model)
         return next_hidden_state, step_logits
 
     hidden_state, logits_by_step = jax.lax.scan(scan_step, hidden_state, input_token_ids.T)
@@ -170,7 +203,10 @@ def train_step(
     initial_hidden_state: jax.Array,
 ) -> tuple[Model, jax.Array, jax.Array, jax.Array]:
     (loss, next_hidden_state), grads = jax.value_and_grad(loss_and_hidden, argnums=0, has_aux=True)(
-        model, input_token_ids, target_token_ids, initial_hidden_state
+        model,
+        input_token_ids,
+        target_token_ids,
+        initial_hidden_state,
     )
     total_grad_norm = global_norm(grads)
     grad_scale = jnp.minimum(1.0, GRAD_CLIP_NORM / (total_grad_norm + 1e-6))
@@ -197,24 +233,43 @@ def train_steps(
         current_model, current_hidden_state, current_chunk_start = carry
         should_reset = current_chunk_start + SEQUENCE_LENGTH > stream_length
         current_hidden_state = jax.lax.select(
-            should_reset, init_hidden_state(input_streams.shape[0]), current_hidden_state
+            should_reset,
+            init_hidden_state(input_streams.shape[0]),
+            current_hidden_state,
         )
         current_chunk_start = jnp.where(should_reset, 0, current_chunk_start)
         input_chunk, target_chunk = get_sequence_chunk(
-            input_streams, target_streams, current_chunk_start
+            input_streams,
+            target_streams,
+            current_chunk_start,
         )
         current_model, loss, grad_norm, next_hidden_state = train_step(
-            current_model, input_chunk, target_chunk, current_hidden_state
+            current_model,
+            input_chunk,
+            target_chunk,
+            current_hidden_state,
         )
         next_hidden_state = jax.lax.stop_gradient(next_hidden_state)
         hidden_norm = jnp.linalg.norm(next_hidden_state, axis=1).mean()
         next_chunk_start = current_chunk_start + SEQUENCE_LENGTH
-        return (current_model, next_hidden_state, next_chunk_start), (loss, grad_norm, hidden_norm)
+        return (
+            current_model,
+            next_hidden_state,
+            next_chunk_start,
+        ), (
+            loss,
+            grad_norm,
+            hidden_norm,
+        )
 
     (
         (model, hidden_state, chunk_start),
         (losses, grad_norms, hidden_norms),
-    ) = jax.lax.scan(scan_step, (model, hidden_state, chunk_start), length=num_steps)
+    ) = jax.lax.scan(
+        scan_step,
+        (model, hidden_state, chunk_start),
+        length=num_steps,
+    )
     return model, hidden_state, chunk_start, losses, grad_norms, hidden_norms
 
 
@@ -274,7 +329,7 @@ def sample_text(
 
     current_token_ids = primer_token_ids[-1:]
     for _ in range(max(sample_length - len(sample), 0)):
-        logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
+        logits, hidden_state = gru_step(current_token_ids, hidden_state, model)
         rng, token_rng = jax.random.split(rng)
         next_token_id = int(jax.random.categorical(token_rng, logits[0]).item())
         sample.append(vocab_chars[next_token_id])
