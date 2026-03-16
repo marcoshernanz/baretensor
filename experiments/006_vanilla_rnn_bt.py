@@ -110,7 +110,9 @@ def forward_sequence(
     initial_hidden_state: bt.Tensor | None = None,
 ) -> tuple[bt.Tensor, bt.Tensor]:
     batch_size, sequence_length = input_token_ids.shape
-    hidden_state = init_hidden_state(batch_size) if initial_hidden_state is None else initial_hidden_state
+    hidden_state = (
+        init_hidden_state(batch_size) if initial_hidden_state is None else initial_hidden_state
+    )
     logits_by_step: list[bt.Tensor] = []
 
     for time_step in range(sequence_length):
@@ -194,7 +196,9 @@ def main() -> None:
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        start_positions = np.random.randint(0, len(train_token_ids) - SEQUENCE_LENGTH, (BATCH_SIZE,))
+        start_positions = np.random.randint(
+            0, len(train_token_ids) - SEQUENCE_LENGTH, (BATCH_SIZE,)
+        )
         input_token_ids, target_token_ids = build_sequences(train_token_ids, start_positions)
         logits_by_step, _ = forward_sequence(input_token_ids, model)
         loss = sequence_loss(logits_by_step, target_token_ids)
@@ -202,7 +206,7 @@ def main() -> None:
         for param in model_params(model):
             param.zero_grad()
 
-        loss.backward()  # type: ignore
+        loss.backward()
 
         with bt.no_grad():
             for param in model_params(model):

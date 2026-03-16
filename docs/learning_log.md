@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, and 2026-03-15.
+Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, and 2026-03-16.
 
 ## Summary
 
@@ -8,15 +8,22 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, and 2026-03-15.
 | --------- | ------ | ----: | ---------: | -------: | ------------: | --------: | ------------: | --- | ----- |
 | 001 | `experiments/001_bigram_torch.py` | 0 | 2.454943 | - | - | - | 15.738 | [csv](../artifacts/experiments/001_bigram_torch/20260309_001835_287317/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_torch/20260309_001835_287317/loss_curve.svg) |
 | 001 | `experiments/001_bigram_bt.py` | 0 | 2.454943 | - | - | - | 2.306 | [csv](../artifacts/experiments/001_bigram_bt/20260309_001819_741240/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_bt/20260309_001819_741240/loss_curve.svg) |
+| 001 | `experiments/001_bigram_jax.py` | 0 | 2.454943 | - | - | - | 2.709 | [csv](../artifacts/experiments/001_bigram_jax/20260316_002802_607381/loss_history.csv) | [svg](../artifacts/experiments/001_bigram_jax/20260316_002802_607381/loss_curve.svg) |
 | 002 | `experiments/002_mlp_torch.py` | 50000 | 2.488925 | 2.523084 | 18.423 | 2713.927 | 19.376 | [csv](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_torch/20260312_003442_834071/loss_curve.svg) |
 | 002 | `experiments/002_mlp_bt.py` | 50000 | 2.466264 | 2.502053 | 120.537 | 414.812 | 128.662 | [csv](../artifacts/experiments/002_mlp_bt/20260314_130209_063051/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_bt/20260314_130209_063051/loss_curve.svg) |
+| 002 | `experiments/002_mlp_jax.py` | 50000 | 2.487126 | 2.521707 | 5.609 | 8914.785 | 11.283 | [csv](../artifacts/experiments/002_mlp_jax/20260316_002814_677671/loss_history.csv) | [svg](../artifacts/experiments/002_mlp_jax/20260316_002814_677671/loss_curve.svg) |
 | 003 | `experiments/003_context_window_linear_torch.py` | 50000 | 2.129700 | 2.229607 | 19.724 | 2534.987 | 20.977 | [csv](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_torch/20260312_003712_975024/loss_curve.svg) |
 | 003 | `experiments/003_context_window_linear_bt.py` | 50000 | 2.132292 | 2.228308 | 109.017 | 458.643 | 138.307 | [csv](../artifacts/experiments/003_context_window_linear_bt/20260314_130431_398530/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_bt/20260314_130431_398530/loss_curve.svg) |
+| 003 | `experiments/003_context_window_linear_jax.py` | 50000 | 2.127830 | 2.230438 | 10.309 | 4850.070 | 16.009 | [csv](../artifacts/experiments/003_context_window_linear_jax/20260316_002831_740947/loss_history.csv) | [svg](../artifacts/experiments/003_context_window_linear_jax/20260316_002831_740947/loss_curve.svg) |
 | 004 | `experiments/004_context_window_mlp_torch.py` | 50000 | 1.818081 | 1.962587 | 26.318 | 1899.823 | 28.124 | [csv](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_torch/20260312_004008_912442/loss_curve.svg) |
 | 004 | `experiments/004_context_window_mlp_bt.py` | 50000 | 1.820442 | 1.953616 | 146.785 | 340.635 | 181.585 | [csv](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_bt/20260314_130738_748028/loss_curve.svg) |
+| 004 | `experiments/004_context_window_mlp_jax.py` | 50000 | 1.818015 | 1.963075 | 12.338 | 4052.608 | 19.239 | [csv](../artifacts/experiments/004_context_window_mlp_jax/20260316_002852_051364/loss_history.csv) | [svg](../artifacts/experiments/004_context_window_mlp_jax/20260316_002852_051364/loss_curve.svg) |
 | 005 | `experiments/005_larger_context_mlp_torch.py` | 50000 | 1.831950 | 1.990602 | 46.127 | 1083.960 | 50.157 | [csv](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_torch/20260312_112822_814813/loss_curve.svg) |
 | 005 | `experiments/005_larger_context_mlp_bt.py` | 50000 | 1.823935 | 1.987984 | 615.386 | 81.250 | 757.687 | [csv](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_bt/20260314_132023_262099/loss_curve.svg) |
+| 005 | `experiments/005_larger_context_mlp_jax.py` | 50000 | 1.829704 | 1.987969 | 26.703 | 1872.426 | 40.417 | [csv](../artifacts/experiments/005_larger_context_mlp_jax/20260316_002933_560488/loss_history.csv) | [svg](../artifacts/experiments/005_larger_context_mlp_jax/20260316_002933_560488/loss_curve.svg) |
 | 006 | `experiments/006_vanilla_rnn_torch.py` | 50000 | 1.876595 | 2.006060 | 117.845 | 424.285 | 119.276 | [csv](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_curve.svg) |
+| 006 | `experiments/006_vanilla_rnn_bt.py` | 50000 | 1.872256 | 2.000917 | 820.450 | 60.942 | 832.126 | [csv](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_curve.svg) |
+| 006 | `experiments/006_vanilla_rnn_jax.py` | 50000 | 1.871434 | 1.995282 | 122.540 | 408.030 | 130.278 | [csv](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -59,6 +66,28 @@ ORThy menthir, wom in:
 Cavaly ke poik he cuirowowirf manoweantorvelatend
 
 YOUTy whanganind wis th mage theas be INGle fomis ENTINADWhest
+```
+
+## 001 Bigram JAX
+
+- Script: `experiments/001_bigram_jax.py`
+- Steps: `0`
+- Train loss: `2.454943`
+- Val loss: `-`
+- Total seconds: `2.709`
+
+![001 bigram jax loss curve](../artifacts/experiments/001_bigram_jax/20260316_002802_607381/loss_curve.svg)
+
+```text
+S:
+G,
+hantrol your?
+Than ICENGLInonfouearwhealinowincausthe ecthe hef pen ayoveourent ch have fomy;
+Nond p th dey DWhive icofesot ca ird sau f LUST:
+OLUGLONUCHEB.
+
+Tokeieray wes'
+Goumo serubun myear,
 ```
 
 ## 002 MLP Torch
@@ -105,6 +134,29 @@ tarowovell manowe:
 Wirvelatend
 
 Whity wigenanhe even th nage ureas be INGinamingo ENRDY bonest
+```
+
+## 002 MLP JAX
+
+- Script: `experiments/002_mlp_jax.py`
+- Steps: `50000`
+- Train loss: `2.487126`
+- Val loss: `2.521707`
+- Train seconds: `5.609`
+- Steps per second: `8914.785`
+- Total seconds: `11.283`
+
+![002 mlp jax loss curve](../artifacts/experiments/002_mlp_jax/20260316_002814_677671/loss_curve.svg)
+
+```text
+d ERGe thorryowofr,
+MEldeselotpy,'llveng wot ouchal, cowowowh faest batsthak, gan oteVe oous-orlis ak, ssant
+Ou leg t, hu hame?
+ULe colthin delo ,
+CL:
+IGagowentt n.
+Th gourayo
+ERTha serelofot t is we
 ```
 
 ## 003 Context-Window Linear Torch
@@ -160,6 +212,29 @@ Mfaredie
 Fore c
 ```
 
+## 003 Context-Window Linear JAX
+
+- Script: `experiments/003_context_window_linear_jax.py`
+- Steps: `50000`
+- Train loss: `2.127830`
+- Val loss: `2.230438`
+- Train seconds: `10.309`
+- Steps per second: `4850.070`
+- Total seconds: `16.009`
+
+![003 context window linear jax loss curve](../artifacts/experiments/003_context_window_linear_jax/20260316_002831_740947/loss_curve.svg)
+
+```text
+re ofrele thor your sord,
+Forech:
+Tu'llveng int Sech, mo berisch foes buthst,
+Tur an thewerowis.
+
+QUENENLUS:
+If to log th he ham shlyes mothen deave,
+thee dag of ht be ther spayou hey fotreson, worven
+```
+
 ## 004 Context-Window MLP Torch
 
 - Script: `experiments/004_context_window_mlp_torch.py`
@@ -196,6 +271,28 @@ to as ople:
 is to live uppe in evereitherse wold aghy Kong Lut that splew onerish too and aalls
 ExEN:
 Rome, me your; wher of to live you the Adwersw will for inton that bodrs, thap and me shel I parce
+```
+
+## 004 Context-Window MLP JAX
+
+- Script: `experiments/004_context_window_mlp_jax.py`
+- Steps: `50000`
+- Train loss: `1.818015`
+- Val loss: `1.963075`
+- Train seconds: `12.338`
+- Steps per second: `4052.608`
+- Total seconds: `19.239`
+
+![004 context window mlp jax loss curve](../artifacts/experiments/004_context_window_mlp_jax/20260316_002852_051364/loss_curve.svg)
+
+```text
+re of slean, swiat agard:
+For chaple'll kno wort, chal, so mise heads abous facurian of we alise plife:
+As sawles, my worms. Sweet, ye colt?
+
+AUYOLI,
+But to good had we to Lort of our free,
+Bnow this
 ```
 
 ## 005 Larger-Context MLP Torch
@@ -240,6 +337,25 @@ The worten, doo at tow will for hewer that andbosis chafier,
 F
 ```
 
+## 005 Larger-Context MLP JAX
+
+- Script: `experiments/005_larger_context_mlp_jax.py`
+- Steps: `50000`
+- Train loss: `1.829704`
+- Val loss: `1.987969`
+- Train seconds: `26.703`
+- Steps per second: `1872.426`
+- Total seconds: `40.417`
+
+![005 larger context mlp jax loss curve](../artifacts/experiments/005_larger_context_mlp_jax/20260316_002933_560488/loss_curve.svg)
+
+```text
+ee on thy way:
+Harruce torry word,
+Maldow; Rope,'ll know me Sich hen of wher faeld bots fake gave teen of this is a pastarl, of that montire thlyes: his nod vak,
+Come you well deme to Lort of oly hord
+```
+
 ## 006 Vanilla RNN Torch
 
 - Script: `experiments/006_vanilla_rnn_torch.py`
@@ -266,4 +382,52 @@ vike
 Ameh!
 Is mane ivou swean?
 We tw
+```
+
+## 006 Vanilla RNN BareTensor
+
+- Script: `experiments/006_vanilla_rnn_bt.py`
+- Steps: `50000`
+- Train loss: `1.872256`
+- Val loss: `2.000917`
+- Train seconds: `820.450`
+- Steps per second: `60.942`
+- Total seconds: `832.126`
+
+![006 vanilla rnn bt loss curve](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_curve.svg)
+
+```text
+to not piver; be therefo, a crown.
+
+Muspaymace coze, do Rusirfer spirver quisilks?
+
+KING OMIALY:
+I mone in dy; to: son of triedry which siads, wrath lopion furratl of lay:
+I:
+Be,
+She give, I foop boon
+```
+
+## 006 Vanilla RNN JAX
+
+- Script: `experiments/006_vanilla_rnn_jax.py`
+- Steps: `50000`
+- Train loss: `1.871434`
+- Val loss: `1.995282`
+- Train seconds: `122.540`
+- Steps per second: `408.030`
+- Total seconds: `130.278`
+
+![006 vanilla rnn jax loss curve](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_curve.svg)
+
+```text
+s Edle courry that,
+My reself:
+Thellven: whit, chall conmisch foese bats and that the proods--
+
+ULEENE:
+Haw thouldgry, huth me?
+lyess his not lor,
+Cucety, and then. Vither:
+Woald, from my foigh is wel
 ```

@@ -41,7 +41,7 @@ def load_text(path: Path) -> str:
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    torch.manual_seed(seed)  # type: ignore
+    torch.manual_seed(seed)
 
 
 def model_params(model: Model) -> tuple[torch.Tensor, ...]:
@@ -215,7 +215,7 @@ def main() -> None:
         for param in model_params(model):
             param.grad = None
 
-        loss.backward()  # type: ignore
+        loss.backward()
 
         with torch.no_grad():
             for param in model_params(model):

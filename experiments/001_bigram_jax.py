@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-import random
 from time import perf_counter
 
-import torch
+import jax
+import jax.numpy as jnp
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -28,42 +28,44 @@ def load_text(path: Path) -> str:
     return text
 
 
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    torch.manual_seed(seed)
+def set_seed(seed: int) -> jax.Array:
+    return jax.random.key(seed)
 
 
-def build_bigram_probs(encoded: torch.Tensor, vocab_size: int) -> torch.Tensor:
-    bigram_counts = torch.ones((vocab_size, vocab_size), dtype=torch.float32) * LAPLACE_SMOOTHING
-    for prev_id, next_id in zip(encoded, encoded[1:]):
-        bigram_counts[prev_id, next_id] += 1.0
-    return bigram_counts / bigram_counts.sum(1, keepdim=True)
+def build_bigram_probs(encoded: jax.Array, vocab_size: int) -> jax.Array:
+    bigram_counts = jnp.full((vocab_size, vocab_size), LAPLACE_SMOOTHING, dtype=jnp.float32)
+    prev_tokens = encoded[:-1]
+    next_tokens = encoded[1:]
+    bigram_counts = bigram_counts.at[prev_tokens, next_tokens].add(1.0)
+    return bigram_counts / bigram_counts.sum(axis=1, keepdims=True)
 
 
-def sample_text(probs: torch.Tensor, chars: list[str], sample_len: int) -> str:
-    sample_id = random.randrange(len(chars))
+def sample_text(probs: jax.Array, chars: list[str], sample_len: int, rng: jax.Array) -> str:
+    rng, sample_rng = jax.random.split(rng)
+    sample_id = int(jax.random.randint(sample_rng, shape=(), minval=0, maxval=len(chars)).item())
     sample = [chars[sample_id]]
     for _ in range(sample_len - 1):
-        sample_id = int(torch.multinomial(probs[sample_id], num_samples=1).item())
+        rng, sample_rng = jax.random.split(rng)
+        sample_id = int(jax.random.categorical(sample_rng, jnp.log(probs[sample_id])).item())
         sample.append(chars[sample_id])
     return "".join(sample)
 
 
 def main() -> None:
     total_start = perf_counter()
-    set_seed(SEED)
+    rng = set_seed(SEED)
     tokens = load_text(DATA_PATH)
 
     chars = sorted(set(tokens))
     char_to_id = {char: idx for idx, char in enumerate(chars)}
     vocab_size = len(char_to_id)
 
-    encoded = torch.tensor([char_to_id[ch] for ch in tokens], dtype=torch.long)
+    encoded = jnp.asarray([char_to_id[ch] for ch in tokens], dtype=jnp.int32)
     probs = build_bigram_probs(encoded, vocab_size)
     prev_tokens = encoded[:-1]
     next_tokens = encoded[1:]
-    cross_entropy = -torch.log(probs[prev_tokens, next_tokens]).mean()
-    sample = sample_text(probs, chars, SAMPLE_LEN)
+    cross_entropy = -jnp.log(probs[prev_tokens, next_tokens]).mean()
+    sample = sample_text(probs, chars, SAMPLE_LEN, rng)
     loss_value = float(cross_entropy.item())
     loss_history = [(0, loss_value, loss_value)]
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
