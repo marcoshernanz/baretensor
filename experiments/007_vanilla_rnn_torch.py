@@ -7,6 +7,7 @@ from time import perf_counter
 
 import torch
 import torch.nn.functional as F
+from torch.nn.utils import clip_grad_norm_
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -14,12 +15,13 @@ DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespea
 SEED = 1337
 EMBEDDING_DIM = 64
 HIDDEN_DIM = 64
-SEQUENCE_LENGTH = 16
-BATCH_SIZE = 32
+SEQUENCE_LENGTH = 64
+BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 256
 SAMPLE_LENGTH = 200
-LEARNING_RATE = 0.05
+LEARNING_RATE = 0.02
 TRAIN_STEPS = 50_000
+GRAD_CLIP_NORM = 1.0
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
@@ -76,13 +78,33 @@ def init_hidden_state(batch_size: int, model: Model) -> torch.Tensor:
     return model["hidden_bias"].new_zeros((batch_size, HIDDEN_DIM))
 
 
-def build_sequences(
-    token_ids: torch.Tensor,
-    start_positions: torch.Tensor,
+def build_streams(token_ids: torch.Tensor, batch_size: int) -> tuple[torch.Tensor, torch.Tensor]:
+    usable_token_count = ((len(token_ids) - 1) // batch_size) * batch_size
+    if usable_token_count == 0:
+        raise ValueError(
+            f"Dataset split with {len(token_ids)} tokens is too small for batch size {batch_size}."
+        )
+
+    input_streams = token_ids[:usable_token_count].reshape(batch_size, -1)
+    target_streams = token_ids[1 : usable_token_count + 1].reshape(batch_size, -1)
+    if input_streams.shape[1] < SEQUENCE_LENGTH:
+        raise ValueError(
+            f"Stream length {input_streams.shape[1]} is too short for sequence length "
+            f"{SEQUENCE_LENGTH} at batch size {batch_size}."
+        )
+    return input_streams, target_streams
+
+
+def get_sequence_chunk(
+    input_streams: torch.Tensor,
+    target_streams: torch.Tensor,
+    chunk_start: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    offsets = torch.arange(SEQUENCE_LENGTH + 1, device=start_positions.device)
-    sequence_token_ids = token_ids[start_positions[:, None] + offsets]
-    return sequence_token_ids[:, :-1], sequence_token_ids[:, 1:]
+    chunk_end = chunk_start + SEQUENCE_LENGTH
+    return (
+        input_streams[:, chunk_start:chunk_end],
+        target_streams[:, chunk_start:chunk_end],
+    )
 
 
 def rnn_step(
@@ -131,25 +153,25 @@ def sequence_loss(logits_by_step: torch.Tensor, target_token_ids: torch.Tensor) 
 
 def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
     with torch.no_grad():
-        start_positions = torch.arange(
-            0,
-            len(token_ids) - SEQUENCE_LENGTH,
-            SEQUENCE_LENGTH,
-            device=token_ids.device,
-        )
+        input_streams, target_streams = build_streams(token_ids, EVAL_BATCH_SIZE)
+        stream_length = input_streams.shape[1]
+        hidden_state: torch.Tensor | None = None
         total_loss = 0.0
-        total_sequences = 0
+        total_tokens = 0
 
-        for batch_start in range(0, len(start_positions), EVAL_BATCH_SIZE):
-            batch_positions = start_positions[batch_start : batch_start + EVAL_BATCH_SIZE]
-            input_token_ids, target_token_ids = build_sequences(token_ids, batch_positions)
-            logits_by_step, _ = forward_sequence(input_token_ids, model)
-            batch_loss = sequence_loss(logits_by_step, target_token_ids)
-            batch_sequence_count = int(batch_positions.numel())
-            total_loss += float(batch_loss.item()) * batch_sequence_count
-            total_sequences += batch_sequence_count
+        for chunk_start in range(0, stream_length - SEQUENCE_LENGTH + 1, SEQUENCE_LENGTH):
+            input_chunk, target_chunk = get_sequence_chunk(
+                input_streams,
+                target_streams,
+                chunk_start,
+            )
+            logits_by_step, hidden_state = forward_sequence(input_chunk, model, hidden_state)
+            batch_loss = sequence_loss(logits_by_step, target_chunk)
+            batch_token_count = int(input_chunk.numel())
+            total_loss += float(batch_loss.item()) * batch_token_count
+            total_tokens += batch_token_count
 
-        return total_loss / total_sequences
+        return total_loss / total_tokens
 
 
 def sample_text(
@@ -162,17 +184,21 @@ def sample_text(
         return ""
 
     with torch.no_grad():
-        seed_token_id = int(seed_token_ids[random.randrange(len(seed_token_ids))].item())
-        sample = [vocab_chars[seed_token_id]]
-        current_token_ids = seed_token_ids.new_tensor([seed_token_id])
+        primer_start = random.randrange(len(seed_token_ids) - SEQUENCE_LENGTH + 1)
+        primer_token_ids = seed_token_ids[primer_start : primer_start + SEQUENCE_LENGTH].clone()
+        sample = [vocab_chars[int(token_id)] for token_id in primer_token_ids[:sample_length]]
         hidden_state = init_hidden_state(1, model)
 
-        for _ in range(sample_length - 1):
+        for primer_token_id in primer_token_ids[:-1]:
+            _, hidden_state = rnn_step(primer_token_id.view(1), hidden_state, model)
+
+        current_token_ids = primer_token_ids[-1:].clone()
+        for _ in range(max(sample_length - len(sample), 0)):
             logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
             probabilities = F.softmax(logits[0], dim=0)
             next_token_id = int(torch.multinomial(probabilities, num_samples=1).item())
             sample.append(vocab_chars[next_token_id])
-            current_token_ids = seed_token_ids.new_tensor([next_token_id])
+            current_token_ids = primer_token_ids.new_tensor([next_token_id])
 
     return "".join(sample)
 
@@ -196,26 +222,35 @@ def main() -> None:
             "Need at least one full input sequence plus one target token in each split."
         )
 
+    train_input_streams, train_target_streams = build_streams(train_token_ids, BATCH_SIZE)
+    train_stream_length = train_input_streams.shape[1]
     model = init_model(vocab_size)
     loss_history: list[tuple[int, float, float]] = []
     ema_loss: float | None = None
+    chunk_start = 0
+    hidden_state: torch.Tensor | None = None
     train_start = perf_counter()
 
     for step in range(TRAIN_STEPS):
-        start_positions = torch.randint(
-            0,
-            len(train_token_ids) - SEQUENCE_LENGTH,
-            (BATCH_SIZE,),
-            device=train_token_ids.device,
+        if chunk_start + SEQUENCE_LENGTH > train_stream_length:
+            chunk_start = 0
+            hidden_state = None
+        elif hidden_state is not None:
+            hidden_state = hidden_state.detach()
+
+        input_chunk, target_chunk = get_sequence_chunk(
+            train_input_streams,
+            train_target_streams,
+            chunk_start,
         )
-        input_token_ids, target_token_ids = build_sequences(train_token_ids, start_positions)
-        logits_by_step, _ = forward_sequence(input_token_ids, model)
-        loss = sequence_loss(logits_by_step, target_token_ids)
+        logits_by_step, hidden_state = forward_sequence(input_chunk, model, hidden_state)
+        loss = sequence_loss(logits_by_step, target_chunk)
 
         for param in model_params(model):
             param.grad = None
 
         loss.backward()
+        total_grad_norm = float(clip_grad_norm_(model_params(model), GRAD_CLIP_NORM))
 
         with torch.no_grad():
             for param in model_params(model):
@@ -229,10 +264,20 @@ def main() -> None:
             if ema_loss is None
             else LOSS_EMA_DECAY * ema_loss + (1.0 - LOSS_EMA_DECAY) * raw_loss
         )
+        hidden_norm = float(hidden_state.norm(dim=1).mean().item())
         loss_history.append((step, raw_loss, ema_loss))
 
         if step % LOG_INTERVAL == 0:
-            print(f"step={step} loss={raw_loss:.6f} ema_loss={ema_loss:.6f}")
+            print(
+                "step="
+                f"{step} "
+                f"loss={raw_loss:.6f} "
+                f"ema_loss={ema_loss:.6f} "
+                f"grad_norm={total_grad_norm:.6f} "
+                f"hidden_norm={hidden_norm:.6f}"
+            )
+
+        chunk_start += SEQUENCE_LENGTH
 
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
