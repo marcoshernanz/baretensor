@@ -24,6 +24,7 @@ TRAIN_STEPS = 50_000
 GRAD_CLIP_NORM = 1.0
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
+GRU_GATE_COUNT = 3
 
 
 Model = dict[str, torch.Tensor]
@@ -50,22 +51,22 @@ def model_params(model: Model) -> tuple[torch.Tensor, ...]:
     return (
         model["embedding_table"],
         model["input_weights"],
+        model["input_bias"],
         model["recurrent_weights"],
-        model["hidden_bias"],
+        model["recurrent_bias"],
         model["output_weights"],
         model["output_bias"],
     )
 
 
 def init_model(vocab_size: int) -> Model:
-    tanh_gain = 5.0 / 3.0
+    gate_dim = GRU_GATE_COUNT * HIDDEN_DIM
     model: Model = {
         "embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "input_weights": torch.randn((EMBEDDING_DIM, HIDDEN_DIM))
-        * (tanh_gain / math.sqrt(EMBEDDING_DIM)),
-        "recurrent_weights": torch.randn((HIDDEN_DIM, HIDDEN_DIM))
-        * (tanh_gain / math.sqrt(HIDDEN_DIM)),
-        "hidden_bias": torch.zeros((HIDDEN_DIM,)),
+        "input_weights": torch.randn((EMBEDDING_DIM, gate_dim)) * (1.0 / math.sqrt(EMBEDDING_DIM)),
+        "input_bias": torch.zeros((gate_dim,)),
+        "recurrent_weights": torch.randn((HIDDEN_DIM, gate_dim)) * (1.0 / math.sqrt(HIDDEN_DIM)),
+        "recurrent_bias": torch.zeros((gate_dim,)),
         "output_weights": torch.randn((HIDDEN_DIM, vocab_size)) * (1.0 / math.sqrt(HIDDEN_DIM)),
         "output_bias": torch.zeros((vocab_size,)),
     }
@@ -75,7 +76,7 @@ def init_model(vocab_size: int) -> Model:
 
 
 def init_hidden_state(batch_size: int, model: Model) -> torch.Tensor:
-    return model["hidden_bias"].new_zeros((batch_size, HIDDEN_DIM))
+    return model["output_bias"].new_zeros((batch_size, HIDDEN_DIM))
 
 
 def build_streams(token_ids: torch.Tensor, batch_size: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -107,17 +108,33 @@ def get_sequence_chunk(
     )
 
 
-def rnn_step(
+def split_gru_activations(
+    activations: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    return activations.chunk(GRU_GATE_COUNT, dim=1)
+
+
+def gru_step(
     input_token_ids: torch.Tensor,
     previous_hidden_state: torch.Tensor,
     model: Model,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     embedded_tokens = F.embedding(input_token_ids, model["embedding_table"])
+    input_activations = embedded_tokens @ model["input_weights"] + model["input_bias"]
+    recurrent_activations = (
+        previous_hidden_state @ model["recurrent_weights"] + model["recurrent_bias"]
+    )
+    input_reset, input_update, input_candidate = split_gru_activations(input_activations)
+    recurrent_reset, recurrent_update, recurrent_candidate = split_gru_activations(
+        recurrent_activations
+    )
+
+    reset_gate = torch.sigmoid(input_reset + recurrent_reset)
+    update_gate = torch.sigmoid(input_update + recurrent_update)
+    candidate_hidden_state = torch.tanh(input_candidate + reset_gate * recurrent_candidate)
     hidden_state = (
-        embedded_tokens @ model["input_weights"]
-        + previous_hidden_state @ model["recurrent_weights"]
-        + model["hidden_bias"]
-    ).tanh()
+        update_gate * previous_hidden_state + (1.0 - update_gate) * candidate_hidden_state
+    )
     logits = hidden_state @ model["output_weights"] + model["output_bias"]
     return logits, hidden_state
 
@@ -137,7 +154,7 @@ def forward_sequence(
 
     for time_step in range(sequence_length):
         step_input_token_ids = input_token_ids[:, time_step]
-        step_logits, hidden_state = rnn_step(step_input_token_ids, hidden_state, model)
+        step_logits, hidden_state = gru_step(step_input_token_ids, hidden_state, model)
         logits_by_step.append(step_logits)
 
     return torch.stack(logits_by_step, dim=1), hidden_state
@@ -190,11 +207,11 @@ def sample_text(
         hidden_state = init_hidden_state(1, model)
 
         for primer_token_id in primer_token_ids[:-1]:
-            _, hidden_state = rnn_step(primer_token_id.view(1), hidden_state, model)
+            _, hidden_state = gru_step(primer_token_id.view(1), hidden_state, model)
 
         current_token_ids = primer_token_ids[-1:].clone()
         for _ in range(max(sample_length - len(sample), 0)):
-            logits, hidden_state = rnn_step(current_token_ids, hidden_state, model)
+            logits, hidden_state = gru_step(current_token_ids, hidden_state, model)
             probabilities = F.softmax(logits[0], dim=0)
             next_token_id = int(torch.multinomial(probabilities, num_samples=1).item())
             sample.append(vocab_chars[next_token_id])
