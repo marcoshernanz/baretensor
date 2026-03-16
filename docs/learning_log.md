@@ -26,6 +26,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, and 2026-03-16.
 | 006 | `experiments/006_vanilla_rnn_jax.py` | 50000 | 1.871434 | 1.995282 | 122.540 | 408.030 | 130.278 | [csv](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_curve.svg) |
 | 007 | `experiments/007_vanilla_rnn_torch.py` | 50000 | 1.914339 | 2.028619 | 289.001 | 173.010 | 289.713 | [csv](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_curve.svg) |
 | 007 | `experiments/007_vanilla_rnn_bt.py` | 50000 | 1.912805 | 2.025120 | 1726.394 | 28.962 | 1737.701 | [csv](../artifacts/experiments/007_vanilla_rnn_bt/20260316_165311_175541/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_bt/20260316_165311_175541/loss_curve.svg) |
+| 007 | `experiments/007_vanilla_rnn_jax.py` | 50000 | 1.923394 | 2.025352 | 184.648 | 270.786 | 188.270 | [csv](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -478,4 +479,22 @@ I eathot they. Cyod cally Gtay awonoul,
 Soirt
 Sirthinedss and Yoths fuefolge;
 And dullowserfich lowd hoves of hi
+```
+
+## 007 Vanilla RNN JAX
+
+- Script: `experiments/007_vanilla_rnn_jax.py`
+- Steps: `50000`
+- Train loss: `1.923394`
+- Val loss: `2.025352`
+- Train seconds: `184.648`
+- Steps per second: `270.786`
+- Total seconds: `188.270`
+
+![007 vanilla rnn jax loss curve](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_curve.svg)
+
+```text
+r spurr'd their coursers at the trumpet's sound;
+With them, the hasbioghes Lord I day to love luck', what of of have botter a'd geen.
+He cans now wowllds: car'd to vithere axk, be connung't the demed
 ```
