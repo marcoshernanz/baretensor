@@ -111,7 +111,10 @@ def get_sequence_chunk(
 def split_gru_activations(
     activations: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    return activations.chunk(GRU_GATE_COUNT, dim=1)
+    chunks = activations.chunk(GRU_GATE_COUNT, dim=1)
+    if len(chunks) != GRU_GATE_COUNT:
+        raise ValueError(f"Expected {GRU_GATE_COUNT} GRU activation chunks, got {len(chunks)}.")
+    return chunks[0], chunks[1], chunks[2]
 
 
 def gru_step(
