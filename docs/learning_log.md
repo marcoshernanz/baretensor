@@ -27,6 +27,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, and 2026-03-16.
 | 007 | `experiments/007_vanilla_rnn_torch.py` | 50000 | 1.914339 | 2.028619 | 289.001 | 173.010 | 289.713 | [csv](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_curve.svg) |
 | 007 | `experiments/007_vanilla_rnn_bt.py` | 50000 | 1.912805 | 2.025120 | 1726.394 | 28.962 | 1737.701 | [csv](../artifacts/experiments/007_vanilla_rnn_bt/20260316_165311_175541/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_bt/20260316_165311_175541/loss_curve.svg) |
 | 007 | `experiments/007_vanilla_rnn_jax.py` | 50000 | 1.923394 | 2.025352 | 184.648 | 270.786 | 188.270 | [csv](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_curve.svg) |
+| 008 | `experiments/008_gru_torch.py` | 50000 | 1.973407 | 2.026830 | 698.317 | 71.601 | 699.691 | [csv](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_history.csv) | [svg](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -497,4 +498,29 @@ And dullowserfich lowd hoves of hi
 r spurr'd their coursers at the trumpet's sound;
 With them, the hasbioghes Lord I day to love luck', what of of have botter a'd geen.
 He cans now wowllds: car'd to vithere axk, be connung't the demed
+```
+
+## 008 GRU Torch
+
+- Script: `experiments/008_gru_torch.py`
+- Steps: `50000`
+- Train loss: `1.973407`
+- Val loss: `2.026830`
+- Train seconds: `698.317`
+- Steps per second: `71.601`
+- Total seconds: `699.691`
+
+![008 gru torch loss curve](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_curve.svg)
+
+```text
+to account this world but hell,
+Until my mis-shaped trunk that bees vath lors the sud.
+
+'CPOivean reselt, the canst the laglougl of ale nade soins.
+
+BLADD EOD::
+Thally have velrnd.
+
+LOMENUD:
+And love 
 ```
