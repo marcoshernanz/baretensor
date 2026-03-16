@@ -187,7 +187,7 @@ def train_steps(
     hidden_state: jax.Array,
     chunk_start: jax.Array,
     num_steps: int,
-) -> tuple[Model, jax.Array, jax.Array, jax.Array, jax.Array]:
+) -> tuple[Model, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
     stream_length = input_streams.shape[1]
 
     def scan_step(
