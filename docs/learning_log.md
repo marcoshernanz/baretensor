@@ -24,6 +24,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, and 2026-03-16.
 | 006 | `experiments/006_vanilla_rnn_torch.py` | 50000 | 1.876595 | 2.006060 | 117.845 | 424.285 | 119.276 | [csv](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_torch/20260315_001102_953260/loss_curve.svg) |
 | 006 | `experiments/006_vanilla_rnn_bt.py` | 50000 | 1.872256 | 2.000917 | 820.450 | 60.942 | 832.126 | [csv](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_bt/20260315_143054_193678/loss_curve.svg) |
 | 006 | `experiments/006_vanilla_rnn_jax.py` | 50000 | 1.871434 | 1.995282 | 122.540 | 408.030 | 130.278 | [csv](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_history.csv) | [svg](../artifacts/experiments/006_vanilla_rnn_jax/20260316_003145_981115/loss_curve.svg) |
+| 007 | `experiments/007_vanilla_rnn_torch.py` | 50000 | 1.914339 | 2.028619 | 289.001 | 173.010 | 289.713 | [csv](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -430,4 +431,29 @@ Haw thouldgry, huth me?
 lyess his not lor,
 Cucety, and then. Vither:
 Woald, from my foigh is wel
+```
+
+## 007 Vanilla RNN Torch
+
+- Script: `experiments/007_vanilla_rnn_torch.py`
+- Steps: `50000`
+- Train loss: `1.914339`
+- Val loss: `2.028619`
+- Train seconds: `289.001`
+- Steps per second: `173.010`
+- Total seconds: `289.713`
+
+![007 vanilla rnn torch loss curve](../artifacts/experiments/007_vanilla_rnn_torch/20260316_101512_850050/loss_curve.svg)
+
+```text
+to account this world but hell,
+Until my mis-shaped trunk that benef;
+They congef woldught,
+And hered,
+Yeneds stord.
+
+These prous and.
+
+ThRENq:
+Ann that dommy lake the I have ir flord as ad of Oxceing
 ```
