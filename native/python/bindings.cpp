@@ -439,6 +439,7 @@ NB_MODULE(_C, m) {
       .def("exp", &bt::Tensor::exp)
       .def("log", &bt::Tensor::log)
       .def("tanh", &bt::Tensor::tanh)
+      .def("sigmoid", &bt::Tensor::sigmoid)
       .def("softmax", &bt::Tensor::softmax, nb::arg("dim"))
       .def("log_softmax", &bt::Tensor::log_softmax, nb::arg("dim"))
       .def(
