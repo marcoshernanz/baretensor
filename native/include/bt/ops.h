@@ -69,4 +69,20 @@ struct Tanh {
   float operator()(float x) const noexcept { return std::tanh(x); }
 };
 
+/*
+ * Functor: Sigmoid
+ * Purpose: Computes the logistic sigmoid using a branch-stable formula.
+ */
+struct Sigmoid {
+  float operator()(float x) const noexcept {
+    if (x >= 0.0f) {
+      const float exp_neg_x = std::exp(-x);
+      return 1.0f / (1.0f + exp_neg_x);
+    }
+
+    const float exp_x = std::exp(x);
+    return exp_x / (1.0f + exp_x);
+  }
+};
+
 } /* namespace bt::ops */

@@ -375,6 +375,17 @@ public:
   }
 };
 
+class SigmoidNode final : public bt::Node {
+public:
+  explicit SigmoidNode(const bt::Tensor &input) : bt::Node({input}) {}
+
+  [[nodiscard]] std::vector<bt::Tensor>
+  backward(const bt::Tensor &out_grad) const override {
+    const bt::Tensor sigmoid_input = this->inputs()[0].sigmoid();
+    return {out_grad * sigmoid_input * (1.0f - sigmoid_input)};
+  }
+};
+
 } // namespace
 
 /*
@@ -583,6 +594,17 @@ Tensor Tensor::tanh() const {
   Tensor out = unary_t(*this, ops::Tanh{});
   if (bt::detail::should_record_unary(*this)) {
     out.set_grad_fn(std::make_shared<TanhNode>(*this));
+  }
+  return out;
+}
+
+/*
+ * Elementwise logistic sigmoid.
+ */
+Tensor Tensor::sigmoid() const {
+  Tensor out = unary_t(*this, ops::Sigmoid{});
+  if (bt::detail::should_record_unary(*this)) {
+    out.set_grad_fn(std::make_shared<SigmoidNode>(*this));
   }
   return out;
 }
