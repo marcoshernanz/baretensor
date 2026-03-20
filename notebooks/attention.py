@@ -23,16 +23,19 @@ key, embedding_key, Wq_key, Wk_key, Wv_key = jax.random.split(key, 5)
 embeddings = jax.random.normal(embedding_key, (VOCAB_SIZE, EMBEDDING_DIM))
 Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
+Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, EMBEDDING_DIM))
 
 # %%
 
 E = embeddings[tokens]
 Q = E @ Wq
 K = E @ Wk
+V = E @ Wv
 
 x = (Q @ K.T) / jnp.sqrt(SEQUENCE_LEN)
 mask = jnp.tril(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN)), -1)
 masked = jnp.where(mask, -jnp.inf, x)
 normalized = jnn.softmax(masked, 1)
+attention = (normalized[:, :, None] * V[:, None, :]).sum(1) + E
 
-normalized
+attention
