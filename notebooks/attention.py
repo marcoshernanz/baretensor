@@ -33,9 +33,7 @@ K = E @ Wk
 V = E @ Wv
 
 x = (Q @ K.T) / jnp.sqrt(ATTENTION_DIM)
-mask = jnp.tril(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN)))
+mask = jnp.triu(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN)), k=1)
 masked = jnp.where(mask, -jnp.inf, x)
 normalized = jnn.softmax(masked, 1)
 attention = normalized @ V
-
-mask
