@@ -1,6 +1,7 @@
 # %%
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import jax.nn as jnn
 
 sequence = "This is a test sequence to try out self-attention"
 
@@ -23,8 +24,15 @@ embeddings = jax.random.normal(embedding_key, (VOCAB_SIZE, EMBEDDING_DIM))
 Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
 
+# %%
+
 E = embeddings[tokens]
 Q = E @ Wq
 K = E @ Wk
 
 x = (Q @ K.T) / jnp.sqrt(SEQUENCE_LEN)
+mask = jnp.tril(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN)), -1)
+masked = jnp.where(mask, -jnp.inf, x)
+normalized = jnn.softmax(masked, 1)
+
+normalized
