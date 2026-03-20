@@ -36,6 +36,6 @@ x = (Q @ K.T) / jnp.sqrt(SEQUENCE_LEN)
 mask = jnp.tril(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN)), -1)
 masked = jnp.where(mask, -jnp.inf, x)
 normalized = jnn.softmax(masked, 1)
-attention = (normalized[:, :, None] * V[:, None, :]).sum(1) + E
+attention = (normalized[:, :, None] * V[:, None, :]).sum(1)
 
-attention
+attention.shape
