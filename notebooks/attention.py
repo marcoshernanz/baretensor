@@ -21,7 +21,7 @@ key = jax.random.key(1337)
 key, embedding_key, position_key, Wq_key, Wk_key, Wv_key, Wo_key = jax.random.split(key, 7)
 
 value_embeddings = jax.random.normal(embedding_key, (VOCAB_SIZE, EMBEDDING_DIM))
-position_embeddings = jax.random.normal(position_key, (VOCAB_SIZE, EMBEDDING_DIM))
+position_embeddings = jax.random.normal(position_key, (SEQUENCE_LEN, EMBEDDING_DIM))
 Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
