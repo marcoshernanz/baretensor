@@ -18,10 +18,10 @@ tokens = jnp.array([char_to_id[c] for c in sequence])
 # %%
 
 key = jax.random.key(1337)
-key, embedding_key, position_key, Wq_key, Wk_key, Wv_key, Wo_key = jax.random.split(key, 7)
+key, token_embedding_key, position_embedding_key, Wq_key, Wk_key, Wv_key, Wo_key = jax.random.split(key, 7)
 
-value_embeddings = jax.random.normal(embedding_key, (VOCAB_SIZE, EMBEDDING_DIM))
-position_embeddings = jax.random.normal(position_key, (SEQUENCE_LEN, EMBEDDING_DIM))
+token_embedding_table = jax.random.normal(token_embedding_key, (VOCAB_SIZE, EMBEDDING_DIM))
+position_embedding_table = jax.random.normal(position_embedding_key, (SEQUENCE_LEN, EMBEDDING_DIM))
 Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
@@ -30,16 +30,18 @@ Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 
 # %%
 
-token_vectors = value_embeddings[tokens]
-position_vectors = position_embeddings[jnp.arange(SEQUENCE_LEN)]
-E = token_vectors + position_vectors
-Q = E @ Wq
-K = E @ Wk
-V = E @ Wv
+positions = jnp.arange(SEQUENCE_LEN)
+token_embeddings = token_embedding_table[tokens]
+position_embeddings = position_embedding_table[positions]
+input_embeddings = token_embeddings + position_embeddings
 
-x = (Q @ K.T) / jnp.sqrt(ATTENTION_DIM)
-mask = jnp.triu(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN), dtype=bool), k=1)
-masked = jnp.where(mask, -jnp.inf, x)
-normalized = jnn.softmax(masked, -1)
-attention = normalized @ V
-output = attention @ Wo
+queries = input_embeddings @ Wq
+keys = input_embeddings @ Wk
+values = input_embeddings @ Wv
+
+scores = (queries @ keys.T) / jnp.sqrt(ATTENTION_DIM)
+causal_mask = jnp.triu(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN), dtype=bool), k=1)
+masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
+attention_weights = jnn.softmax(masked_scores, axis=-1)
+attention_output = attention_weights @ values
+output = attention_output @ Wo
