@@ -70,7 +70,12 @@ for i in range(1):
     attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
     output = attention_output @ Wo
-    print(output.shape)
+
+    logits = output @ W + B
+    log_probs = -jnn.log_softmax(logits, axis=-1)
+    loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
+    loss = loss_per_token.mean()
+    print(loss.shape)
 
 
 # %%
