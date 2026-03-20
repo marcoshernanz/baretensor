@@ -50,9 +50,7 @@ B = jax.random.normal(B_key, (vocab_size,))
 # for i in range(TRAIN_STEPS):
 for i in range(1):
     key, batch_key = jax.random.split(key, 2)
-    start_positions = jax.random.randint(
-        batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW - 1
-    )
+    start_positions = jax.random.randint(batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW)
     input_positions = start_positions[:, None] + jnp.arange(CONTEXT_WINDOW)
     input_ids = token_ids[input_positions]
     target_ids = token_ids[input_positions + 1]
@@ -61,18 +59,18 @@ for i in range(1):
     token_embeddings = token_embedding_table[input_ids]
     position_embeddings = position_embedding_table[positions]
     input_embeddings = token_embeddings + position_embeddings
-    print(input_embeddings.shape)
 
-    # queries = input_embeddings @ Wq
-    # keys = input_embeddings @ Wk
-    # values = input_embeddings @ Wv
+    queries = input_embeddings @ Wq
+    keys = input_embeddings @ Wk
+    values = input_embeddings @ Wv
 
-    # scores = (queries @ keys.T) / jnp.sqrt(ATTENTION_DIM)
-    # causal_mask = jnp.triu(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN), dtype=bool), k=1)
-    # masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
-    # attention_weights = jnn.softmax(masked_scores, axis=-1)
-    # attention_output = attention_weights @ values
-    # output = attention_output @ Wo
+    scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
+    causal_mask = jnp.triu(jnp.ones((CONTEXT_WINDOW, CONTEXT_WINDOW), dtype=bool), k=1)
+    masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
+    attention_weights = jnn.softmax(masked_scores, axis=-1)
+    attention_output = attention_weights @ values
+    output = attention_output @ Wo
+    print(output.shape)
 
 
 # %%
