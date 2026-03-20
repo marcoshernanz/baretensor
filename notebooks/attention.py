@@ -75,7 +75,7 @@ for i in range(1):
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     loss = loss_per_token.mean()
-    print(loss.shape)
+    print(loss)
 
 
 # %%
