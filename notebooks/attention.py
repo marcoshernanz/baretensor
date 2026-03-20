@@ -18,12 +18,13 @@ tokens = jnp.array([char_to_id[c] for c in sequence])
 # %%
 
 key = jax.random.key(1337)
-key, embedding_key, Wq_key, Wk_key, Wv_key = jax.random.split(key, 5)
+key, embedding_key, Wq_key, Wk_key, Wv_key, Wo_key = jax.random.split(key, 6)
 
 embeddings = jax.random.normal(embedding_key, (VOCAB_SIZE, EMBEDDING_DIM))
 Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
-Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, EMBEDDING_DIM))
+Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
+Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 
 # %%
 
@@ -37,3 +38,4 @@ mask = jnp.triu(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN)), k=1)
 masked = jnp.where(mask, -jnp.inf, x)
 normalized = jnn.softmax(masked, 1)
 attention = normalized @ V
+output = attention @ Wo
