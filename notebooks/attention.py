@@ -45,37 +45,70 @@ Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
 B = jax.random.normal(B_key, (vocab_size,))
 
+params = {
+    "token_embedding_table": token_embedding_table,
+    "position_embedding_table": position_embedding_table,
+    "Wq": Wq,
+    "Wk": Wk,
+    "Wv": Wv,
+    "Wo": Wo,
+    "W": W,
+    "B": B,
+}
+
 # %%
 
-# for i in range(TRAIN_STEPS):
-for i in range(1):
-    key, batch_key = jax.random.split(key, 2)
-    start_positions = jax.random.randint(batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW)
+def sample_batch(batch_key):
+    start_positions = jax.random.randint(
+        batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW
+    )
     input_positions = start_positions[:, None] + jnp.arange(CONTEXT_WINDOW)
     input_ids = token_ids[input_positions]
     target_ids = token_ids[input_positions + 1]
+    return input_ids, target_ids
 
+
+def loss_fn(params, input_ids, target_ids):
     positions = jnp.arange(CONTEXT_WINDOW)
-    token_embeddings = token_embedding_table[input_ids]
-    position_embeddings = position_embedding_table[positions]
+    token_embeddings = params["token_embedding_table"][input_ids]
+    position_embeddings = params["position_embedding_table"][positions]
     input_embeddings = token_embeddings + position_embeddings
 
-    queries = input_embeddings @ Wq
-    keys = input_embeddings @ Wk
-    values = input_embeddings @ Wv
+    queries = input_embeddings @ params["Wq"]
+    keys = input_embeddings @ params["Wk"]
+    values = input_embeddings @ params["Wv"]
 
     scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
     causal_mask = jnp.triu(jnp.ones((CONTEXT_WINDOW, CONTEXT_WINDOW), dtype=bool), k=1)
     masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
     attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
-    output = attention_output @ Wo
+    output = attention_output @ params["Wo"]
 
-    logits = output @ W + B
+    logits = output @ params["W"] + params["B"]
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
-    loss = loss_per_token.mean()
-    print(loss)
+    return loss_per_token.mean()
+
+
+@jax.jit
+def train_step(params, input_ids, target_ids):
+    loss, grads = jax.value_and_grad(loss_fn)(params, input_ids, target_ids)
+    updated_params = jax.tree_util.tree_map(
+        lambda param, grad: param - LEARNING_RATE * grad,
+        params,
+        grads,
+    )
+    return updated_params, loss
+
+
+for step in range(TRAIN_STEPS):
+    key, batch_key = jax.random.split(key, 2)
+    input_ids, target_ids = sample_batch(batch_key)
+    params, loss = train_step(params, input_ids, target_ids)
+
+    if step % 100 == 0:
+        print(f"step={step} loss={loss.item():.4f}")
 
 
 # %%
