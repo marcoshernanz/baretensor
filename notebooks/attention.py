@@ -30,8 +30,9 @@ Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 
 # %%
 
-embeddings = position_embeddings + value_embeddings
-E = embeddings[tokens]
+token_vectors = value_embeddings[tokens]
+position_vectors = position_embeddings[jnp.arange(SEQUENCE_LEN)]
+E = token_vectors + position_vectors
 Q = E @ Wq
 K = E @ Wk
 V = E @ Wv
