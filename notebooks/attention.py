@@ -1,5 +1,6 @@
 # %%
 from pathlib import Path
+from typing import TypeAlias
 
 import jax
 import jax.numpy as jnp
@@ -15,6 +16,9 @@ CONTEXT_WINDOW = 512
 ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
+
+Array: TypeAlias = jax.Array
+Params: TypeAlias = dict[str, Array]
 
 # %%
 
@@ -45,7 +49,7 @@ Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
 B = jax.random.normal(B_key, (vocab_size,))
 
-params = {
+params: Params = {
     "token_embedding_table": token_embedding_table,
     "position_embedding_table": position_embedding_table,
     "Wq": Wq,
@@ -58,17 +62,16 @@ params = {
 
 # %%
 
-def sample_batch(batch_key):
-    start_positions = jax.random.randint(
-        batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW
-    )
+
+def sample_batch(batch_key: Array) -> tuple[Array, Array]:
+    start_positions = jax.random.randint(batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW)
     input_positions = start_positions[:, None] + jnp.arange(CONTEXT_WINDOW)
     input_ids = token_ids[input_positions]
     target_ids = token_ids[input_positions + 1]
     return input_ids, target_ids
 
 
-def loss_fn(params, input_ids, target_ids):
+def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     positions = jnp.arange(CONTEXT_WINDOW)
     token_embeddings = params["token_embedding_table"][input_ids]
     position_embeddings = params["position_embedding_table"][positions]
@@ -92,7 +95,7 @@ def loss_fn(params, input_ids, target_ids):
 
 
 @jax.jit
-def train_step(params, input_ids, target_ids):
+def train_step(params: Params, input_ids: Array, target_ids: Array) -> tuple[Params, Array]:
     loss, grads = jax.value_and_grad(loss_fn)(params, input_ids, target_ids)
     updated_params = jax.tree_util.tree_map(
         lambda param, grad: param - LEARNING_RATE * grad,
@@ -109,22 +112,3 @@ for step in range(TRAIN_STEPS):
 
     if step % 100 == 0:
         print(f"step={step} loss={loss.item():.4f}")
-
-
-# %%
-
-# positions = jnp.arange(SEQUENCE_LEN)
-# token_embeddings = token_embedding_table[tokens]
-# position_embeddings = position_embedding_table[positions]
-# input_embeddings = token_embeddings + position_embeddings
-
-# queries = input_embeddings @ Wq
-# keys = input_embeddings @ Wk
-# values = input_embeddings @ Wv
-
-# scores = (queries @ keys.T) / jnp.sqrt(ATTENTION_DIM)
-# causal_mask = jnp.triu(jnp.ones((SEQUENCE_LEN, SEQUENCE_LEN), dtype=bool), k=1)
-# masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
-# attention_weights = jnn.softmax(masked_scores, axis=-1)
-# attention_output = attention_weights @ values
-# output = attention_output @ Wo
