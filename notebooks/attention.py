@@ -105,6 +105,8 @@ def train_step(params: Params, input_ids: Array, target_ids: Array) -> tuple[Par
     return updated_params, loss
 
 
+# %%
+
 for step in range(TRAIN_STEPS):
     key, batch_key = jax.random.split(key, 2)
     input_ids, target_ids = sample_batch(batch_key)
