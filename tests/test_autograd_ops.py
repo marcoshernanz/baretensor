@@ -112,6 +112,17 @@ class AutogradOpsTests(unittest.TestCase):
         expected = (1.0 - np.tanh(x_np) ** 2).astype(np.float32)
         np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
 
+    def test_sigmoid_backward_matches_closed_form(self) -> None:
+        x_np = np.asarray([-4.0, -0.5, 0.0, 2.5], dtype=np.float32)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = x.sigmoid().sum()
+        loss.backward()
+
+        sigmoid = np.asarray(1.0 / (1.0 + np.exp(-x_np)), dtype=np.float32)
+        expected = np.asarray(sigmoid * (1.0 - sigmoid), dtype=np.float32)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
     def test_mean_backward_reduction_scales_gradients(self) -> None:
         x_np = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
         x = bt.tensor(x_np, requires_grad=True)
