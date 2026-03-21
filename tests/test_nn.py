@@ -169,9 +169,9 @@ class LayerNormModuleTests(unittest.TestCase):
 
 
 class Milestone010ExperimentTests(unittest.TestCase):
-    def _load_experiment_globals(self) -> dict[str, Any]:
+    def _load_experiment_globals(self, script_name: str) -> dict[str, Any]:
         experiments_dir = Path(__file__).resolve().parent.parent / "experiments"
-        script_path = experiments_dir / "010_single_head_attention_bt.py"
+        script_path = experiments_dir / script_name
         sys.path.insert(0, str(experiments_dir))
         try:
             return runpy.run_path(str(script_path))
@@ -179,7 +179,7 @@ class Milestone010ExperimentTests(unittest.TestCase):
             sys.path.pop(0)
 
     def test_single_head_attention_experiment_smoke(self) -> None:
-        module_globals = self._load_experiment_globals()
+        module_globals = self._load_experiment_globals("010_single_head_attention_bt.py")
         model_cls = module_globals["SingleHeadAttentionLanguageModel"]
         loss_fn = module_globals["loss_fn"]
         context_length = module_globals["CONTEXT_LENGTH"]
@@ -198,6 +198,190 @@ class Milestone010ExperimentTests(unittest.TestCase):
         self.assertEqual(len(parameters), 8)
         self.assertEqual(logits.shape, [2, context_length, 11])
         self.assertEqual(loss.shape, [])
+
+    def test_single_head_attention_parameter_order_and_context_validation(self) -> None:
+        module_globals = self._load_experiment_globals("010_single_head_attention_bt.py")
+        model_cls = module_globals["SingleHeadAttentionLanguageModel"]
+        context_length = module_globals["CONTEXT_LENGTH"]
+
+        assert isinstance(context_length, int)
+        model = model_cls(vocab_size=11)
+
+        self.assertEqual(
+            tuple(model.parameters()),
+            (
+                model.token_embedding.weight,
+                model.position_embedding.weight,
+                model.query.weight,
+                model.key.weight,
+                model.value.weight,
+                model.output.weight,
+                model.lm_head.weight,
+                model.lm_head.bias,
+            ),
+        )
+
+        wrong_input_ids = bt.tensor(np.arange(context_length - 1, dtype=np.int64).reshape(1, -1) % 11)
+        with self.assertRaisesRegex(
+            ValueError,
+            rf"Input sequence length {context_length - 1} does not match context length {context_length}\.",
+        ):
+            _ = model(wrong_input_ids)
+
+    def test_single_head_attention_matches_raw_009_when_weights_are_copied(self) -> None:
+        raw_globals = self._load_experiment_globals("009_single_head_attention_bt.py")
+        module_globals = self._load_experiment_globals("010_single_head_attention_bt.py")
+
+        init_model = raw_globals["init_model"]
+        raw_forward = raw_globals["forward"]
+        raw_loss_fn = raw_globals["loss_fn"]
+        raw_model_params = raw_globals["model_params"]
+        raw_set_seed = raw_globals["set_seed"]
+        model_cls = module_globals["SingleHeadAttentionLanguageModel"]
+        module_loss_fn = module_globals["loss_fn"]
+        learning_rate = module_globals["LEARNING_RATE"]
+        context_length = module_globals["CONTEXT_LENGTH"]
+
+        assert isinstance(context_length, int)
+        raw_set_seed(1337)
+        raw_model = init_model(11)
+        model = model_cls(vocab_size=11)
+
+        model.token_embedding.weight = bt.nn.Parameter(raw_model["token_embedding_table"])
+        model.position_embedding.weight = bt.nn.Parameter(raw_model["position_embedding_table"])
+        model.query.weight = bt.nn.Parameter(raw_model["query_weights"].transpose(0, 1))
+        model.key.weight = bt.nn.Parameter(raw_model["key_weights"].transpose(0, 1))
+        model.value.weight = bt.nn.Parameter(raw_model["value_weights"].transpose(0, 1))
+        model.output.weight = bt.nn.Parameter(raw_model["attention_output_weights"].transpose(0, 1))
+        model.lm_head.weight = bt.nn.Parameter(raw_model["logit_weights"].transpose(0, 1))
+        model.lm_head.bias = bt.nn.Parameter(raw_model["logit_bias"])
+
+        input_ids = bt.tensor(np.arange(2 * context_length, dtype=np.int64).reshape(2, context_length) % 11)
+        target_ids = bt.tensor(
+            (np.arange(2 * context_length, dtype=np.int64).reshape(2, context_length) + 1) % 11
+        )
+
+        raw_logits = raw_forward(input_ids, raw_model)
+        modular_logits = model(input_ids).permute([0, 2, 1])
+        np.testing.assert_allclose(
+            to_numpy(modular_logits),
+            to_numpy(raw_logits),
+            rtol=0.0,
+            atol=0.0,
+        )
+
+        raw_loss = raw_loss_fn(raw_model, input_ids, target_ids)
+        modular_loss = module_loss_fn(model, input_ids, target_ids)
+        self.assertEqual(raw_loss.item(), modular_loss.item())
+
+        for parameter in raw_model_params(raw_model):
+            parameter.zero_grad()
+        for parameter in model.parameters():
+            parameter.zero_grad()
+
+        raw_loss.backward()
+        modular_loss.backward()
+
+        raw_query_grad = raw_model["query_weights"].grad
+        raw_key_grad = raw_model["key_weights"].grad
+        raw_value_grad = raw_model["value_weights"].grad
+        raw_output_grad = raw_model["attention_output_weights"].grad
+        raw_lm_head_weight_grad = raw_model["logit_weights"].grad
+        raw_token_embedding_grad = raw_model["token_embedding_table"].grad
+        raw_position_embedding_grad = raw_model["position_embedding_table"].grad
+        raw_lm_head_bias_grad = raw_model["logit_bias"].grad
+
+        modular_query_grad = model.query.weight.grad
+        modular_key_grad = model.key.weight.grad
+        modular_value_grad = model.value.weight.grad
+        modular_output_grad = model.output.weight.grad
+        modular_lm_head_weight_grad = model.lm_head.weight.grad
+        modular_token_embedding_grad = model.token_embedding.weight.grad
+        modular_position_embedding_grad = model.position_embedding.weight.grad
+        modular_lm_head_bias_grad = model.lm_head.bias.grad
+
+        assert raw_query_grad is not None
+        assert raw_key_grad is not None
+        assert raw_value_grad is not None
+        assert raw_output_grad is not None
+        assert raw_lm_head_weight_grad is not None
+        assert raw_token_embedding_grad is not None
+        assert raw_position_embedding_grad is not None
+        assert raw_lm_head_bias_grad is not None
+        assert modular_query_grad is not None
+        assert modular_key_grad is not None
+        assert modular_value_grad is not None
+        assert modular_output_grad is not None
+        assert modular_lm_head_weight_grad is not None
+        assert modular_token_embedding_grad is not None
+        assert modular_position_embedding_grad is not None
+        assert modular_lm_head_bias_grad is not None
+
+        np.testing.assert_allclose(to_numpy(modular_token_embedding_grad), to_numpy(raw_token_embedding_grad))
+        np.testing.assert_allclose(
+            to_numpy(modular_position_embedding_grad), to_numpy(raw_position_embedding_grad)
+        )
+        np.testing.assert_allclose(
+            to_numpy(modular_query_grad.transpose(0, 1)),
+            to_numpy(raw_query_grad),
+        )
+        np.testing.assert_allclose(
+            to_numpy(modular_key_grad.transpose(0, 1)),
+            to_numpy(raw_key_grad),
+        )
+        np.testing.assert_allclose(
+            to_numpy(modular_value_grad.transpose(0, 1)),
+            to_numpy(raw_value_grad),
+        )
+        np.testing.assert_allclose(
+            to_numpy(modular_output_grad.transpose(0, 1)),
+            to_numpy(raw_output_grad),
+        )
+        np.testing.assert_allclose(
+            to_numpy(modular_lm_head_weight_grad.transpose(0, 1)),
+            to_numpy(raw_lm_head_weight_grad),
+        )
+        np.testing.assert_allclose(to_numpy(modular_lm_head_bias_grad), to_numpy(raw_lm_head_bias_grad))
+
+        with bt.no_grad():
+            for parameter in raw_model_params(raw_model):
+                grad = parameter.grad
+                assert grad is not None
+                parameter -= learning_rate * grad
+            for parameter in model.parameters():
+                grad = parameter.grad
+                assert grad is not None
+                parameter -= learning_rate * grad
+
+        np.testing.assert_allclose(
+            to_numpy(model.token_embedding.weight),
+            to_numpy(raw_model["token_embedding_table"]),
+        )
+        np.testing.assert_allclose(
+            to_numpy(model.position_embedding.weight),
+            to_numpy(raw_model["position_embedding_table"]),
+        )
+        np.testing.assert_allclose(
+            to_numpy(model.query.weight.transpose(0, 1)),
+            to_numpy(raw_model["query_weights"]),
+        )
+        np.testing.assert_allclose(
+            to_numpy(model.key.weight.transpose(0, 1)),
+            to_numpy(raw_model["key_weights"]),
+        )
+        np.testing.assert_allclose(
+            to_numpy(model.value.weight.transpose(0, 1)),
+            to_numpy(raw_model["value_weights"]),
+        )
+        np.testing.assert_allclose(
+            to_numpy(model.output.weight.transpose(0, 1)),
+            to_numpy(raw_model["attention_output_weights"]),
+        )
+        np.testing.assert_allclose(
+            to_numpy(model.lm_head.weight.transpose(0, 1)),
+            to_numpy(raw_model["logit_weights"]),
+        )
+        np.testing.assert_allclose(to_numpy(model.lm_head.bias), to_numpy(raw_model["logit_bias"]))
 
 
 if __name__ == "__main__":
