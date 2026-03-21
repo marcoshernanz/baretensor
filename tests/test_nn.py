@@ -1,6 +1,7 @@
 import runpy
 from pathlib import Path
 import sys
+from typing import Any
 import unittest
 
 import numpy as np
@@ -75,14 +76,14 @@ class ModuleTests(unittest.TestCase):
     def test_module_reassignment_updates_registration(self) -> None:
         module = self.Root()
 
-        module.first = None
-        module.child = 1
-        module.third = bt.nn.Parameter([5.0])
-        module.plain = bt.tensor([6.0], requires_grad=False)
+        setattr(module, "first", None)
+        setattr(module, "child", 1)
+        setattr(module, "third", bt.nn.Parameter([5.0]))
+        setattr(module, "plain", bt.tensor([6.0], requires_grad=False))
 
         parameters = tuple(module.parameters())
 
-        self.assertEqual(parameters, (module.second, module.third))
+        self.assertEqual(parameters, (module.second, getattr(module, "third")))
 
     def test_train_and_eval_propagate_recursively(self) -> None:
         module = self.Root()
@@ -168,7 +169,7 @@ class LayerNormModuleTests(unittest.TestCase):
 
 
 class Milestone010ExperimentTests(unittest.TestCase):
-    def _load_experiment_globals(self) -> dict[str, object]:
+    def _load_experiment_globals(self) -> dict[str, Any]:
         experiments_dir = Path(__file__).resolve().parent.parent / "experiments"
         script_path = experiments_dir / "010_single_head_attention_bt.py"
         sys.path.insert(0, str(experiments_dir))
