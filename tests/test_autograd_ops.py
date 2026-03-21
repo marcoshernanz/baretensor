@@ -123,6 +123,26 @@ class AutogradOpsTests(unittest.TestCase):
         expected = np.asarray(sigmoid * (1.0 - sigmoid), dtype=np.float32)
         np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
 
+    def test_triu_backward_matches_triangular_mask(self) -> None:
+        x_np = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = x.triu(1).sum()
+        loss.backward()
+
+        expected = np.triu(np.ones_like(x_np, dtype=np.float32), k=1)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
+    def test_tril_backward_matches_triangular_mask(self) -> None:
+        x_np = np.arange(12, dtype=np.float32).reshape(3, 4)
+        x = bt.tensor(x_np, requires_grad=True)
+
+        loss = bt.tril(x, diagonal=-1).sum()
+        loss.backward()
+
+        expected = np.tril(np.ones_like(x_np, dtype=np.float32), k=-1)
+        np.testing.assert_allclose(to_numpy(_require_grad(x)), expected, rtol=1e-6, atol=1e-6)
+
     def test_mean_backward_reduction_scales_gradients(self) -> None:
         x_np = np.arange(24, dtype=np.float32).reshape(2, 3, 4)
         x = bt.tensor(x_np, requires_grad=True)
