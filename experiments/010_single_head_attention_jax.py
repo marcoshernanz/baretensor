@@ -59,13 +59,6 @@ def build_examples(
 
 
 class SingleHeadAttentionLanguageModel(nn.Module):
-    token_embedding: nn.Embed
-    position_embedding: nn.Embed
-    query: nn.Dense
-    key: nn.Dense
-    value: nn.Dense
-    output: nn.Dense
-    lm_head: nn.Dense
     vocab_size: int
     embedding_dim: int = EMBEDDING_DIM
     attention_dim: int = ATTENTION_DIM
