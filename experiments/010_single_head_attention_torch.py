@@ -53,6 +53,15 @@ def build_examples(
 
 
 class SingleHeadAttentionLanguageModel(nn.Module):
+    token_embedding: nn.Embedding
+    position_embedding: nn.Embedding
+    query: nn.Linear
+    key: nn.Linear
+    value: nn.Linear
+    output: nn.Linear
+    lm_head: nn.Linear
+    causal_mask: torch.Tensor
+
     def __init__(self, vocab_size: int) -> None:
         super().__init__()
         self.token_embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
