@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import math
+from typing import Any, TypeAlias
 from functools import partial
 from pathlib import Path
 from time import perf_counter
 
+from flax.core import FrozenDict
 import flax.linen as nn
 from flax.training import train_state
 import jax
 import jax.numpy as jnp
 import numpy as np
-import optax
+import optax  # pyright: ignore[reportMissingTypeStubs]
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -26,6 +28,8 @@ LEARNING_RATE = 0.02
 TRAIN_STEPS = 100_000
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
+
+Params: TypeAlias = FrozenDict[str, Any]
 
 
 def load_text(path: Path) -> str:
@@ -149,7 +153,7 @@ def create_train_state(
 
 
 def loss_fn(
-    params: dict,
+    params: Params,
     state: train_state.TrainState,
     input_ids: jax.Array,
     target_ids: jax.Array,
