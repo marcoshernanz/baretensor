@@ -14,11 +14,11 @@ from experiment_artifacts import write_loss_artifacts
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
-EMBEDDING_DIM = 512
-ATTENTION_DIM = 128
-CONTEXT_LENGTH = 512
-BATCH_SIZE = 512
-EVAL_BATCH_SIZE = 512
+EMBEDDING_DIM = 128
+ATTENTION_DIM = 64
+CONTEXT_LENGTH = 128
+BATCH_SIZE = 32
+EVAL_BATCH_SIZE = 256
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.02
 TRAIN_STEPS = 1_000_000
@@ -120,9 +120,8 @@ def forward(input_ids: jax.Array, model: Model) -> jax.Array:
     masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
     attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
-    projected_attention_output = attention_output @ model["attention_output_weights"]
-    residual_output = input_embeddings + projected_attention_output
-    return residual_output @ model["logit_weights"] + model["logit_bias"]
+    output = attention_output @ model["attention_output_weights"]
+    return output @ model["logit_weights"] + model["logit_bias"]
 
 
 def loss_fn(model: Model, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
