@@ -112,7 +112,8 @@ class SingleHeadAttentionLanguageModel(nn.Module):
         assert self.lm_head.bias is not None
         self.lm_head.bias = nn.Parameter(np.zeros(self.lm_head.bias.shape, dtype=np.float32))
 
-    def forward(self, input_ids: bt.Tensor) -> bt.Tensor:
+    def forward(self, input: bt.Tensor) -> bt.Tensor:
+        input_ids = input
         _, sequence_length = input_ids.shape
         if sequence_length != CONTEXT_LENGTH:
             raise ValueError(
