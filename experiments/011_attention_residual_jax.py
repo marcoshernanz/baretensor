@@ -120,8 +120,9 @@ def forward(input_ids: jax.Array, model: Model) -> jax.Array:
     masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
     attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
-    output = attention_output @ model["attention_output_weights"]
-    return output @ model["logit_weights"] + model["logit_bias"]
+    projected_attention_output = attention_output @ model["attention_output_weights"]
+    residual_output = input_embeddings + projected_attention_output
+    return residual_output @ model["logit_weights"] + model["logit_bias"]
 
 
 def loss_fn(model: Model, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
