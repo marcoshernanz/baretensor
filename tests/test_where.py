@@ -80,6 +80,18 @@ class WhereTests(unittest.TestCase):
         self.assertEqual(out.shape, [0, 3])
         np.testing.assert_allclose(to_numpy(out), np.zeros((0, 3), dtype=np.float32))
 
+    def test_non_contiguous_inputs_match_numpy(self) -> None:
+        condition_base = np.asarray([[True, False, True], [False, True, False]], dtype=np.bool_)
+        input_base = np.arange(6, dtype=np.float32).reshape(2, 3)
+        other_base = (np.arange(6, dtype=np.float32).reshape(2, 3) + 10.0).astype(np.float32)
+
+        condition = bt.tensor(condition_base).transpose(0, 1)
+        input = bt.tensor(input_base).transpose(0, 1)
+        other = bt.tensor(other_base).transpose(0, 1)
+
+        expected = np.where(condition_base.T, input_base.T, other_base.T).astype(np.float32)
+        np.testing.assert_allclose(to_numpy(bt.where(condition, input, other)), expected)
+
     def test_non_bool_condition_rejects(self) -> None:
         with self.assertRaisesRegex(TypeError, r"condition to have dtype bt.bool"):
             _ = bt.where(bt.tensor([1, 0]), bt.tensor([1.0, 2.0]), bt.tensor([3.0, 4.0]))
@@ -158,6 +170,47 @@ class WhereTests(unittest.TestCase):
             rtol=1e-6,
             atol=1e-6,
         )
+
+    def test_randomized_three_way_broadcast_matches_numpy(self) -> None:
+        shape_pool = [(), (1,), (3,), (1, 3), (2, 1), (1, 3, 1), (2, 3, 4), (0, 3, 1), (2, 0, 4)]
+        dtype_pool = (np.float32, np.int64, np.bool_)
+
+        for seed in range(40):
+            rng = np.random.default_rng(700 + seed)
+            while True:
+                condition_shape = shape_pool[int(rng.integers(0, len(shape_pool)))]
+                input_shape = shape_pool[int(rng.integers(0, len(shape_pool)))]
+                other_shape = shape_pool[int(rng.integers(0, len(shape_pool)))]
+                try:
+                    np.broadcast_shapes(condition_shape, input_shape, other_shape)
+                    break
+                except ValueError:
+                    continue
+
+            dtype = dtype_pool[seed % len(dtype_pool)]
+            condition_np = rng.integers(0, 2, size=condition_shape, dtype=np.int64).astype(np.bool_)
+            if dtype == np.float32:
+                input_np = rng.normal(size=input_shape).astype(np.float32)
+                other_np = rng.normal(size=other_shape).astype(np.float32)
+            elif dtype == np.int64:
+                input_np = rng.integers(-20, 21, size=input_shape, dtype=np.int64)
+                other_np = rng.integers(-20, 21, size=other_shape, dtype=np.int64)
+            else:
+                input_np = rng.integers(0, 2, size=input_shape, dtype=np.int64).astype(np.bool_)
+                other_np = rng.integers(0, 2, size=other_shape, dtype=np.int64).astype(np.bool_)
+
+            actual = bt.where(bt.tensor(condition_np), bt.tensor(input_np), bt.tensor(other_np))
+            expected = np.where(condition_np, input_np, other_np)
+
+            if dtype == np.float32:
+                np.testing.assert_allclose(
+                    to_numpy(actual),
+                    expected.astype(np.float32),
+                    rtol=1e-6,
+                    atol=1e-6,
+                )
+            else:
+                np.testing.assert_array_equal(to_numpy(actual), expected.astype(dtype))
 
 
 if __name__ == "__main__":
