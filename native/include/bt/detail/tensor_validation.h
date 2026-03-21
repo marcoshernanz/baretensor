@@ -65,6 +65,14 @@ inline void ensure_float32(const bt::Tensor &tensor, const std::string_view oper
 }
 
 /*
+ * Throws unless tensor has dtype bool.
+ */
+inline void ensure_bool(const bt::Tensor &tensor, const std::string_view operation_name,
+                        const std::string_view argument_name = "tensor") {
+  ensure_dtype(tensor, bt::ScalarType::kBool, operation_name, argument_name);
+}
+
+/*
  * Throws when two tensors have different dtypes.
  */
 inline void ensure_same_dtype(const bt::Tensor &lhs, const bt::Tensor &rhs,
