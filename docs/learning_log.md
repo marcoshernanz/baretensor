@@ -29,8 +29,10 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, and
 | 007 | `experiments/007_vanilla_rnn_jax.py` | 50000 | 1.923394 | 2.025352 | 184.648 | 270.786 | 188.270 | [csv](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_curve.svg) |
 | 008 | `experiments/008_gru_torch.py` | 50000 | 1.973407 | 2.026830 | 698.317 | 71.601 | 699.691 | [csv](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_history.csv) | [svg](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_curve.svg) |
 | 008 | `experiments/008_gru_jax.py` | 50000 | 1.978897 | 2.031622 | 290.632 | 172.039 | 294.285 | [csv](../artifacts/experiments/008_gru_jax/20260316_235249_013574/loss_history.csv) | [svg](../artifacts/experiments/008_gru_jax/20260316_235249_013574/loss_curve.svg) |
-| 009 | `experiments/009_single_head_attention_jax.py` | 100000 | 2.458452 | 2.484670 | 305.335 | 327.509 | 541.878 | [csv](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_history.csv) | [svg](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_curve.svg) |
 | 009 | `experiments/009_single_head_attention_torch.py` | 100000 | 2.456635 | 2.478268 | 180.380 | 554.384 | 217.976 | [csv](../artifacts/experiments/009_single_head_attention_torch/20260321_100630_174512/loss_history.csv) | [svg](../artifacts/experiments/009_single_head_attention_torch/20260321_100630_174512/loss_curve.svg) |
+| 009 | `experiments/009_single_head_attention_jax.py` | 100000 | 2.458452 | 2.484670 | 305.335 | 327.509 | 541.878 | [csv](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_history.csv) | [svg](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_curve.svg) |
+| 010 | `experiments/010_single_head_attention_torch.py` | 100000 | 2.445969 | 2.474077 | 247.082 | 404.724 | 297.885 | [csv](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_curve.svg) |
+| 010 | `experiments/010_single_head_attention_jax.py` | 100000 | 2.463586 | 2.487816 | 320.054 | 312.447 | 496.636 | [csv](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -564,6 +566,44 @@ Nor to heprecait us a'd gettan eack songlesom on to ce'd torve woue axjouds, whe
 My brother slew no man; his fault was te tas alisus me.
 K fu orth by hes I bllth userithyour ping torso, bpenge ma geet, ve,
 Thiton s es ay s thayato t hou atomy t te m he; se
+```
+
+## 010 Single-Head Attention Torch
+
+- Script: `experiments/010_single_head_attention_torch.py`
+- Steps: `100000`
+- Train loss: `2.445969`
+- Val loss: `2.474077`
+- Train seconds: `247.082`
+- Steps per second: `404.724`
+- Total seconds: `297.885`
+
+![010 single-head attention torch loss curve](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_curve.svg)
+
+```text
+to account this world but hell,
+Until my mis-shaped trunk that be s by Vou pomenerd tather he torder atis s thars Co ent:
+I le feeeachart, ls f cerayose omy ts, woit, Fore p;
+EThand t, ad y y gor psha
+```
+
+## 010 Single-Head Attention JAX
+
+- Script: `experiments/010_single_head_attention_jax.py`
+- Steps: `100000`
+- Train loss: `2.463586`
+- Val loss: `2.487816`
+- Train seconds: `320.054`
+- Steps per second: `312.447`
+- Total seconds: `496.636`
+
+![010 single-head attention jax loss curve](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_curve.svg)
+
+```text
+ give pardon to a slave?
+My brother slew no man; his fault was te tas alisus me.
+K fu ores by hes I bshat userithyoureping tors houpenge ma geet, ve,
+Thiton s es ay s thayato t hou atomy t te m he lse
 ```
 
 ## 009 Single-Head Attention Torch
