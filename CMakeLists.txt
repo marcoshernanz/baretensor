@@ -73,3 +73,10 @@ nanobind_add_stub(
   PYTHON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src"
   DEPENDS _C
 )
+
+add_custom_command(
+  TARGET bt_stub POST_BUILD
+  COMMAND "${Python_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/normalize_nanobind_stub.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}/src/bt/_C.pyi"
+  VERBATIM
+)
