@@ -454,6 +454,66 @@ public:
    * This operation is only supported while gradient recording is disabled.
    */
   Tensor &operator/=(float rhs);
+
+  /*
+   * Elementwise tensor-tensor equality comparison.
+   */
+  Tensor operator==(const Tensor &t) const;
+
+  /*
+   * Elementwise tensor-scalar equality comparison.
+   */
+  Tensor operator==(float rhs) const;
+
+  /*
+   * Elementwise tensor-tensor inequality comparison.
+   */
+  Tensor operator!=(const Tensor &t) const;
+
+  /*
+   * Elementwise tensor-scalar inequality comparison.
+   */
+  Tensor operator!=(float rhs) const;
+
+  /*
+   * Elementwise tensor-tensor less-than comparison.
+   */
+  Tensor operator<(const Tensor &t) const;
+
+  /*
+   * Elementwise tensor-scalar less-than comparison.
+   */
+  Tensor operator<(float rhs) const;
+
+  /*
+   * Elementwise tensor-tensor less-than-or-equal comparison.
+   */
+  Tensor operator<=(const Tensor &t) const;
+
+  /*
+   * Elementwise tensor-scalar less-than-or-equal comparison.
+   */
+  Tensor operator<=(float rhs) const;
+
+  /*
+   * Elementwise tensor-tensor greater-than comparison.
+   */
+  Tensor operator>(const Tensor &t) const;
+
+  /*
+   * Elementwise tensor-scalar greater-than comparison.
+   */
+  Tensor operator>(float rhs) const;
+
+  /*
+   * Elementwise tensor-tensor greater-than-or-equal comparison.
+   */
+  Tensor operator>=(const Tensor &t) const;
+
+  /*
+   * Elementwise tensor-scalar greater-than-or-equal comparison.
+   */
+  Tensor operator>=(float rhs) const;
 };
 
 /*
@@ -475,6 +535,12 @@ Tensor operator*(float lhs, const Tensor &rhs);
  * Elementwise scalar-tensor division.
  */
 Tensor operator/(float lhs, const Tensor &rhs);
+
+/*
+ * Selects values from input and other based on a boolean condition.
+ * All operands must be broadcastable to a common output shape.
+ */
+[[nodiscard]] Tensor where(const Tensor &condition, const Tensor &input, const Tensor &other);
 
 /*
  * Class: Node

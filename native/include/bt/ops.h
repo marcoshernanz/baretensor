@@ -46,6 +46,54 @@ struct Div {
 };
 
 /*
+ * Functor: Eq
+ * Purpose: Computes x == y.
+ */
+struct Eq {
+  template <typename T> bool operator()(T x, T y) const noexcept { return x == y; }
+};
+
+/*
+ * Functor: Ne
+ * Purpose: Computes x != y.
+ */
+struct Ne {
+  template <typename T> bool operator()(T x, T y) const noexcept { return x != y; }
+};
+
+/*
+ * Functor: Lt
+ * Purpose: Computes x < y.
+ */
+struct Lt {
+  template <typename T> bool operator()(T x, T y) const noexcept { return x < y; }
+};
+
+/*
+ * Functor: Le
+ * Purpose: Computes x <= y.
+ */
+struct Le {
+  template <typename T> bool operator()(T x, T y) const noexcept { return x <= y; }
+};
+
+/*
+ * Functor: Gt
+ * Purpose: Computes x > y.
+ */
+struct Gt {
+  template <typename T> bool operator()(T x, T y) const noexcept { return x > y; }
+};
+
+/*
+ * Functor: Ge
+ * Purpose: Computes x >= y.
+ */
+struct Ge {
+  template <typename T> bool operator()(T x, T y) const noexcept { return x >= y; }
+};
+
+/*
  * Functor: Exp
  * Purpose: Computes exp(x).
  */

@@ -11,6 +11,7 @@
 #include <new>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 
 /*
  * Namespace: bt
@@ -40,8 +41,7 @@ namespace {
 /*
  * Computes the total byte size for a typed storage allocation.
  */
-[[nodiscard]] size_t checked_storage_nbytes(const int64_t size,
-                                            const ScalarType dtype) {
+[[nodiscard]] size_t checked_storage_nbytes(const int64_t size, const ScalarType dtype) {
   const size_t element_count = checked_storage_size(size);
   const size_t itemsize = scalar_type_itemsize(dtype);
   if (itemsize == 0) {
@@ -124,6 +124,8 @@ void Storage::fill(const double fill_value) {
     T typed_value{};
     if constexpr (std::is_same_v<T, int64_t>) {
       typed_value = checked_int64_from_double(fill_value, "Storage::fill()");
+    } else if constexpr (std::is_same_v<T, bool>) {
+      typed_value = (fill_value != 0.0);
     } else {
       typed_value = static_cast<T>(fill_value);
     }

@@ -186,6 +186,8 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj, co
     return nb::cast(*tensor.data_ptr<float>());
   case bt::ScalarType::kInt64:
     return nb::cast(*tensor.data_ptr<int64_t>());
+  case bt::ScalarType::kBool:
+    return nb::cast(*tensor.data_ptr<bool>());
   }
   throw std::runtime_error("Unsupported tensor dtype in item().");
 }
@@ -218,6 +220,15 @@ template <typename T> [[nodiscard]] std::vector<T> tensor_to_vector(const bt::Te
     const std::vector<int64_t> values = tensor_to_vector<int64_t>(contiguous);
     nb::object array =
         numpy.attr("array")(nb::cast(values), nb::arg("dtype") = numpy.attr("int64"));
+    return array.attr("reshape")(nb::cast(tensor.shape));
+  }
+  case bt::ScalarType::kBool: {
+    nb::list values;
+    const bool *values_ptr = contiguous.data_ptr<bool>();
+    for (int64_t i = 0; i < contiguous.numel(); ++i) {
+      values.append(nb::cast(values_ptr[i]));
+    }
+    nb::object array = numpy.attr("array")(values, nb::arg("dtype") = numpy.attr("bool_"));
     return array.attr("reshape")(nb::cast(tensor.shape));
   }
   }
@@ -298,7 +309,7 @@ template <typename T, typename NdArray>
 /*
  * Constructs a tensor from a dtype-tagged NumPy array object.
  */
-template <typename NdArrayF32, typename NdArrayI64>
+template <typename NdArrayF32, typename NdArrayI64, typename NdArrayBool>
 [[nodiscard]] bt::Tensor tensor_from_numpy_object(const nb::object &array_obj,
                                                   const bt::ScalarType dtype,
                                                   const bool requires_grad) {
@@ -308,6 +319,8 @@ template <typename NdArrayF32, typename NdArrayI64>
       return tensor_from_numpy<float>(nb::cast<NdArrayF32>(array_obj), dtype, requires_grad);
     case bt::ScalarType::kInt64:
       return tensor_from_numpy<int64_t>(nb::cast<NdArrayI64>(array_obj), dtype, requires_grad);
+    case bt::ScalarType::kBool:
+      return tensor_from_numpy<bool>(nb::cast<NdArrayBool>(array_obj), dtype, requires_grad);
     }
   } catch (const nb::cast_error &) {
     std::ostringstream oss;
@@ -348,12 +361,15 @@ NB_MODULE(_C, m) {
 
   using NdArrayF32 = nb::ndarray<nb::numpy, const float, nb::c_contig, nb::device::cpu>;
   using NdArrayI64 = nb::ndarray<nb::numpy, const int64_t, nb::c_contig, nb::device::cpu>;
+  using NdArrayBool = nb::ndarray<nb::numpy, const bool, nb::c_contig, nb::device::cpu>;
 
   nb::enum_<bt::ScalarType> dtype_enum(m, "DType");
   dtype_enum.value("float32", bt::ScalarType::kFloat32);
   dtype_enum.value("int64", bt::ScalarType::kInt64);
+  dtype_enum.value("bool", bt::ScalarType::kBool);
   m.attr("float32") = dtype_enum.attr("float32");
   m.attr("int64") = dtype_enum.attr("int64");
+  m.attr("bool") = dtype_enum.attr("bool");
 
   nb::class_<PyNoGradGuard>(m, "_NoGradGuard")
       .def(nb::init<>())
@@ -409,6 +425,18 @@ NB_MODULE(_C, m) {
       .def("__rsub__", [](const bt::Tensor &rhs, const float lhs) { return lhs - rhs; })
       .def("__rmul__", [](const bt::Tensor &rhs, const float lhs) { return lhs * rhs; })
       .def("__rtruediv__", [](const bt::Tensor &rhs, const float lhs) { return lhs / rhs; })
+      .def("__eq__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs == rhs; })
+      .def("__eq__", [](const bt::Tensor &lhs, const float rhs) { return lhs == rhs; })
+      .def("__ne__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs != rhs; })
+      .def("__ne__", [](const bt::Tensor &lhs, const float rhs) { return lhs != rhs; })
+      .def("__lt__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs < rhs; })
+      .def("__lt__", [](const bt::Tensor &lhs, const float rhs) { return lhs < rhs; })
+      .def("__le__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs <= rhs; })
+      .def("__le__", [](const bt::Tensor &lhs, const float rhs) { return lhs <= rhs; })
+      .def("__gt__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs > rhs; })
+      .def("__gt__", [](const bt::Tensor &lhs, const float rhs) { return lhs > rhs; })
+      .def("__ge__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs >= rhs; })
+      .def("__ge__", [](const bt::Tensor &lhs, const float rhs) { return lhs >= rhs; })
       .def(
           "__iadd__",
           [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & { return lhs += rhs; },
@@ -503,6 +531,7 @@ NB_MODULE(_C, m) {
   m.def("tril", &bt::tril, nb::arg("input"), nb::arg("diagonal") = 0);
   m.def("cat", &bt::cat, nb::arg("tensors"), nb::arg("dim") = 0);
   m.def("stack", &bt::stack, nb::arg("tensors"), nb::arg("dim") = 0);
+  m.def("where", &bt::where, nb::arg("condition"), nb::arg("input"), nb::arg("other"));
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"), nb::arg("target"),
         nb::arg("ignore_index") = -100, nb::arg("reduction") = "mean");
   m.def("layer_norm", &bt::layer_norm, nb::arg("input"), nb::arg("normalized_shape"),
@@ -512,7 +541,8 @@ NB_MODULE(_C, m) {
   m.def(
       "tensor_from_numpy",
       [](const nb::object &array, const bt::ScalarType dtype, const bool requires_grad) {
-        return tensor_from_numpy_object<NdArrayF32, NdArrayI64>(array, dtype, requires_grad);
+        return tensor_from_numpy_object<NdArrayF32, NdArrayI64, NdArrayBool>(
+            array, dtype, requires_grad);
       },
       nb::arg("array"), nb::arg("dtype"), nb::arg("requires_grad") = false);
 }

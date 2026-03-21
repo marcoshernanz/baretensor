@@ -21,13 +21,13 @@ namespace bt {
  * Enum: ScalarKind
  * Purpose: Categorizes supported runtime scalar types.
  */
-enum class ScalarKind { kFloatingPoint, kIntegral };
+enum class ScalarKind { kFloatingPoint, kIntegral, kBoolean };
 
 /*
  * Enum: ScalarType
  * Purpose: Identifies the concrete scalar type stored by a tensor.
  */
-enum class ScalarType { kFloat32, kInt64 };
+enum class ScalarType { kFloat32, kInt64, kBool };
 
 /*
  * Returns the canonical user-facing name for a scalar type.
@@ -38,6 +38,8 @@ enum class ScalarType { kFloat32, kInt64 };
     return "float32";
   case ScalarType::kInt64:
     return "int64";
+  case ScalarType::kBool:
+    return "bool";
   }
   return "<unknown>";
 }
@@ -51,6 +53,8 @@ enum class ScalarType { kFloat32, kInt64 };
     return sizeof(float);
   case ScalarType::kInt64:
     return sizeof(int64_t);
+  case ScalarType::kBool:
+    return sizeof(bool);
   }
   return 0;
 }
@@ -64,8 +68,10 @@ enum class ScalarType { kFloat32, kInt64 };
     return ScalarKind::kFloatingPoint;
   case ScalarType::kInt64:
     return ScalarKind::kIntegral;
+  case ScalarType::kBool:
+    return ScalarKind::kBoolean;
   }
-  return ScalarKind::kIntegral;
+  return ScalarKind::kBoolean;
 }
 
 /*
@@ -82,6 +88,13 @@ enum class ScalarType { kFloat32, kInt64 };
   return scalar_type_kind(type) == ScalarKind::kIntegral;
 }
 
+/*
+ * Returns whether a scalar type is boolean.
+ */
+[[nodiscard]] constexpr bool is_boolean(const ScalarType type) noexcept {
+  return scalar_type_kind(type) == ScalarKind::kBoolean;
+}
+
 template <typename T> struct ScalarTypeTraits;
 
 template <> struct ScalarTypeTraits<float> {
@@ -90,6 +103,10 @@ template <> struct ScalarTypeTraits<float> {
 
 template <> struct ScalarTypeTraits<int64_t> {
   static constexpr ScalarType value = ScalarType::kInt64;
+};
+
+template <> struct ScalarTypeTraits<bool> {
+  static constexpr ScalarType value = ScalarType::kBool;
 };
 
 /*
@@ -109,6 +126,8 @@ template <typename Fn> decltype(auto) visit_dtype(const ScalarType type, Fn &&fn
     return std::forward<Fn>(fn).template operator()<float>();
   case ScalarType::kInt64:
     return std::forward<Fn>(fn).template operator()<int64_t>();
+  case ScalarType::kBool:
+    return std::forward<Fn>(fn).template operator()<bool>();
   }
   throw std::invalid_argument("Unsupported dtype dispatch request.");
 }
@@ -123,6 +142,7 @@ decltype(auto) visit_floating_dtype(const ScalarType type, const std::string_vie
   case ScalarType::kFloat32:
     return std::forward<Fn>(fn).template operator()<float>();
   case ScalarType::kInt64:
+  case ScalarType::kBool:
     throw std::invalid_argument(std::string(context) +
                                 " only supports floating-point tensors, but got dtype " +
                                 scalar_type_name(type) + ".");
