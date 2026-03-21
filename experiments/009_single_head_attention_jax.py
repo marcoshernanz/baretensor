@@ -14,20 +14,18 @@ from experiment_artifacts import write_loss_artifacts
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
 EMBEDDING_DIM = 64
-BATCH_SIZE = 32
+ATTENTION_DIM = 32
+CONTEXT_LENGTH = 64
+BATCH_SIZE = 16
+EVAL_BATCH_SIZE = 64
 SAMPLE_LENGTH = 200
-LEARNING_RATE = 0.05
+LEARNING_RATE = 0.02
 TRAIN_STEPS = 50_000
-CONTEXT_LENGTH = 4
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 
 
 Model = dict[str, jax.Array]
-
-
-def set_seed(seed: int) -> jax.Array:
-    return jax.random.key(seed)
 
 
 def load_text(path: Path) -> str:
@@ -42,23 +40,58 @@ def load_text(path: Path) -> str:
     return text
 
 
+def set_seed(seed: int) -> jax.Array:
+    return jax.random.key(seed)
+
+
 def init_model(vocab_size: int, rng: jax.Array) -> Model:
-    input_dim = EMBEDDING_DIM * CONTEXT_LENGTH
-    embedding_rng, output_rng = jax.random.split(rng)
+    (embedding_rng, position_rng, query_rng, key_rng, value_rng, output_rng, logits_rng) = (
+        jax.random.split(rng, 7)
+    )
     return {
-        "embedding_table": jax.random.normal(
+        "token_embedding_table": jax.random.normal(
             embedding_rng,
             (vocab_size, EMBEDDING_DIM),
             dtype=jnp.float32,
         )
         * 0.1,
-        "output_weights": jax.random.normal(
-            output_rng,
-            (input_dim, vocab_size),
+        "position_embedding_table": jax.random.normal(
+            position_rng,
+            (CONTEXT_LENGTH, EMBEDDING_DIM),
             dtype=jnp.float32,
         )
-        * (1.0 / math.sqrt(input_dim)),
-        "output_bias": jnp.zeros((vocab_size,), dtype=jnp.float32),
+        * 0.1,
+        "query_weights": jax.random.normal(
+            query_rng,
+            (EMBEDDING_DIM, ATTENTION_DIM),
+            dtype=jnp.float32,
+        )
+        * (1.0 / math.sqrt(EMBEDDING_DIM)),
+        "key_weights": jax.random.normal(
+            key_rng,
+            (EMBEDDING_DIM, ATTENTION_DIM),
+            dtype=jnp.float32,
+        )
+        * (1.0 / math.sqrt(EMBEDDING_DIM)),
+        "value_weights": jax.random.normal(
+            value_rng,
+            (EMBEDDING_DIM, ATTENTION_DIM),
+            dtype=jnp.float32,
+        )
+        * (1.0 / math.sqrt(EMBEDDING_DIM)),
+        "attention_output_weights": jax.random.normal(
+            output_rng,
+            (ATTENTION_DIM, EMBEDDING_DIM),
+            dtype=jnp.float32,
+        )
+        * (1.0 / math.sqrt(ATTENTION_DIM)),
+        "logit_weights": jax.random.normal(
+            logits_rng,
+            (EMBEDDING_DIM, vocab_size),
+            dtype=jnp.float32,
+        )
+        * (1.0 / math.sqrt(EMBEDDING_DIM)),
+        "logit_bias": jnp.zeros((vocab_size,), dtype=jnp.float32),
     }
 
 
@@ -68,19 +101,33 @@ def build_examples(
 ) -> tuple[jax.Array, jax.Array]:
     offsets = jnp.arange(CONTEXT_LENGTH, dtype=start_positions.dtype)
     input_ids = token_ids[start_positions[:, None] + offsets]
-    target_ids = token_ids[start_positions + CONTEXT_LENGTH]
+    target_ids = token_ids[start_positions[:, None] + offsets + 1]
     return input_ids, target_ids
 
 
 def forward(input_ids: jax.Array, model: Model) -> jax.Array:
-    embedded = model["embedding_table"][input_ids].reshape((input_ids.shape[0], -1))
-    return embedded @ model["output_weights"] + model["output_bias"]
+    token_embeddings = model["token_embedding_table"][input_ids]
+    position_embeddings = model["position_embedding_table"][jnp.arange(CONTEXT_LENGTH)]
+    input_embeddings = token_embeddings + position_embeddings
+
+    queries = input_embeddings @ model["query_weights"]
+    keys = input_embeddings @ model["key_weights"]
+    values = input_embeddings @ model["value_weights"]
+
+    scores = (queries @ jnp.swapaxes(keys, -1, -2)) / math.sqrt(ATTENTION_DIM)
+    causal_mask = jnp.triu(jnp.ones((CONTEXT_LENGTH, CONTEXT_LENGTH), dtype=bool), k=1)
+    masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
+    attention_weights = jax.nn.softmax(masked_scores, axis=-1)
+    attention_output = attention_weights @ values
+    output = attention_output @ model["attention_output_weights"]
+    return output @ model["logit_weights"] + model["logit_bias"]
 
 
 def loss_fn(model: Model, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
     logits = forward(input_ids, model)
     log_probs = jax.nn.log_softmax(logits, axis=-1)
-    return -jnp.mean(log_probs[jnp.arange(target_ids.shape[0]), target_ids])
+    loss_per_token = -jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
+    return loss_per_token.mean()
 
 
 def train_step(
@@ -118,14 +165,31 @@ def train_steps(
 
 
 @jax.jit
-def evaluate_loss(token_ids: jax.Array, model: Model) -> jax.Array:
-    start_positions = jnp.arange(token_ids.shape[0] - CONTEXT_LENGTH, dtype=jnp.int32)
-    input_ids, target_ids = build_examples(token_ids, start_positions)
+def evaluate_batch_loss(model: Model, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
     return loss_fn(model, input_ids, target_ids)
 
 
 def evaluate_split(token_ids: jax.Array, model: Model) -> float:
-    return float(evaluate_loss(token_ids, model).item())
+    max_start = token_ids.shape[0] - CONTEXT_LENGTH
+    if max_start <= 0:
+        raise ValueError(
+            f"Dataset split is too small for context length {CONTEXT_LENGTH}. "
+            "Need at least one full context window plus one target token."
+        )
+
+    total_loss = 0.0
+    total_examples = 0
+
+    for batch_start in range(0, max_start, EVAL_BATCH_SIZE):
+        batch_end = min(batch_start + EVAL_BATCH_SIZE, max_start)
+        start_positions = jnp.arange(batch_start, batch_end, dtype=jnp.int32)
+        input_ids, target_ids = build_examples(token_ids, start_positions)
+        batch_loss = evaluate_batch_loss(model, input_ids, target_ids)
+        batch_size = int(start_positions.shape[0])
+        total_loss += float(batch_loss.item()) * batch_size
+        total_examples += batch_size
+
+    return total_loss / total_examples
 
 
 def sample_text(
@@ -135,13 +199,16 @@ def sample_text(
     seed_token_ids: jax.Array,
     rng: jax.Array,
 ) -> str:
+    if sample_length <= 0:
+        return ""
+
     rng, seed_rng = jax.random.split(rng)
     seed_start = int(
         jax.random.randint(
             seed_rng,
             shape=(),
             minval=0,
-            maxval=seed_token_ids.shape[0] - CONTEXT_LENGTH + 1,
+            maxval=seed_token_ids.shape[0] - CONTEXT_LENGTH,
         ).item()
     )
     context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
@@ -150,7 +217,7 @@ def sample_text(
     for _ in range(max(sample_length - len(sample), 0)):
         logits = forward(context[None, :], model)
         rng, token_rng = jax.random.split(rng)
-        next_token_id = int(jax.random.categorical(token_rng, logits[0]).item())
+        next_token_id = int(jax.random.categorical(token_rng, logits[0, -1]).item())
         sample.append(vocab_chars[next_token_id])
         context = jnp.concatenate((context[1:], jnp.asarray([next_token_id], dtype=jnp.int32)))
 
