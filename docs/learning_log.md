@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, and 2026-03-16.
+Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, and 2026-03-21.
 
 ## Summary
 
@@ -29,6 +29,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, and 2026-03-16.
 | 007 | `experiments/007_vanilla_rnn_jax.py` | 50000 | 1.923394 | 2.025352 | 184.648 | 270.786 | 188.270 | [csv](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_history.csv) | [svg](../artifacts/experiments/007_vanilla_rnn_jax/20260316_195745_191033/loss_curve.svg) |
 | 008 | `experiments/008_gru_torch.py` | 50000 | 1.973407 | 2.026830 | 698.317 | 71.601 | 699.691 | [csv](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_history.csv) | [svg](../artifacts/experiments/008_gru_torch/20260316_234646_086430/loss_curve.svg) |
 | 008 | `experiments/008_gru_jax.py` | 50000 | 1.978897 | 2.031622 | 290.632 | 172.039 | 294.285 | [csv](../artifacts/experiments/008_gru_jax/20260316_235249_013574/loss_history.csv) | [svg](../artifacts/experiments/008_gru_jax/20260316_235249_013574/loss_curve.svg) |
+| 009 | `experiments/009_single_head_attention_jax.py` | 100000 | 2.458452 | 2.484670 | 305.335 | 327.509 | 541.878 | [csv](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_history.csv) | [svg](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -543,4 +544,23 @@ r spurr'd their coursers at the trumpet's sound;
 With them, the hasboo's, for wele why or'd hold:
 Sell.
 Nor to heprecait us a'd gettan eack songlesom on to ce'd torve woue axjouds, whee wrow fary tey.
+```
+
+## 009 Single-Head Attention JAX
+
+- Script: `experiments/009_single_head_attention_jax.py`
+- Steps: `100000`
+- Train loss: `2.458452`
+- Val loss: `2.484670`
+- Train seconds: `305.335`
+- Steps per second: `327.509`
+- Total seconds: `541.878`
+
+![009 single-head attention jax loss curve](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_curve.svg)
+
+```text
+ give pardon to a slave?
+My brother slew no man; his fault was te tas alisus me.
+K fu orth by hes I bllth userithyour ping torso, bpenge ma geet, ve,
+Thiton s es ay s thayato t hou atomy t te m he; se
 ```
