@@ -21,6 +21,8 @@ __all__ = [
     "ones",
     "stack",
     "tensor",
+    "tril",
+    "triu",
     "zeros",
 ]
 
@@ -45,6 +47,10 @@ def zeros(
 def ones(
     shape: Sequence[int], *, dtype: DType = float32, requires_grad: bool = False
 ) -> Tensor: ...
+
+def triu(input: Tensor, diagonal: int = 0) -> Tensor: ...
+
+def tril(input: Tensor, diagonal: int = 0) -> Tensor: ...
 
 def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor: ...
 
