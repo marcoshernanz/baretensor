@@ -81,12 +81,13 @@ class SingleHeadAttentionLanguageModel(nn.Module):
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         _, sequence_length = input_ids.shape
-        if sequence_length > CONTEXT_LENGTH:
+        if sequence_length != CONTEXT_LENGTH:
             raise ValueError(
-                f"Input sequence length {sequence_length} exceeds context length {CONTEXT_LENGTH}."
+                f"Input sequence length {sequence_length} does not match "
+                f"context length {CONTEXT_LENGTH}."
             )
 
-        positions = torch.arange(sequence_length, device=input_ids.device)
+        positions = torch.arange(CONTEXT_LENGTH, device=input_ids.device)
         token_embeddings = self.token_embedding(input_ids)
         position_embeddings = self.position_embedding(positions).unsqueeze(0)
         input_embeddings = token_embeddings + position_embeddings
@@ -96,10 +97,8 @@ class SingleHeadAttentionLanguageModel(nn.Module):
         values = self.value(input_embeddings)
 
         scores = (queries @ keys.transpose(-1, -2)) / math.sqrt(ATTENTION_DIM)
-        masked_scores = scores.masked_fill(
-            self.causal_mask[:sequence_length, :sequence_length],
-            float("-inf"),
-        )
+        causal_mask = self.get_buffer("causal_mask")
+        masked_scores = scores.masked_fill(causal_mask, float("-inf"))
         attention_weights = F.softmax(masked_scores, dim=-1)
         attention_output = attention_weights @ values
         output = self.output(attention_output)
