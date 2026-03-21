@@ -5,7 +5,6 @@ from __future__ import annotations
 import builtins
 import math
 from collections.abc import Iterator, Sequence
-from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -35,6 +34,8 @@ def Parameter(data: Tensor | ArrayLike) -> Tensor:
 class Module:
     """Base class for composable neural-network modules."""
 
+    _parameters: dict[str, Tensor]
+    _modules: dict[str, Module]
     training: builtins.bool
 
     def __init__(self) -> None:
@@ -72,11 +73,11 @@ class Module:
             modules.pop(name, None)
         object.__delattr__(self, name)
 
-    def forward(self, *args: Any, **kwargs: Any) -> Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         raise NotImplementedError(f"{type(self).__name__}.forward() must be implemented.")
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Tensor:
-        return self.forward(*args, **kwargs)
+    def __call__(self, input: Tensor) -> Tensor:
+        return self.forward(input)
 
     def parameters(self) -> Iterator[Tensor]:
         for parameter in self._parameters.values():
@@ -194,8 +195,6 @@ class LayerNorm(Module):
     def _normalize_shape(normalized_shape: int | Sequence[int]) -> tuple[int, ...]:
         if isinstance(normalized_shape, int):
             return (normalized_shape,)
-        if not isinstance(normalized_shape, Sequence):
-            raise TypeError("normalized_shape must be an int or a sequence of ints.")
         return tuple(int(dim) for dim in normalized_shape)
 
     def reset_parameters(self) -> None:
