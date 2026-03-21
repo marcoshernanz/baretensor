@@ -7,6 +7,7 @@ from time import perf_counter
 
 import jax
 import jax.numpy as jnp
+import jax.nn as jnn
 import numpy as np
 
 from experiment_artifacts import write_loss_artifacts
@@ -117,7 +118,7 @@ def forward(input_ids: jax.Array, model: Model) -> jax.Array:
     scores = (queries @ jnp.swapaxes(keys, -1, -2)) / math.sqrt(ATTENTION_DIM)
     causal_mask = jnp.triu(jnp.ones((CONTEXT_LENGTH, CONTEXT_LENGTH), dtype=bool), k=1)
     masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
-    attention_weights = jax.nn.softmax(masked_scores, axis=-1)
+    attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
     output = attention_output @ model["attention_output_weights"]
     return output @ model["logit_weights"] + model["logit_bias"]
@@ -125,7 +126,7 @@ def forward(input_ids: jax.Array, model: Model) -> jax.Array:
 
 def loss_fn(model: Model, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
     logits = forward(input_ids, model)
-    log_probs = jax.nn.log_softmax(logits, axis=-1)
+    log_probs = jnn.log_softmax(logits, axis=-1)
     loss_per_token = -jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()
 
