@@ -6,6 +6,7 @@ import random
 from time import perf_counter
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from experiment_artifacts import write_loss_artifacts
@@ -22,9 +23,6 @@ LEARNING_RATE = 0.02
 TRAIN_STEPS = 100_000
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
-
-
-Model = dict[str, torch.Tensor]
 
 
 def load_text(path: Path) -> str:
@@ -44,40 +42,6 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
 
 
-def model_params(model: Model) -> tuple[torch.Tensor, ...]:
-    return (
-        model["token_embedding_table"],
-        model["position_embedding_table"],
-        model["query_weights"],
-        model["key_weights"],
-        model["value_weights"],
-        model["attention_output_weights"],
-        model["logit_weights"],
-        model["logit_bias"],
-    )
-
-
-def init_model(vocab_size: int) -> Model:
-    model: Model = {
-        "token_embedding_table": torch.randn((vocab_size, EMBEDDING_DIM)) * 0.1,
-        "position_embedding_table": torch.randn((CONTEXT_LENGTH, EMBEDDING_DIM)) * 0.1,
-        "query_weights": torch.randn((EMBEDDING_DIM, ATTENTION_DIM))
-        * (1.0 / math.sqrt(EMBEDDING_DIM)),
-        "key_weights": torch.randn((EMBEDDING_DIM, ATTENTION_DIM))
-        * (1.0 / math.sqrt(EMBEDDING_DIM)),
-        "value_weights": torch.randn((EMBEDDING_DIM, ATTENTION_DIM))
-        * (1.0 / math.sqrt(EMBEDDING_DIM)),
-        "attention_output_weights": torch.randn((ATTENTION_DIM, EMBEDDING_DIM))
-        * (1.0 / math.sqrt(ATTENTION_DIM)),
-        "logit_weights": torch.randn((EMBEDDING_DIM, vocab_size))
-        * (1.0 / math.sqrt(EMBEDDING_DIM)),
-        "logit_bias": torch.zeros((vocab_size,)),
-    }
-    for param in model_params(model):
-        param.requires_grad = True
-    return model
-
-
 def build_examples(
     token_ids: torch.Tensor,
     start_positions: torch.Tensor,
@@ -88,31 +52,64 @@ def build_examples(
     return input_ids, target_ids
 
 
-def forward(input_ids: torch.Tensor, model: Model) -> torch.Tensor:
-    token_embeddings = F.embedding(input_ids, model["token_embedding_table"])
-    position_embeddings = model["position_embedding_table"][
-        torch.arange(CONTEXT_LENGTH, device=input_ids.device)
-    ]
-    input_embeddings = token_embeddings + position_embeddings
+class SingleHeadAttentionLanguageModel(nn.Module):
+    def __init__(self, vocab_size: int) -> None:
+        super().__init__()
+        self.token_embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
+        self.position_embedding = nn.Embedding(CONTEXT_LENGTH, EMBEDDING_DIM)
+        self.query = nn.Linear(EMBEDDING_DIM, ATTENTION_DIM, bias=False)
+        self.key = nn.Linear(EMBEDDING_DIM, ATTENTION_DIM, bias=False)
+        self.value = nn.Linear(EMBEDDING_DIM, ATTENTION_DIM, bias=False)
+        self.output = nn.Linear(ATTENTION_DIM, EMBEDDING_DIM, bias=False)
+        self.lm_head = nn.Linear(EMBEDDING_DIM, vocab_size)
+        self.register_buffer(
+            "causal_mask",
+            torch.triu(torch.ones((CONTEXT_LENGTH, CONTEXT_LENGTH), dtype=torch.bool), diagonal=1),
+            persistent=False,
+        )
+        self.reset_parameters()
 
-    queries = input_embeddings @ model["query_weights"]
-    keys = input_embeddings @ model["key_weights"]
-    values = input_embeddings @ model["value_weights"]
+    def reset_parameters(self) -> None:
+        nn.init.normal_(self.token_embedding.weight, std=0.1)
+        nn.init.normal_(self.position_embedding.weight, std=0.1)
+        nn.init.normal_(self.query.weight, std=1.0 / math.sqrt(EMBEDDING_DIM))
+        nn.init.normal_(self.key.weight, std=1.0 / math.sqrt(EMBEDDING_DIM))
+        nn.init.normal_(self.value.weight, std=1.0 / math.sqrt(EMBEDDING_DIM))
+        nn.init.normal_(self.output.weight, std=1.0 / math.sqrt(ATTENTION_DIM))
+        nn.init.normal_(self.lm_head.weight, std=1.0 / math.sqrt(EMBEDDING_DIM))
+        nn.init.zeros_(self.lm_head.bias)
 
-    scores = (queries @ keys.transpose(-1, -2)) / math.sqrt(ATTENTION_DIM)
-    causal_mask = torch.triu(
-        torch.ones((CONTEXT_LENGTH, CONTEXT_LENGTH), dtype=torch.bool, device=input_ids.device),
-        diagonal=1,
-    )
-    masked_scores = scores.masked_fill(causal_mask, float("-inf"))
-    attention_weights = F.softmax(masked_scores, dim=-1)
-    attention_output = attention_weights @ values
-    output = attention_output @ model["attention_output_weights"]
-    return output @ model["logit_weights"] + model["logit_bias"]
+    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        _, sequence_length = input_ids.shape
+        if sequence_length > CONTEXT_LENGTH:
+            raise ValueError(
+                f"Input sequence length {sequence_length} exceeds context length {CONTEXT_LENGTH}."
+            )
+
+        positions = torch.arange(sequence_length, device=input_ids.device)
+        token_embeddings = self.token_embedding(input_ids)
+        position_embeddings = self.position_embedding(positions).unsqueeze(0)
+        input_embeddings = token_embeddings + position_embeddings
+
+        queries = self.query(input_embeddings)
+        keys = self.key(input_embeddings)
+        values = self.value(input_embeddings)
+
+        scores = (queries @ keys.transpose(-1, -2)) / math.sqrt(ATTENTION_DIM)
+        masked_scores = scores.masked_fill(
+            self.causal_mask[:sequence_length, :sequence_length],
+            float("-inf"),
+        )
+        attention_weights = F.softmax(masked_scores, dim=-1)
+        attention_output = attention_weights @ values
+        output = self.output(attention_output)
+        return self.lm_head(output)
 
 
-def loss_fn(model: Model, input_ids: torch.Tensor, target_ids: torch.Tensor) -> torch.Tensor:
-    logits = forward(input_ids, model)
+def loss_fn(
+    model: SingleHeadAttentionLanguageModel, input_ids: torch.Tensor, target_ids: torch.Tensor
+) -> torch.Tensor:
+    logits = model(input_ids)
     vocab_size = logits.shape[-1]
     return F.cross_entropy(
         logits.reshape(-1, vocab_size),
@@ -120,40 +117,34 @@ def loss_fn(model: Model, input_ids: torch.Tensor, target_ids: torch.Tensor) -> 
     )
 
 
-def evaluate_batch_loss(
-    model: Model, input_ids: torch.Tensor, target_ids: torch.Tensor
-) -> torch.Tensor:
-    return loss_fn(model, input_ids, target_ids)
-
-
-def evaluate_split(token_ids: torch.Tensor, model: Model) -> float:
-    max_start = len(token_ids) - CONTEXT_LENGTH
-    if max_start <= 0:
-        raise ValueError(
-            f"Dataset split is too small for context length {CONTEXT_LENGTH}. "
-            "Need at least one full context window plus one target token."
-        )
-
+def evaluate_split(token_ids: torch.Tensor, model: SingleHeadAttentionLanguageModel) -> float:
     with torch.no_grad():
+        max_start = len(token_ids) - CONTEXT_LENGTH
+        if max_start <= 0:
+            raise ValueError(
+                f"Dataset split is too small for context length {CONTEXT_LENGTH}. "
+                "Need at least one full context window plus one target token."
+            )
+
         total_loss = 0.0
         total_examples = 0
 
         for batch_start in range(0, max_start, EVAL_BATCH_SIZE):
             batch_end = min(batch_start + EVAL_BATCH_SIZE, max_start)
-            start_positions = torch.arange(batch_start, batch_end, dtype=torch.long)
+            start_positions = torch.arange(batch_start, batch_end)
             input_ids, target_ids = build_examples(token_ids, start_positions)
-            batch_loss = evaluate_batch_loss(model, input_ids, target_ids)
-            batch_size = int(len(start_positions))
+            batch_loss = loss_fn(model, input_ids, target_ids)
+            batch_size = len(start_positions)
             total_loss += float(batch_loss.item()) * batch_size
             total_examples += batch_size
 
-    return total_loss / total_examples
+        return total_loss / total_examples
 
 
 def sample_text(
     vocab_chars: list[str],
     sample_length: int,
-    model: Model,
+    model: SingleHeadAttentionLanguageModel,
     seed_token_ids: torch.Tensor,
 ) -> str:
     if sample_length <= 0:
@@ -165,7 +156,7 @@ def sample_text(
         sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length]]
 
         for _ in range(max(sample_length - len(sample), 0)):
-            logits = forward(context.unsqueeze(0), model)
+            logits = model(context.unsqueeze(0))
             probabilities = F.softmax(logits[0, -1], dim=0)
             next_token_id = int(torch.multinomial(probabilities, num_samples=1).item())
             sample.append(vocab_chars[next_token_id])
@@ -193,7 +184,8 @@ def main() -> None:
             "Need at least one full context window plus one target token in each split."
         )
 
-    model = init_model(vocab_size)
+    model = SingleHeadAttentionLanguageModel(vocab_size)
+    optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE)
     loss_history: list[tuple[int, float, float]] = []
     ema_loss: float | None = None
     train_start = perf_counter()
@@ -203,16 +195,9 @@ def main() -> None:
         input_ids, target_ids = build_examples(train_token_ids, start_positions)
         loss = loss_fn(model, input_ids, target_ids)
 
-        for param in model_params(model):
-            param.grad = None
-
+        optimizer.zero_grad(set_to_none=True)
         loss.backward()
-
-        with torch.no_grad():
-            for param in model_params(model):
-                grad = param.grad
-                assert grad is not None
-                param -= LEARNING_RATE * grad
+        optimizer.step()
 
         raw_loss = float(loss.item())
         ema_loss = (
