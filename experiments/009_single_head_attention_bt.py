@@ -27,12 +27,7 @@ LOG_INTERVAL = 1000
 MASK_FILL_VALUE = -1e9
 
 POSITION_IDS = bt.tensor(np.arange(CONTEXT_LENGTH, dtype=np.int64))
-CAUSAL_MASK = bt.tensor(
-    np.triu(
-        np.full((CONTEXT_LENGTH, CONTEXT_LENGTH), MASK_FILL_VALUE, dtype=np.float32),
-        k=1,
-    )
-)
+CAUSAL_MASK = bt.triu(bt.ones((CONTEXT_LENGTH, CONTEXT_LENGTH), dtype=bt.bool), diagonal=1)
 
 
 Model = dict[str, bt.Tensor]
@@ -125,7 +120,7 @@ def forward(input_ids: bt.Tensor, model: Model) -> bt.Tensor:
     values = input_embeddings @ model["value_weights"]
 
     scores = (queries @ keys.transpose(1, 2)) / math.sqrt(ATTENTION_DIM)
-    masked_scores = scores + CAUSAL_MASK
+    masked_scores = bt.where(CAUSAL_MASK, MASK_FILL_VALUE, scores)
     attention_weights = masked_scores.softmax(-1)
     attention_output = attention_weights @ values
     output = attention_output @ model["attention_output_weights"]
