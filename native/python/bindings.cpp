@@ -395,6 +395,8 @@ NB_MODULE(_C, m) {
       .def("unsqueeze", &bt::Tensor::unsqueeze, nb::arg("dim"))
       .def("permute", &bt::Tensor::permute, nb::arg("dims"))
       .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"), nb::arg("dim1"))
+      .def("triu", &bt::Tensor::triu, nb::arg("diagonal") = 0)
+      .def("tril", &bt::Tensor::tril, nb::arg("diagonal") = 0)
       .def("__getitem__", &tensor_getitem, nb::arg("index").none())
       .def("item", &tensor_item)
       .def_prop_ro("T", &bt::Tensor::T)
@@ -497,6 +499,8 @@ NB_MODULE(_C, m) {
         nb::arg("requires_grad") = false);
   m.def("ones", &bt::ones, nb::arg("shape"), nb::arg("dtype") = bt::ScalarType::kFloat32,
         nb::arg("requires_grad") = false);
+  m.def("triu", &bt::triu, nb::arg("input"), nb::arg("diagonal") = 0);
+  m.def("tril", &bt::tril, nb::arg("input"), nb::arg("diagonal") = 0);
   m.def("cat", &bt::cat, nb::arg("tensors"), nb::arg("dim") = 0);
   m.def("stack", &bt::stack, nb::arg("tensors"), nb::arg("dim") = 0);
   m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"), nb::arg("target"),

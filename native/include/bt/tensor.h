@@ -236,6 +236,20 @@ public:
   [[nodiscard]] Tensor mT() const;
 
   /*
+   * Returns the upper triangular part of a matrix or batch of matrices.
+   * Elements below the requested diagonal are set to zero.
+   * Requires ndim() >= 2 and applies to the last two dimensions.
+   */
+  [[nodiscard]] Tensor triu(int64_t diagonal = 0) const;
+
+  /*
+   * Returns the lower triangular part of a matrix or batch of matrices.
+   * Elements above the requested diagonal are set to zero.
+   * Requires ndim() >= 2 and applies to the last two dimensions.
+   */
+  [[nodiscard]] Tensor tril(int64_t diagonal = 0) const;
+
+  /*
    * Returns the matrix product of this tensor and tensor2 using PyTorch-style
    * matmul semantics:
    * - 1D x 1D -> scalar dot product
@@ -551,6 +565,18 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient = std:
  */
 [[nodiscard]] Tensor ones(const std::vector<int64_t> &shape,
                           ScalarType dtype = ScalarType::kFloat32, bool requires_grad = false);
+
+/*
+ * Returns the upper triangular part of a matrix or batch of matrices.
+ * Elements below the requested diagonal are set to zero.
+ */
+[[nodiscard]] Tensor triu(const Tensor &input, int64_t diagonal = 0);
+
+/*
+ * Returns the lower triangular part of a matrix or batch of matrices.
+ * Elements above the requested diagonal are set to zero.
+ */
+[[nodiscard]] Tensor tril(const Tensor &input, int64_t diagonal = 0);
 
 /*
  * Concatenates tensors along an existing dimension.

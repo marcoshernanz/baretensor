@@ -20,6 +20,8 @@ from ._C import (
     ones as _ones,
     stack as _stack,
     tensor_from_numpy as _tensor_from_numpy,
+    tril as _tril,
+    triu as _triu,
     zeros as _zeros,
 )
 
@@ -158,6 +160,16 @@ def ones(shape: Sequence[int], *, dtype: DType = float32, requires_grad: bool = 
     return _ones(list(shape), _normalize_dtype(dtype), requires_grad)
 
 
+def triu(input: Tensor, diagonal: int = 0) -> Tensor:
+    """Return the upper triangular part of a matrix or batch of matrices."""
+    return _triu(input=input, diagonal=diagonal)
+
+
+def tril(input: Tensor, diagonal: int = 0) -> Tensor:
+    """Return the lower triangular part of a matrix or batch of matrices."""
+    return _tril(input=input, diagonal=diagonal)
+
+
 def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
     """Concatenate tensors along an existing dimension."""
     return _cat(list(tensors), dim=dim)
@@ -180,5 +192,7 @@ __all__ = [
     "ones",
     "stack",
     "tensor",
+    "tril",
+    "triu",
     "zeros",
 ]
