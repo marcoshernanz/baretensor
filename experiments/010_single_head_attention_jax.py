@@ -59,6 +59,13 @@ def build_examples(
 
 
 class SingleHeadAttentionLanguageModel(nn.Module):
+    token_embedding: nn.Embed
+    position_embedding: nn.Embed
+    query: nn.Dense
+    key: nn.Dense
+    value: nn.Dense
+    output: nn.Dense
+    lm_head: nn.Dense
     vocab_size: int
     embedding_dim: int = EMBEDDING_DIM
     attention_dim: int = ATTENTION_DIM
@@ -66,12 +73,8 @@ class SingleHeadAttentionLanguageModel(nn.Module):
 
     def setup(self) -> None:
         embedding_init = nn.initializers.normal(stddev=0.1)
-        input_projection_init = nn.initializers.normal(
-            stddev=1.0 / math.sqrt(self.embedding_dim)
-        )
-        output_projection_init = nn.initializers.normal(
-            stddev=1.0 / math.sqrt(self.attention_dim)
-        )
+        input_projection_init = nn.initializers.normal(stddev=1.0 / math.sqrt(self.embedding_dim))
+        output_projection_init = nn.initializers.normal(stddev=1.0 / math.sqrt(self.attention_dim))
 
         self.token_embedding = nn.Embed(
             num_embeddings=self.vocab_size,
