@@ -47,6 +47,14 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         self.assertEqual(tensor.dtype, bt.float32)
         np.testing.assert_allclose(to_numpy(tensor), np.asarray(3.5, dtype=np.float32))
 
+    def test_tensor_accepts_python_bool_scalar(self) -> None:
+        tensor = bt.tensor(True)
+
+        self.assertEqual(tensor.shape, [])
+        self.assertEqual(tensor.dtype, bt.bool)
+        self.assertEqual(to_numpy(tensor).dtype, np.bool_)
+        self.assertEqual(cast(bool, tensor.item()), True)
+
     def test_tensor_accepts_python_int_scalar_as_int64(self) -> None:
         tensor = bt.tensor(7)
 
@@ -97,12 +105,25 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         self.assertEqual(tensor.dtype, bt.int64)
         np.testing.assert_array_equal(to_numpy(tensor), np.full((2, 2), 3, dtype=np.int64))
 
+    def test_factory_accepts_explicit_bool_dtype(self) -> None:
+        tensor = bt.ones([2, 2], dtype=bt.bool)
+
+        self.assertEqual(tensor.dtype, bt.bool)
+        np.testing.assert_array_equal(to_numpy(tensor), np.full((2, 2), True, dtype=np.bool_))
+
     def test_factory_rejects_requires_grad_on_int64(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
             r"set_requires_grad\(true\) is only supported for floating-point tensors",
         ):
             _ = bt.zeros([2, 2], dtype=bt.int64, requires_grad=True)
+
+    def test_factory_rejects_requires_grad_on_bool(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            r"set_requires_grad\(true\) is only supported for floating-point tensors",
+        ):
+            _ = bt.zeros([2, 2], dtype=bt.bool, requires_grad=True)
 
     def test_negative_shape_raises(self) -> None:
         with self.assertRaisesRegex(
@@ -143,6 +164,14 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
         self.assertEqual(tensor.dtype, bt.float32)
         np.testing.assert_allclose(to_numpy(tensor), np.asarray(float64, dtype=np.float32))
 
+    def test_tensor_accepts_numpy_bool_array(self) -> None:
+        source = np.asarray([[True, False], [False, True]], dtype=np.bool_)
+
+        tensor = bt.tensor(cast(Any, source))
+
+        self.assertEqual(tensor.dtype, bt.bool)
+        np.testing.assert_array_equal(to_numpy(tensor), source)
+
     def test_tensor_list_respects_requires_grad(self) -> None:
         tensor = bt.tensor([1.0, 2.0, 3.0], requires_grad=True)
 
@@ -155,6 +184,13 @@ class ConstructorsAndMetadataTests(unittest.TestCase):
             r"set_requires_grad\(true\) is only supported for floating-point tensors",
         ):
             _ = bt.tensor([1, 2, 3], requires_grad=True)
+
+    def test_requires_grad_rejects_bool_tensor(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            r"set_requires_grad\(true\) is only supported for floating-point tensors",
+        ):
+            _ = bt.tensor([True, False], requires_grad=True)
 
     def test_explicit_int64_cast_is_strict(self) -> None:
         with self.assertRaisesRegex(
