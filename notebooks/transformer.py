@@ -1,4 +1,6 @@
 from pathlib import Path
+import math
+from typing import Optional
 
 import equinox as eqx
 import jax
@@ -36,7 +38,7 @@ class Embedding(eqx.Module):
     weight: jax.Array
 
     def __init__(self, num_embeddings: int, embedding_dim: int, rng: jax.Array):
-        self.weight = jax.random.normal(rng, (num_embeddings, embedding_dim))
+        self.weight = jax.random.normal(rng, (num_embeddings, embedding_dim)) * 0.1
 
     def __call__(self, indices: jax.Array) -> jax.Array:
         return self.weight[indices]
@@ -44,14 +46,19 @@ class Embedding(eqx.Module):
 
 class Linear(eqx.Module):
     weight: jax.Array
-    bias: jax.Array
+    bias: Optional[jax.Array]
 
-    def __init__(self, in_features: int, out_features: int, rng: jax.Array):
-        self.weight = jax.random.normal(rng, (in_features, out_features))
-        self.bias = jnp.zeros((out_features,))
+    def __init__(self, in_features: int, out_features: int, rng: jax.Array, bias: bool = True):
+        self.weight = jax.random.normal(rng, (in_features, out_features)) * (
+            1.0 / math.sqrt(in_features)
+        )
+        self.bias = jnp.zeros((out_features,)) if bias else None
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        return x @ self.weight + self.bias
+        output = x @ self.weight
+        if self.bias is not None:
+            output = output + self.bias
+        return output
 
 
 class CausalSelfAttention(eqx.Module):
@@ -62,10 +69,10 @@ class CausalSelfAttention(eqx.Module):
 
     def __init__(self, rng: jax.Array):
         query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query = Linear(EMBEDDING_DIM, ATTENTION_DIM, query_rng)
-        self.key = Linear(EMBEDDING_DIM, ATTENTION_DIM, key_rng)
-        self.value = Linear(EMBEDDING_DIM, ATTENTION_DIM, value_rng)
-        self.output = Linear(ATTENTION_DIM, EMBEDDING_DIM, output_rng)
+        self.query = Linear(EMBEDDING_DIM, ATTENTION_DIM, query_rng, bias=False)
+        self.key = Linear(EMBEDDING_DIM, ATTENTION_DIM, key_rng, bias=False)
+        self.value = Linear(EMBEDDING_DIM, ATTENTION_DIM, value_rng, bias=False)
+        self.output = Linear(ATTENTION_DIM, EMBEDDING_DIM, output_rng, bias=False)
 
     def __call__(self, x: jax.Array) -> jax.Array:
         queries = self.query(x)
