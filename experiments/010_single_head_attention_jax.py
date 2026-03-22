@@ -12,7 +12,7 @@ from flax.training import train_state
 import jax
 import jax.numpy as jnp
 import numpy as np
-import optax  # pyright: ignore[reportMissingTypeStubs]
+import optax
 
 from experiment_artifacts import write_loss_artifacts
 
