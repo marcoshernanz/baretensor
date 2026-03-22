@@ -44,11 +44,13 @@ num_tokens = token_ids.shape[0]
     Wk_key,
     Wv_key,
     Wo_key,
+    W_key,
+    B_key,
     W1_key,
     B1_key,
     W2_key,
     B2_key,
-) = jax.random.split(key, 11)
+) = jax.random.split(key, 13)
 
 token_embedding_table = jax.random.normal(token_embedding_key, (vocab_size, EMBEDDING_DIM))
 position_embedding_table = jax.random.normal(
@@ -58,12 +60,16 @@ Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
+W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
+B = jax.random.normal(B_key, (vocab_size,))
 layer_norm_scale = jnp.ones((EMBEDDING_DIM,))
 layer_norm_shift = jnp.zeros((EMBEDDING_DIM,))
 W1 = jax.random.normal(W1_key, (EMBEDDING_DIM, HIDDEN_DIM))
 B1 = jax.random.normal(B1_key, (HIDDEN_DIM,))
-W2 = jax.random.normal(W2_key, (HIDDEN_DIM, vocab_size))
-B2 = jax.random.normal(B2_key, (vocab_size,))
+W2 = jax.random.normal(W2_key, (HIDDEN_DIM, EMBEDDING_DIM))
+B2 = jax.random.normal(B2_key, (EMBEDDING_DIM,))
+layer_norm_scale2 = jnp.ones((EMBEDDING_DIM,))
+layer_norm_shift2 = jnp.zeros((EMBEDDING_DIM,))
 
 params: Params = {
     "token_embedding_table": token_embedding_table,
@@ -78,6 +84,10 @@ params: Params = {
     "B1": B1,
     "W2": W2,
     "B2": B2,
+    "layer_norm_scale2": layer_norm_scale2,
+    "layer_norm_shift2": layer_norm_shift2,
+    "W": W,
+    "B": B,
 }
 
 # %%
@@ -117,8 +127,16 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     )
 
     h1 = jnp.tanh(layer_norm_output @ params["W1"] + params["B1"])
-    logits = h1 @ params["W2"] + params["B2"]
+    h2 = h1 @ params["W2"] + params["B2"]
+    output = h2 + layer_norm_output
+    normalized_output = (output - output.mean(axis=-1, keepdims=True)) / jnp.sqrt(
+        output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS
+    )
+    layer_norm_output2 = (
+        params["layer_norm_scale2"] * normalized_output + params["layer_norm_shift2"]
+    )
 
+    logits = layer_norm_output2 @ params["W"] + params["B"]
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()
