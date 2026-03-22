@@ -250,19 +250,18 @@ def where(
     """Select elements from ``input`` or ``other`` based on ``condition``."""
     tensor_condition = _normalize_where_condition(condition)
 
-    input_is_tensor = isinstance(input, Tensor)
-    other_is_tensor = isinstance(other, Tensor)
-
-    if input_is_tensor:
+    if isinstance(input, Tensor):
         tensor_input = input
-        tensor_other = _normalize_where_branch(other, dtype=input.dtype)
-    elif other_is_tensor:
-        tensor_other = other
-        tensor_input = _normalize_where_branch(input, dtype=other.dtype)
-    else:
-        tensor_input = _normalize_where_branch(input, dtype=None)
-        tensor_other = _normalize_where_branch(other, dtype=None)
+        tensor_other = _normalize_where_branch(other, dtype=tensor_input.dtype)
+        return _where(tensor_condition, tensor_input, tensor_other)
 
+    if isinstance(other, Tensor):
+        tensor_other = other
+        tensor_input = _normalize_where_branch(input, dtype=tensor_other.dtype)
+        return _where(tensor_condition, tensor_input, tensor_other)
+
+    tensor_input = _normalize_where_branch(input, dtype=None)
+    tensor_other = _normalize_where_branch(other, dtype=None)
     return _where(tensor_condition, tensor_input, tensor_other)
 
 

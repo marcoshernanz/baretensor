@@ -86,10 +86,10 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
     attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
-    output = attention_output @ params["Wo"]
-    joined = output + input_embeddings
+    projected_attention = attention_output @ params["Wo"]
+    block_output = input_embeddings + projected_attention
 
-    logits = joined @ params["W"] + params["B"]
+    logits = block_output @ params["W"] + params["B"]
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()

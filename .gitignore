@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info/
 .ruff_cache/
 .pyright/
+.kaggle/
 
 # CMake / native builds
 build/

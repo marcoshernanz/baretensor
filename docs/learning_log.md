@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, and 2026-03-21.
+Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 2026-03-21, and 2026-03-22.
 
 ## Summary
 
@@ -33,6 +33,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, and
 | 009 | `experiments/009_single_head_attention_jax.py` | 100000 | 2.458452 | 2.484670 | 305.335 | 327.509 | 541.878 | [csv](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_history.csv) | [svg](../artifacts/experiments/009_single_head_attention_jax/20260321_095756_487781/loss_curve.svg) |
 | 010 | `experiments/010_single_head_attention_torch.py` | 100000 | 2.445969 | 2.474077 | 247.082 | 404.724 | 297.885 | [csv](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_curve.svg) |
 | 010 | `experiments/010_single_head_attention_jax.py` | 100000 | 2.463586 | 2.487816 | 320.054 | 312.447 | 496.636 | [csv](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_curve.svg) |
+| 011 | `experiments/011_attention_residual_jax.py` | 100000 | 2.315200 | 2.356931 | 276.444 | 361.737 | 332.165 | [csv](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_history.csv) | [svg](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -604,6 +605,30 @@ EThand t, ad y y gor psha
 My brother slew no man; his fault was te tas alisus me.
 K fu ores by hes I bshat userithyoureping tors houpenge ma geet, ve,
 Thiton s es ay s thayato t hou atomy t te m he lse
+```
+
+## 011 Attention + Residual JAX
+
+- Script: `experiments/011_attention_residual_jax.py`
+- Steps: `100000`
+- Train loss: `2.315200`
+- Val loss: `2.356931`
+- Train seconds: `276.444`
+- Steps per second: `361.737`
+- Total seconds: `332.165`
+
+![011 attention residual jax loss curve](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_curve.svg)
+
+```text
+ give pardon to a slave?
+My brother slew no man; his fault was teataldalisus me.
+
+
+
+IOLBEOPEOLEY:
+I Ishat usermellour ping lors houpe
+Thesp geeerkve, ousellas es ayour
+Foua, t ie s Diory t te m henlde
 ```
 
 ## 009 Single-Head Attention Torch
