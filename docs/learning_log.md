@@ -551,6 +551,27 @@ Sell.
 Nor to heprecait us a'd gettan eack songlesom on to ce'd torve woue axjouds, whee wrow fary tey.
 ```
 
+## 009 Single-Head Attention Torch
+
+- Script: `experiments/009_single_head_attention_torch.py`
+- Steps: `100000`
+- Train loss: `2.456635`
+- Val loss: `2.478268`
+- Train seconds: `180.380`
+- Steps per second: `554.384`
+- Total seconds: `217.976`
+
+![009 single-head attention torch loss curve](../artifacts/experiments/009_single_head_attention_torch/20260321_100630_174512/loss_curve.svg)
+
+```text
+to account this world but hell,
+Until my mis-shaped trunk that baly, bet, tow pey po
+ULoterwim
+II one tesu trsainthepons t w ay Bulanot.
+ICO bachoudeal Sar.G brloucte teadlyU: aid t
+I Thereat tobpe my
+```
+
 ## 009 Single-Head Attention JAX
 
 - Script: `experiments/009_single_head_attention_jax.py`
@@ -653,25 +674,4 @@ My brother slew no man; his fault was tokeas alldu the.
 IOLBEOPEO:
 Y thershat ugermesl; geping tors houpenge ma geet, vereous tans eang tor
 Foraic Eizes stoof thee m notlee
-```
-
-## 009 Single-Head Attention Torch
-
-- Script: `experiments/009_single_head_attention_torch.py`
-- Steps: `100000`
-- Train loss: `2.456635`
-- Val loss: `2.478268`
-- Train seconds: `180.380`
-- Steps per second: `554.384`
-- Total seconds: `217.976`
-
-![009 single-head attention torch loss curve](../artifacts/experiments/009_single_head_attention_torch/20260321_100630_174512/loss_curve.svg)
-
-```text
-to account this world but hell,
-Until my mis-shaped trunk that baly, bet, tow pey po
-ULoterwim
-II one tesu trsainthepons t w ay Bulanot.
-ICO bachoudeal Sar.G brloucte teadlyU: aid t
-I Thereat tobpe my
 ```
