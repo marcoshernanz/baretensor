@@ -16,6 +16,7 @@ CONTEXT_WINDOW = 512
 ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
+LAYER_NORM_EPS = 1e-5
 
 Array: TypeAlias = jax.Array
 Params: TypeAlias = dict[str, Array]
@@ -48,8 +49,8 @@ Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
 B = jax.random.normal(B_key, (vocab_size,))
-norm_gamma = jnp.ones((EMBEDDING_DIM,))
-norm_beta = jnp.zeros((EMBEDDING_DIM,))
+layer_norm_scale = jnp.ones((EMBEDDING_DIM,))
+layer_norm_shift = jnp.zeros((EMBEDDING_DIM,))
 
 params: Params = {
     "token_embedding_table": token_embedding_table,
@@ -60,8 +61,8 @@ params: Params = {
     "Wo": Wo,
     "W": W,
     "B": B,
-    "norm_gamma": norm_gamma,
-    "norm_beta": norm_beta,
+    "layer_norm_scale": layer_norm_scale,
+    "layer_norm_shift": layer_norm_shift,
 }
 
 # %%
@@ -91,14 +92,16 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     attention_weights = jnn.softmax(masked_scores, axis=-1)
     attention_output = attention_weights @ values
     projected_attention = attention_output @ params["Wo"]
-    block_output = input_embeddings + projected_attention
+    residual_output = input_embeddings + projected_attention
 
-    norm = (block_output - block_output.mean(axis=-1, keepdims=True)) / jnp.sqrt(
-        block_output.var(axis=-1, keepdims=True) + 1e-6
+    normalized_residual = (
+        residual_output - residual_output.mean(axis=-1, keepdims=True)
+    ) / jnp.sqrt(residual_output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS)
+    layer_norm_output = (
+        params["layer_norm_scale"] * normalized_residual + params["layer_norm_shift"]
     )
-    layer_norm = params["norm_gamma"] * norm + params["norm_beta"]
 
-    logits = layer_norm @ params["W"] + params["B"]
+    logits = layer_norm_output @ params["W"] + params["B"]
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()
