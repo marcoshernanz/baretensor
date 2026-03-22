@@ -1,6 +1,6 @@
 from pathlib import Path
-import math
 
+from flax import linen as nn
 import jax
 import jax.numpy as jnp
 import jax.nn as jnn
@@ -14,105 +14,58 @@ CONTEXT_WINDOW = 512
 ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
+LAYER_NORM_EPS = 1e-5
 
 
-class LayerNorm:
-    eps: float = 1e-5
-    scale: jax.Array
-    shift: jax.Array
-
-    def __init__(self):
-        self.scale = jnp.ones((EMBEDDING_DIM,))
-        self.shift = jnp.zeros((EMBEDDING_DIM,))
-
+class CausalSelfAttention(nn.Module):
+    @nn.compact
     def __call__(self, x: jax.Array) -> jax.Array:
-        mean = x.mean(axis=-1, keepdims=True)
-        variance = x.var(axis=-1, keepdims=True)
-        normalized = (x - mean) / jnp.sqrt(variance + self.eps)
-        return self.scale * normalized + self.shift
+        queries = nn.Dense(ATTENTION_DIM, use_bias=False, name="query")(x)
+        keys = nn.Dense(ATTENTION_DIM, use_bias=False, name="key")(x)
+        values = nn.Dense(ATTENTION_DIM, use_bias=False, name="value")(x)
 
-
-class CausalSelfAttention:
-    query_weights: jax.Array
-    key_weights: jax.Array
-    value_weights: jax.Array
-    output_weights: jax.Array
-
-    def __init__(self, rng: jax.Array):
-        query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query_weights = jax.random.normal(query_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.key_weights = jax.random.normal(key_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.value_weights = jax.random.normal(value_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.output_weights = jax.random.normal(output_rng, (ATTENTION_DIM, EMBEDDING_DIM))
-
-    def __call__(self, x: jax.Array) -> jax.Array:
-        queries = x @ self.query_weights
-        keys = x @ self.key_weights
-        values = x @ self.value_weights
-
-        scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
+        scores = (queries @ jnp.swapaxes(keys, -1, -2)) / jnp.sqrt(ATTENTION_DIM)
         causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
         masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
         attention_weights = jnn.softmax(masked_scores, axis=-1)
         mixed_values = attention_weights @ values
-        return mixed_values @ self.output_weights
+        return nn.Dense(EMBEDDING_DIM, use_bias=False, name="output")(mixed_values)
 
 
-class FeedForward:
-    hidden_weights: jax.Array
-    hidden_bias: jax.Array
-    output_weights: jax.Array
-    output_bias: jax.Array
-
-    def __init__(self, rng: jax.Array):
-        hidden_rng, output_rng = jax.random.split(rng, 2)
-        self.hidden_weights = jax.random.normal(hidden_rng, (EMBEDDING_DIM, HIDDEN_DIM))
-        self.hidden_bias = jnp.zeros((HIDDEN_DIM,))
-        self.output_weights = jax.random.normal(output_rng, (HIDDEN_DIM, EMBEDDING_DIM))
-        self.output_bias = jnp.zeros((EMBEDDING_DIM,))
-
+class FeedForward(nn.Module):
+    @nn.compact
     def __call__(self, x: jax.Array) -> jax.Array:
-        hidden = jnp.tanh(x @ self.hidden_weights + self.hidden_bias)
-        return hidden @ self.output_weights + self.output_bias
+        hidden = nn.Dense(HIDDEN_DIM, name="hidden")(x)
+        hidden = jnp.tanh(hidden)
+        return nn.Dense(EMBEDDING_DIM, name="output")(hidden)
 
 
-class LanguageModel:
-    token_embeddings: jax.Array
-    position_embeddings: jax.Array
-    attention: CausalSelfAttention
-    attention_norm: LayerNorm
-    feed_forward: FeedForward
-    feed_forward_norm: LayerNorm
-    logit_weights: jax.Array
-    logit_bias: jax.Array
+class LanguageModel(nn.Module):
+    vocab_size: int
 
-    def __init__(self, rng: jax.Array, vocab_size: int):
-        embedding_rng, position_rng, attention_rng, feed_forward_rng, logits_rng = jax.random.split(
-            rng, 5
-        )
-        self.token_embeddings = jax.random.normal(embedding_rng, (vocab_size, EMBEDDING_DIM))
-        self.position_embeddings = jax.random.normal(position_rng, (CONTEXT_WINDOW, EMBEDDING_DIM))
-        self.attention = CausalSelfAttention(attention_rng)
-        self.attention_norm = LayerNorm()
-        self.feed_forward = FeedForward(feed_forward_rng)
-        self.feed_forward_norm = LayerNorm()
-        self.logit_weights = jax.random.normal(logits_rng, (EMBEDDING_DIM, vocab_size)) * (
-            1.0 / math.sqrt(EMBEDDING_DIM)
-        )
-        self.logit_bias = jnp.zeros((vocab_size,))
-
+    @nn.compact
     def __call__(self, input_ids: jax.Array) -> jax.Array:
         positions = jnp.arange(input_ids.shape[1], dtype=jnp.int32)
-        token_embeddings = self.token_embeddings[input_ids]
-        position_embeddings = self.position_embeddings[positions]
+        token_embeddings = nn.Embed(self.vocab_size, EMBEDDING_DIM, name="token_embeddings")(input_ids)
+        position_embeddings = nn.Embed(CONTEXT_WINDOW, EMBEDDING_DIM, name="position_embeddings")(
+            positions
+        )
         embeddings = token_embeddings + position_embeddings
-        attention = self.attention_norm(embeddings + self.attention(embeddings))
-        transformer = self.feed_forward_norm(attention + self.feed_forward(attention))
-        return transformer @ self.logit_weights + self.logit_bias
+
+        attention = nn.LayerNorm(epsilon=LAYER_NORM_EPS, name="attention_norm")(
+            embeddings + CausalSelfAttention(name="attention")(embeddings)
+        )
+        transformer = nn.LayerNorm(epsilon=LAYER_NORM_EPS, name="feed_forward_norm")(
+            attention + FeedForward(name="feed_forward")(attention)
+        )
+
+        return nn.Dense(self.vocab_size, name="logits")(transformer)
 
 
-def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
-    logits = model(input_ids)
+def loss_fn(
+    params: dict[str, jax.Array], model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
+) -> jax.Array:
+    logits = model.apply({"params": params}, input_ids)
     log_probs = jnn.log_softmax(logits, axis=-1)
     loss_per_token = -jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()
@@ -120,11 +73,11 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
 
 @jax.jit
 def train_step(
-    model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
-) -> tuple[LanguageModel, jax.Array]:
-    loss, grads = jax.value_and_grad(loss_fn)(model, input_ids, target_ids)
-    updated_model = jax.tree_util.tree_map(lambda param, grad: param - LEARNING_RATE * grad, model, grads)
-    return updated_model, loss
+    params: dict[str, jax.Array], model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
+) -> tuple[dict[str, jax.Array], jax.Array]:
+    loss, grads = jax.value_and_grad(loss_fn)(params, model, input_ids, target_ids)
+    params = jax.tree_util.tree_map(lambda param, grad: param - LEARNING_RATE * grad, params, grads)
+    return params, loss
 
 
 def sample_batch(batch_key: jax.Array, token_ids: jax.Array) -> tuple[jax.Array, jax.Array]:
@@ -143,13 +96,14 @@ vocab_chars = sorted(set(corpus))
 char_to_id = {char: idx for idx, char in enumerate(vocab_chars)}
 token_ids = jnp.asarray([char_to_id[ch] for ch in corpus], dtype=jnp.int32)
 
+model = LanguageModel(vocab_size=len(vocab_chars))
 key, model_rng = jax.random.split(key)
-model = LanguageModel(model_rng, len(vocab_chars))
+params = model.init(model_rng, jnp.zeros((BATCH_SIZE, CONTEXT_WINDOW), dtype=jnp.int32))["params"]
 
 for step in range(TRAIN_STEPS):
     key, batch_key = jax.random.split(key)
     input_ids, target_ids = sample_batch(batch_key, token_ids)
-    model, loss = train_step(model, input_ids, target_ids)
+    params, loss = train_step(params, model, input_ids, target_ids)
 
     if step % 100 == 0:
         print(f"step={step} loss={loss.item():.4f}")
