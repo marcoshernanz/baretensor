@@ -1,9 +1,10 @@
 from pathlib import Path
-import math
 
+from flax import nnx
 import jax
 import jax.numpy as jnp
 import jax.nn as jnn
+import optax
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
@@ -14,101 +15,58 @@ CONTEXT_WINDOW = 512
 ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
+LAYER_NORM_EPS = 1e-5
 
 
-class LayerNorm:
-    eps: float = 1e-5
-    scale: jax.Array
-    shift: jax.Array
-
-    def __init__(self):
-        self.scale = jnp.ones((EMBEDDING_DIM,))
-        self.shift = jnp.zeros((EMBEDDING_DIM,))
-
-    def __call__(self, x: jax.Array) -> jax.Array:
-        mean = x.mean(axis=-1, keepdims=True)
-        variance = x.var(axis=-1, keepdims=True)
-        normalized = (x - mean) / jnp.sqrt(variance + self.eps)
-        return self.scale * normalized + self.shift
-
-
-class CausalSelfAttention:
-    query_weights: jax.Array
-    key_weights: jax.Array
-    value_weights: jax.Array
-    output_weights: jax.Array
-
-    def __init__(self, rng: jax.Array):
-        query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query_weights = jax.random.normal(query_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.key_weights = jax.random.normal(key_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.value_weights = jax.random.normal(value_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.output_weights = jax.random.normal(output_rng, (ATTENTION_DIM, EMBEDDING_DIM))
+class CausalSelfAttention(nnx.Module):
+    def __init__(self, *, rngs: nnx.Rngs):
+        self.query = nnx.Linear(EMBEDDING_DIM, ATTENTION_DIM, use_bias=False, rngs=rngs)
+        self.key = nnx.Linear(EMBEDDING_DIM, ATTENTION_DIM, use_bias=False, rngs=rngs)
+        self.value = nnx.Linear(EMBEDDING_DIM, ATTENTION_DIM, use_bias=False, rngs=rngs)
+        self.output = nnx.Linear(ATTENTION_DIM, EMBEDDING_DIM, use_bias=False, rngs=rngs)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        queries = x @ self.query_weights
-        keys = x @ self.key_weights
-        values = x @ self.value_weights
+        queries = self.query(x)
+        keys = self.key(x)
+        values = self.value(x)
 
-        scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
+        scores = (queries @ jnp.swapaxes(keys, -1, -2)) / jnp.sqrt(ATTENTION_DIM)
         causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
         masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
         attention_weights = jnn.softmax(masked_scores, axis=-1)
         mixed_values = attention_weights @ values
-        return mixed_values @ self.output_weights
+        return self.output(mixed_values)
 
 
-class FeedForward:
-    hidden_weights: jax.Array
-    hidden_bias: jax.Array
-    output_weights: jax.Array
-    output_bias: jax.Array
-
-    def __init__(self, rng: jax.Array):
-        hidden_rng, output_rng = jax.random.split(rng, 2)
-        self.hidden_weights = jax.random.normal(hidden_rng, (EMBEDDING_DIM, HIDDEN_DIM))
-        self.hidden_bias = jnp.zeros((HIDDEN_DIM,))
-        self.output_weights = jax.random.normal(output_rng, (HIDDEN_DIM, EMBEDDING_DIM))
-        self.output_bias = jnp.zeros((EMBEDDING_DIM,))
+class FeedForward(nnx.Module):
+    def __init__(self, *, rngs: nnx.Rngs):
+        self.hidden = nnx.Linear(EMBEDDING_DIM, HIDDEN_DIM, rngs=rngs)
+        self.output = nnx.Linear(HIDDEN_DIM, EMBEDDING_DIM, rngs=rngs)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        hidden = jnp.tanh(x @ self.hidden_weights + self.hidden_bias)
-        return hidden @ self.output_weights + self.output_bias
+        hidden = jnp.tanh(self.hidden(x))
+        return self.output(hidden)
 
 
-class LanguageModel:
-    token_embeddings: jax.Array
-    position_embeddings: jax.Array
-    attention: CausalSelfAttention
-    attention_norm: LayerNorm
-    feed_forward: FeedForward
-    feed_forward_norm: LayerNorm
-    logit_weights: jax.Array
-    logit_bias: jax.Array
-
-    def __init__(self, rng: jax.Array, vocab_size: int):
-        embedding_rng, position_rng, attention_rng, feed_forward_rng, logits_rng = jax.random.split(
-            rng, 5
-        )
-        self.token_embeddings = jax.random.normal(embedding_rng, (vocab_size, EMBEDDING_DIM))
-        self.position_embeddings = jax.random.normal(position_rng, (CONTEXT_WINDOW, EMBEDDING_DIM))
-        self.attention = CausalSelfAttention(attention_rng)
-        self.attention_norm = LayerNorm()
-        self.feed_forward = FeedForward(feed_forward_rng)
-        self.feed_forward_norm = LayerNorm()
-        self.logit_weights = jax.random.normal(logits_rng, (EMBEDDING_DIM, vocab_size)) * (
-            1.0 / math.sqrt(EMBEDDING_DIM)
-        )
-        self.logit_bias = jnp.zeros((vocab_size,))
+class LanguageModel(nnx.Module):
+    def __init__(self, vocab_size: int, *, rngs: nnx.Rngs):
+        self.token_embeddings = nnx.Embed(vocab_size, EMBEDDING_DIM, rngs=rngs)
+        self.position_embeddings = nnx.Embed(CONTEXT_WINDOW, EMBEDDING_DIM, rngs=rngs)
+        self.attention = CausalSelfAttention(rngs=rngs)
+        self.attention_norm = nnx.LayerNorm(EMBEDDING_DIM, epsilon=LAYER_NORM_EPS, rngs=rngs)
+        self.feed_forward = FeedForward(rngs=rngs)
+        self.feed_forward_norm = nnx.LayerNorm(EMBEDDING_DIM, epsilon=LAYER_NORM_EPS, rngs=rngs)
+        self.logits = nnx.Linear(EMBEDDING_DIM, vocab_size, rngs=rngs)
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
         positions = jnp.arange(input_ids.shape[1], dtype=jnp.int32)
-        token_embeddings = self.token_embeddings[input_ids]
-        position_embeddings = self.position_embeddings[positions]
+        token_embeddings = self.token_embeddings(input_ids)
+        position_embeddings = self.position_embeddings(positions)
         embeddings = token_embeddings + position_embeddings
+
         attention = self.attention_norm(embeddings + self.attention(embeddings))
         transformer = self.feed_forward_norm(attention + self.feed_forward(attention))
-        return transformer @ self.logit_weights + self.logit_bias
+        return self.logits(transformer)
 
 
 def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
@@ -118,13 +76,13 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
     return loss_per_token.mean()
 
 
-@jax.jit
+@nnx.jit
 def train_step(
-    model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
-) -> tuple[LanguageModel, jax.Array]:
-    loss, grads = jax.value_and_grad(loss_fn)(model, input_ids, target_ids)
-    updated_model = jax.tree_util.tree_map(lambda param, grad: param - LEARNING_RATE * grad, model, grads)
-    return updated_model, loss
+    model: LanguageModel, optimizer: nnx.Optimizer, input_ids: jax.Array, target_ids: jax.Array
+) -> jax.Array:
+    loss, grads = nnx.value_and_grad(loss_fn)(model, input_ids, target_ids)
+    optimizer.update(model, grads)
+    return loss
 
 
 def sample_batch(batch_key: jax.Array, token_ids: jax.Array) -> tuple[jax.Array, jax.Array]:
@@ -143,13 +101,13 @@ vocab_chars = sorted(set(corpus))
 char_to_id = {char: idx for idx, char in enumerate(vocab_chars)}
 token_ids = jnp.asarray([char_to_id[ch] for ch in corpus], dtype=jnp.int32)
 
-key, model_rng = jax.random.split(key)
-model = LanguageModel(model_rng, len(vocab_chars))
+model = LanguageModel(len(vocab_chars), rngs=nnx.Rngs(SEED))
+optimizer = nnx.Optimizer(model, optax.sgd(LEARNING_RATE), wrt=nnx.Param)
 
 for step in range(TRAIN_STEPS):
     key, batch_key = jax.random.split(key)
     input_ids, target_ids = sample_batch(batch_key, token_ids)
-    model, loss = train_step(model, input_ids, target_ids)
+    loss = train_step(model, optimizer, input_ids, target_ids)
 
     if step % 100 == 0:
         print(f"step={step} loss={loss.item():.4f}")
