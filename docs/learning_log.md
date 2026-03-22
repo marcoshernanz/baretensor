@@ -35,6 +35,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 202
 | 010 | `experiments/010_single_head_attention_jax.py` | 100000 | 2.463586 | 2.487816 | 320.054 | 312.447 | 496.636 | [csv](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_curve.svg) |
 | 011 | `experiments/011_attention_residual_jax.py` | 100000 | 2.315200 | 2.356931 | 276.444 | 361.737 | 332.165 | [csv](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_history.csv) | [svg](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_curve.svg) |
 | 012 | `experiments/012_attention_residual_layer_norm_jax.py` | 100000 | 2.182534 | 2.259682 | 252.862 | 395.473 | 297.579 | [csv](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_history.csv) | [svg](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_curve.svg) |
+| 013 | `experiments/013_attention_residual_layer_norm_ffn_jax.py` | 100000 | 1.690038 | 1.878318 | 432.607 | 231.157 | 504.172 | [csv](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_history.csv) | [svg](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -674,4 +675,24 @@ My brother slew no man; his fault was tokeas alldu the.
 IOLBEOPEO:
 Y thershat ugermesl; geping tors houpenge ma geet, vereous tans eang tor
 Foraic Eizes stoof thee m notlee
+```
+
+## 013 Attention + Residual + LayerNorm + FFN JAX
+
+- Script: `experiments/013_attention_residual_layer_norm_ffn_jax.py`
+- Steps: `100000`
+- Train loss: `1.690038`
+- Val loss: `1.878318`
+- Train seconds: `432.607`
+- Steps per second: `231.157`
+- Total seconds: `504.172`
+
+![013 attention residual layer norm ffn jax loss curve](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_curve.svg)
+
+```text
+ give pardon to a slave?
+My brother slew no man; his fault was to tallay suf Lord, fueell-be you nor shalluse me loth ping do some peon!
+
+Pealet, vermons thas eangy seamfears ciesed
+someh reevess wish
 ```
