@@ -1,6 +1,7 @@
 # %%
 from pathlib import Path
 from typing import TypeAlias
+import math
 
 import jax
 import jax.numpy as jnp
@@ -77,16 +78,59 @@ class FeedForward:
     output_weights: jax.Array
     output_bias: jax.Array
 
-    def __init__(self, rng: jax.Array) -> None:
+    def __init__(self, rng: jax.Array):
         hidden_rng, output_rng = jax.random.split(rng, 2)
         self.hidden_weights = jax.random.normal(hidden_rng, (EMBEDDING_DIM, HIDDEN_DIM))
         self.hidden_bias = jnp.zeros((HIDDEN_DIM,))
         self.output_weights = jax.random.normal(output_rng, (HIDDEN_DIM, EMBEDDING_DIM))
         self.output_bias = jnp.zeros((EMBEDDING_DIM,))
 
-    def __call__(self, x: jax.Array):
+    def __call__(self, x: jax.Array) -> jax.Array:
         hidden = jnp.tanh(x @ self.hidden_weights + self.hidden_bias)
         return hidden @ self.output_weights + self.output_bias
+
+
+# %%
+class LanguageModel:
+    token_embeddings: jax.Array
+    position_embeddings: jax.Array
+
+    attention: CausalSelfAttention
+    attention_norm: LayerNorm
+    feed_forward: FeedForward
+    feed_forward_norm: LayerNorm
+
+    logit_weights: jax.Array
+    logit_bias: jax.Array
+
+    def __init__(self, rng: jax.Array):
+        embedding_rng, position_rng, attention_rng, feed_forward_rng, logits_rng = jax.random.split(
+            rng, 5
+        )
+
+        self.token_embeddings = jax.random.normal(embedding_rng, (vocab_size, EMBEDDING_DIM))
+        self.position_embeddings = jax.random.normal(position_rng, (CONTEXT_WINDOW, EMBEDDING_DIM))
+
+        self.attention = CausalSelfAttention(attention_rng)
+        self.attention_norm = LayerNorm()
+        self.feed_forward = FeedForward(feed_forward_rng)
+        self.feed_forward_norm = LayerNorm()
+
+        self.logit_weights = jax.random.normal(logits_rng, (EMBEDDING_DIM, vocab_size)) * (
+            1.0 / math.sqrt(EMBEDDING_DIM)
+        )
+        self.logit_bias = jnp.zeros((vocab_size,))
+
+    def __call__(self, input_ids: jax.Array) -> jax.Array:
+        positions = jnp.arange(input_ids.shape[1], dtype=jnp.int32)
+        token_embeddings = self.token_embeddings[input_ids]
+        position_embeddings = self.position_embeddings[positions]
+        embeddings = token_embeddings + position_embeddings
+
+        attention = self.attention_norm(embeddings + self.attention(embeddings))
+        transformer = self.feed_forward_norm(attention + self.feed_forward(attention))
+
+        return transformer @ self.logit_weights + self.logit_bias
 
 
 # %%
