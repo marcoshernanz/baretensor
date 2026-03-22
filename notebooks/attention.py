@@ -40,54 +40,56 @@ num_tokens = token_ids.shape[0]
     key,
     token_embedding_key,
     position_embedding_key,
-    Wq_key,
-    Wk_key,
-    Wv_key,
-    Wo_key,
-    W_key,
-    B_key,
-    W1_key,
-    B1_key,
-    W2_key,
-    B2_key,
+    query_weights_key,
+    key_weights_key,
+    value_weights_key,
+    attention_output_weights_key,
+    logit_weights_key,
+    logit_bias_key,
+    ffn_hidden_weights_key,
+    ffn_hidden_bias_key,
+    ffn_output_weights_key,
+    ffn_output_bias_key,
 ) = jax.random.split(key, 13)
 
 token_embedding_table = jax.random.normal(token_embedding_key, (vocab_size, EMBEDDING_DIM))
 position_embedding_table = jax.random.normal(
     position_embedding_key, (CONTEXT_WINDOW, EMBEDDING_DIM)
 )
-Wq = jax.random.normal(Wq_key, (EMBEDDING_DIM, ATTENTION_DIM))
-Wk = jax.random.normal(Wk_key, (EMBEDDING_DIM, ATTENTION_DIM))
-Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
-Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
-W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
-B = jax.random.normal(B_key, (vocab_size,))
-layer_norm_scale = jnp.ones((EMBEDDING_DIM,))
-layer_norm_shift = jnp.zeros((EMBEDDING_DIM,))
-W1 = jax.random.normal(W1_key, (EMBEDDING_DIM, HIDDEN_DIM))
-B1 = jax.random.normal(B1_key, (HIDDEN_DIM,))
-W2 = jax.random.normal(W2_key, (HIDDEN_DIM, EMBEDDING_DIM))
-B2 = jax.random.normal(B2_key, (EMBEDDING_DIM,))
-layer_norm_scale2 = jnp.ones((EMBEDDING_DIM,))
-layer_norm_shift2 = jnp.zeros((EMBEDDING_DIM,))
+query_weights = jax.random.normal(query_weights_key, (EMBEDDING_DIM, ATTENTION_DIM))
+key_weights = jax.random.normal(key_weights_key, (EMBEDDING_DIM, ATTENTION_DIM))
+value_weights = jax.random.normal(value_weights_key, (EMBEDDING_DIM, ATTENTION_DIM))
+attention_output_weights = jax.random.normal(
+    attention_output_weights_key, (ATTENTION_DIM, EMBEDDING_DIM)
+)
+logit_weights = jax.random.normal(logit_weights_key, (EMBEDDING_DIM, vocab_size))
+logit_bias = jax.random.normal(logit_bias_key, (vocab_size,))
+attention_norm_scale = jnp.ones((EMBEDDING_DIM,))
+attention_norm_shift = jnp.zeros((EMBEDDING_DIM,))
+ffn_hidden_weights = jax.random.normal(ffn_hidden_weights_key, (EMBEDDING_DIM, HIDDEN_DIM))
+ffn_hidden_bias = jax.random.normal(ffn_hidden_bias_key, (HIDDEN_DIM,))
+ffn_output_weights = jax.random.normal(ffn_output_weights_key, (HIDDEN_DIM, EMBEDDING_DIM))
+ffn_output_bias = jax.random.normal(ffn_output_bias_key, (EMBEDDING_DIM,))
+ffn_norm_scale = jnp.ones((EMBEDDING_DIM,))
+ffn_norm_shift = jnp.zeros((EMBEDDING_DIM,))
 
 params: Params = {
     "token_embedding_table": token_embedding_table,
     "position_embedding_table": position_embedding_table,
-    "Wq": Wq,
-    "Wk": Wk,
-    "Wv": Wv,
-    "Wo": Wo,
-    "layer_norm_scale": layer_norm_scale,
-    "layer_norm_shift": layer_norm_shift,
-    "W1": W1,
-    "B1": B1,
-    "W2": W2,
-    "B2": B2,
-    "layer_norm_scale2": layer_norm_scale2,
-    "layer_norm_shift2": layer_norm_shift2,
-    "W": W,
-    "B": B,
+    "query_weights": query_weights,
+    "key_weights": key_weights,
+    "value_weights": value_weights,
+    "attention_output_weights": attention_output_weights,
+    "attention_norm_scale": attention_norm_scale,
+    "attention_norm_shift": attention_norm_shift,
+    "ffn_hidden_weights": ffn_hidden_weights,
+    "ffn_hidden_bias": ffn_hidden_bias,
+    "ffn_output_weights": ffn_output_weights,
+    "ffn_output_bias": ffn_output_bias,
+    "ffn_norm_scale": ffn_norm_scale,
+    "ffn_norm_shift": ffn_norm_shift,
+    "logit_weights": logit_weights,
+    "logit_bias": logit_bias,
 }
 
 # %%
@@ -107,36 +109,39 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     position_embeddings = params["position_embedding_table"][positions]
     input_embeddings = token_embeddings + position_embeddings
 
-    queries = input_embeddings @ params["Wq"]
-    keys = input_embeddings @ params["Wk"]
-    values = input_embeddings @ params["Wv"]
+    queries = input_embeddings @ params["query_weights"]
+    keys = input_embeddings @ params["key_weights"]
+    values = input_embeddings @ params["value_weights"]
 
     scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
     causal_mask = jnp.triu(jnp.ones((CONTEXT_WINDOW, CONTEXT_WINDOW), dtype=bool), k=1)
     masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
     attention_weights = jnn.softmax(masked_scores, axis=-1)
-    attention_output = attention_weights @ values
-    projected_attention = attention_output @ params["Wo"]
-    residual_output = input_embeddings + projected_attention
+    mixed_values = attention_weights @ values
+    projected_attention_output = mixed_values @ params["attention_output_weights"]
+    attention_residual_output = input_embeddings + projected_attention_output
 
-    normalized_residual = (
-        residual_output - residual_output.mean(axis=-1, keepdims=True)
-    ) / jnp.sqrt(residual_output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS)
-    layer_norm_output = (
-        params["layer_norm_scale"] * normalized_residual + params["layer_norm_shift"]
+    normalized_attention_residual = (
+        attention_residual_output - attention_residual_output.mean(axis=-1, keepdims=True)
+    ) / jnp.sqrt(attention_residual_output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS)
+    attention_block_output = (
+        params["attention_norm_scale"] * normalized_attention_residual
+        + params["attention_norm_shift"]
     )
 
-    h1 = jnp.tanh(layer_norm_output @ params["W1"] + params["B1"])
-    h2 = h1 @ params["W2"] + params["B2"]
-    output = h2 + layer_norm_output
-    normalized_output = (output - output.mean(axis=-1, keepdims=True)) / jnp.sqrt(
-        output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS
+    ffn_hidden = jnp.tanh(
+        attention_block_output @ params["ffn_hidden_weights"] + params["ffn_hidden_bias"]
     )
-    layer_norm_output2 = (
-        params["layer_norm_scale2"] * normalized_output + params["layer_norm_shift2"]
+    ffn_output = ffn_hidden @ params["ffn_output_weights"] + params["ffn_output_bias"]
+    ffn_residual_output = ffn_output + attention_block_output
+    normalized_ffn_residual = (
+        ffn_residual_output - ffn_residual_output.mean(axis=-1, keepdims=True)
+    ) / jnp.sqrt(
+        ffn_residual_output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS
     )
+    block_output = params["ffn_norm_scale"] * normalized_ffn_residual + params["ffn_norm_shift"]
 
-    logits = layer_norm_output2 @ params["W"] + params["B"]
+    logits = block_output @ params["logit_weights"] + params["logit_bias"]
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()
