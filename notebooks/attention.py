@@ -34,19 +34,9 @@ num_tokens = token_ids.shape[0]
 
 # %%
 
-(
-    key,
-    token_embedding_key,
-    position_embedding_key,
-    Wq_key,
-    Wk_key,
-    Wv_key,
-    Wo_key,
-    W_key,
-    B_key,
-    norm_gamma_key,
-    norm_beta_key,
-) = jax.random.split(key, 11)
+(key, token_embedding_key, position_embedding_key, Wq_key, Wk_key, Wv_key, Wo_key, W_key, B_key) = (
+    jax.random.split(key, 9)
+)
 
 token_embedding_table = jax.random.normal(token_embedding_key, (vocab_size, EMBEDDING_DIM))
 position_embedding_table = jax.random.normal(
@@ -58,8 +48,8 @@ Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
 B = jax.random.normal(B_key, (vocab_size,))
-norm_gamma = jax.random.normal(norm_gamma_key, (EMBEDDING_DIM,))
-norm_beta = jax.random.normal(norm_beta_key, (EMBEDDING_DIM,))
+norm_gamma = jnp.ones((EMBEDDING_DIM,))
+norm_beta = jnp.zeros((EMBEDDING_DIM,))
 
 params: Params = {
     "token_embedding_table": token_embedding_table,
