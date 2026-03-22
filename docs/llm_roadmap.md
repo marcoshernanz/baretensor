@@ -51,7 +51,8 @@ In practical terms:
 - Do not move on until you can explain the forward pass and gradient path.
 - Keep each milestone runnable as a standalone experiment script.
 - Do not add library abstractions too early.
-- Add `bt.nn` only after raw experiment code becomes clearly repetitive.
+- Keep raw experiment code as the default style.
+- Treat `010` as the one deliberate `.nn` / modularization pass, not the new default for later milestones.
 - Add tokenizer work only after character-level modeling has earned the need.
 - Do not start CUDA work before the model path is semantically stable.
 
@@ -352,7 +353,7 @@ You should come out of this milestone able to:
 - Explain attention from first principles,
 - Explain every attention-related tensor shape,
 - Explain why attention is different from recurrence,
-- Point to the code repetition that proves `bt.nn` is now justified.
+- Point to the code repetition that motivates the one modularization pass in `010`.
 
 ### Exit Criteria
 - One-head causal attention runs end to end.
@@ -367,40 +368,18 @@ You should come out of this milestone able to:
   - Lecture 7: attention and LLM intro.
   - Lecture 8: self-attention and Transformers.
 
-## Break A: Implement `bt.nn`
-### Why this break exists
-At this point the repetition is earned, not hypothetical.
-You have written enough raw model code to know what should become reusable.
-
-### What to implement first
-- `Module`.
-- `Linear`.
-- `Embedding`.
-- `LayerNorm`.
-- Minimal parameter traversal.
-
-### What not to build yet
-- No tokenizer.
-- No full training runner.
-- No heavy config system.
-- No premature optimizer hierarchy unless it is clearly needed.
-
-### Learning Outcomes
-You should come out of this break able to:
-- Explain why each abstraction exists,
-- Distinguish useful abstraction from abstraction theater,
-- Make later model code clearer rather than more magical.
-
 ## Milestone 010: Rebuild 009 Using `bt.nn`
 ### Model
 - Re-implement the same one-head attention model from `009`.
 - Same architecture goal.
-- Cleaner code through `bt.nn`.
+- Cleaner code through `.nn`-style modularization.
+- This is a one-off library-design exercise, not the new default format for later milestones.
 
 ### Implementation Path
 - You likely do not need a new PyTorch milestone here.
-- The real comparison is raw BareTensor model code vs modular BareTensor model code.
-- Rebuild the attention prototype in BareTensor through reusable modules.
+- The real comparison is raw experiment code vs modular experiment code.
+- Rebuild the attention prototype through reusable modules once.
+- After `010`, return to the raw experiment style for the architectural milestones.
 
 ### Understanding Needed Before Implementing
 - Why architecture and library abstractions should be separated.
@@ -408,7 +387,7 @@ You should come out of this break able to:
 
 ### Learning Outcomes
 You should come out of this milestone able to:
-- Prove that `bt.nn` helps readability and reuse,
+- Prove that `.nn`-style modules can help readability and reuse when used intentionally,
 - Separate model ideas from plumbing,
 - Know what should stay low-level vs become library API.
 
@@ -421,9 +400,11 @@ You should come out of this milestone able to:
 - Keep one attention head.
 - Add residual connection.
 - Still no LayerNorm or feedforward yet.
+- Return to the raw experiment style used in `009`.
 
 ### Implementation Path
 - Build the smallest residualized attention path.
+- Do not treat `010`'s `.nn` structure as required here.
 
 ### Understanding Needed Before Implementing
 - Why residuals matter.
@@ -439,6 +420,7 @@ You should come out of this milestone able to:
 ### Model
 - Add LayerNorm around the attention path.
 - Still no full feedforward block yet.
+- Keep the raw experiment style unless there is a very strong reason not to.
 
 ### Implementation Path
 - Decide and understand the exact normalization placement.
@@ -571,7 +553,8 @@ Rule:
 - If `002` is not stable, stay on `002`.
 - If `002` is stable, start CS229 and move to `003`.
 - Do not jump to attention before the context-window milestones are done.
-- Do not jump to `bt.nn` before the first raw attention prototype is finished.
+- Do not do the `.nn` modularization pass before the first raw attention prototype is finished.
+- Do not let `010` change the default style of later milestones; return to raw experiment code for `011+`.
 - Include RNNs because they maximize understanding of sequence state and gradient flow.
 - Do not include CNNs on the main path unless you later want a side learning branch.
 - Do not start tokenizer work before the first stable decoder block exists.
