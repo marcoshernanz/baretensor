@@ -107,6 +107,7 @@ class LanguageModel(eqx.Module):
         token_embeddings = self.token_embeddings[input_ids]
         position_embeddings = self.position_embeddings[positions]
         embeddings = token_embeddings + position_embeddings
+
         attention = self.attention_norm(embeddings + self.attention(embeddings))
         transformer = self.feed_forward_norm(attention + self.feed_forward(attention))
         return transformer @ self.logit_weights + self.logit_bias

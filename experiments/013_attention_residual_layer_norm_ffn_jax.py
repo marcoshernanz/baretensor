@@ -85,7 +85,7 @@ class CausalSelfAttention(eqx.Module):
         keys = x @ self.key_weights
         values = x @ self.value_weights
 
-        scores = (queries @ jnp.swapaxes(keys, -1, -2)) / math.sqrt(ATTENTION_DIM)
+        scores = (queries @ keys.mT) / math.sqrt(ATTENTION_DIM)
         causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
         masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
         attention_weights = jnn.softmax(masked_scores, axis=-1)
@@ -192,9 +192,7 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
 
 @eqx.filter_jit
 def train_step(
-    model: LanguageModel,
-    input_ids: jax.Array,
-    target_ids: jax.Array,
+    model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
 ) -> tuple[LanguageModel, jax.Array]:
     loss, grads = loss_fn(model, input_ids, target_ids)
     updates = jax.tree_util.tree_map(lambda grad: -LEARNING_RATE * grad, grads)
