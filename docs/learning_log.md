@@ -34,6 +34,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 202
 | 010 | `experiments/010_single_head_attention_torch.py` | 100000 | 2.445969 | 2.474077 | 247.082 | 404.724 | 297.885 | [csv](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_torch/20260321_230943_099467/loss_curve.svg) |
 | 010 | `experiments/010_single_head_attention_jax.py` | 100000 | 2.463586 | 2.487816 | 320.054 | 312.447 | 496.636 | [csv](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_history.csv) | [svg](../artifacts/experiments/010_single_head_attention_jax/20260321_231810_874023/loss_curve.svg) |
 | 011 | `experiments/011_attention_residual_jax.py` | 100000 | 2.315200 | 2.356931 | 276.444 | 361.737 | 332.165 | [csv](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_history.csv) | [svg](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_curve.svg) |
+| 012 | `experiments/012_attention_residual_layer_norm_jax.py` | 100000 | 2.182534 | 2.259682 | 252.862 | 395.473 | 297.579 | [csv](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_history.csv) | [svg](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -550,6 +551,27 @@ Sell.
 Nor to heprecait us a'd gettan eack songlesom on to ce'd torve woue axjouds, whee wrow fary tey.
 ```
 
+## 009 Single-Head Attention Torch
+
+- Script: `experiments/009_single_head_attention_torch.py`
+- Steps: `100000`
+- Train loss: `2.456635`
+- Val loss: `2.478268`
+- Train seconds: `180.380`
+- Steps per second: `554.384`
+- Total seconds: `217.976`
+
+![009 single-head attention torch loss curve](../artifacts/experiments/009_single_head_attention_torch/20260321_100630_174512/loss_curve.svg)
+
+```text
+to account this world but hell,
+Until my mis-shaped trunk that baly, bet, tow pey po
+ULoterwim
+II one tesu trsainthepons t w ay Bulanot.
+ICO bachoudeal Sar.G brloucte teadlyU: aid t
+I Thereat tobpe my
+```
+
 ## 009 Single-Head Attention JAX
 
 - Script: `experiments/009_single_head_attention_jax.py`
@@ -631,23 +653,25 @@ Thesp geeerkve, ousellas es ayour
 Foua, t ie s Diory t te m henlde
 ```
 
-## 009 Single-Head Attention Torch
+## 012 Attention + Residual + LayerNorm JAX
 
-- Script: `experiments/009_single_head_attention_torch.py`
+- Script: `experiments/012_attention_residual_layer_norm_jax.py`
 - Steps: `100000`
-- Train loss: `2.456635`
-- Val loss: `2.478268`
-- Train seconds: `180.380`
-- Steps per second: `554.384`
-- Total seconds: `217.976`
+- Train loss: `2.182534`
+- Val loss: `2.259682`
+- Train seconds: `252.862`
+- Steps per second: `395.473`
+- Total seconds: `297.579`
 
-![009 single-head attention torch loss curve](../artifacts/experiments/009_single_head_attention_torch/20260321_100630_174512/loss_curve.svg)
+![012 attention residual layer norm jax loss curve](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_curve.svg)
 
 ```text
-to account this world but hell,
-Until my mis-shaped trunk that baly, bet, tow pey po
-ULoterwim
-II one tesu trsainthepons t w ay Bulanot.
-ICO bachoudeal Sar.G brloucte teadlyU: aid t
-I Thereat tobpe my
+ give pardon to a slave?
+My brother slew no man; his fault was tokeas alldu the.
+
+
+
+IOLBEOPEO:
+Y thershat ugermesl; geping tors houpenge ma geet, vereous tans eang tor
+Foraic Eizes stoof thee m notlee
 ```
