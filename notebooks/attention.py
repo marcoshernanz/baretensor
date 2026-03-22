@@ -34,9 +34,19 @@ num_tokens = token_ids.shape[0]
 
 # %%
 
-key, token_embedding_key, position_embedding_key, Wq_key, Wk_key, Wv_key, Wo_key, W_key, B_key = (
-    jax.random.split(key, 9)
-)
+(
+    key,
+    token_embedding_key,
+    position_embedding_key,
+    Wq_key,
+    Wk_key,
+    Wv_key,
+    Wo_key,
+    W_key,
+    B_key,
+    norm_gamma_key,
+    norm_beta_key,
+) = jax.random.split(key, 11)
 
 token_embedding_table = jax.random.normal(token_embedding_key, (vocab_size, EMBEDDING_DIM))
 position_embedding_table = jax.random.normal(
@@ -48,6 +58,8 @@ Wv = jax.random.normal(Wv_key, (EMBEDDING_DIM, ATTENTION_DIM))
 Wo = jax.random.normal(Wo_key, (ATTENTION_DIM, EMBEDDING_DIM))
 W = jax.random.normal(W_key, (EMBEDDING_DIM, vocab_size))
 B = jax.random.normal(B_key, (vocab_size,))
+norm_gamma = jax.random.normal(norm_gamma_key, (EMBEDDING_DIM,))
+norm_beta = jax.random.normal(norm_beta_key, (EMBEDDING_DIM,))
 
 params: Params = {
     "token_embedding_table": token_embedding_table,
@@ -58,6 +70,8 @@ params: Params = {
     "Wo": Wo,
     "W": W,
     "B": B,
+    "norm_gamma": norm_gamma,
+    "norm_beta": norm_beta,
 }
 
 # %%
@@ -89,7 +103,12 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     projected_attention = attention_output @ params["Wo"]
     block_output = input_embeddings + projected_attention
 
-    logits = block_output @ params["W"] + params["B"]
+    norm = (block_output - block_output.mean(axis=-1, keepdims=True)) / jnp.sqrt(
+        block_output.var(axis=-1, keepdims=True) + 1e-6
+    )
+    layer_norm = params["norm_gamma"] * norm + params["norm_beta"]
+
+    logits = layer_norm @ params["W"] + params["B"]
     log_probs = -jnn.log_softmax(logits, axis=-1)
     loss_per_token = jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
     return loss_per_token.mean()
