@@ -17,10 +17,27 @@ CONTEXT_WINDOW = 512
 ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
-LAYER_NORM_EPS = 1e-5
 
-Array: TypeAlias = jax.Array
-Params: TypeAlias = dict[str, Array]
+Params: TypeAlias = dict[str, jax.Array]
+
+# %%
+
+
+class LayerNorm:
+    eps: float = 1e-5
+    scale: jax.Array
+    shift: jax.Array
+
+    def __init__(self):
+        self.scale = jnp.ones((EMBEDDING_DIM,))
+        self.shift = jnp.zeros((EMBEDDING_DIM,))
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        mean = x.mean(axis=-1, keepdims=True)
+        variance = x.var(axis=-1, keepdims=True)
+        normalized = (x - mean) / jnp.sqrt(variance + self.eps)
+        return self.scale * normalized + self.shift
+
 
 # %%
 
@@ -31,7 +48,7 @@ vocab_chars = sorted(set(corpus))
 char_to_id = {char: idx for idx, char in enumerate(vocab_chars)}
 vocab_size = len(char_to_id)
 
-token_ids = jnp.array([char_to_id[ch] for ch in corpus], dtype=jnp.int32)
+token_ids = jnp.asarray([char_to_id[ch] for ch in corpus], dtype=jnp.int32)
 num_tokens = token_ids.shape[0]
 
 # %%
@@ -95,7 +112,7 @@ params: Params = {
 # %%
 
 
-def sample_batch(batch_key: Array) -> tuple[Array, Array]:
+def sample_batch(batch_key: jax.Array) -> tuple[jax.Array, jax.Array]:
     start_positions = jax.random.randint(batch_key, (BATCH_SIZE,), 0, num_tokens - CONTEXT_WINDOW)
     input_positions = start_positions[:, None] + jnp.arange(CONTEXT_WINDOW)
     input_ids = token_ids[input_positions]
@@ -103,7 +120,7 @@ def sample_batch(batch_key: Array) -> tuple[Array, Array]:
     return input_ids, target_ids
 
 
-def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
+def loss_fn(params: Params, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
     positions = jnp.arange(CONTEXT_WINDOW)
     token_embeddings = params["token_embedding_table"][input_ids]
     position_embeddings = params["position_embedding_table"][positions]
@@ -136,9 +153,7 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
     ffn_residual_output = ffn_output + attention_block_output
     normalized_ffn_residual = (
         ffn_residual_output - ffn_residual_output.mean(axis=-1, keepdims=True)
-    ) / jnp.sqrt(
-        ffn_residual_output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS
-    )
+    ) / jnp.sqrt(ffn_residual_output.var(axis=-1, keepdims=True) + LAYER_NORM_EPS)
     block_output = params["ffn_norm_scale"] * normalized_ffn_residual + params["ffn_norm_shift"]
 
     logits = block_output @ params["logit_weights"] + params["logit_bias"]
@@ -148,7 +163,9 @@ def loss_fn(params: Params, input_ids: Array, target_ids: Array) -> Array:
 
 
 @jax.jit
-def train_step(params: Params, input_ids: Array, target_ids: Array) -> tuple[Params, Array]:
+def train_step(
+    params: Params, input_ids: jax.Array, target_ids: jax.Array
+) -> tuple[Params, jax.Array]:
     loss, grads = jax.value_and_grad(loss_fn)(params, input_ids, target_ids)
     updated_params = jax.tree_util.tree_map(
         lambda param, grad: param - LEARNING_RATE * grad,
