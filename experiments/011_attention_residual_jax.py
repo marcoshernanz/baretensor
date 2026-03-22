@@ -253,7 +253,7 @@ def main() -> None:
 
     for chunk_start in range(0, TRAIN_STEPS, LOG_INTERVAL):
         chunk_steps = min(LOG_INTERVAL, TRAIN_STEPS - chunk_start)
-        model, rng, losses = train_steps(model, train_token_ids, rng, chunk_steps)
+        model, rng, losses = train_steps(model, train_token_ids, rng, chunk_steps)  # ty: ignore
         losses_np = np.asarray(jax.device_get(losses), dtype=np.float32)
 
         for offset, raw_loss in enumerate(losses_np):
