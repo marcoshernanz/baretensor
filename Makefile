@@ -26,7 +26,7 @@ bootstrap: ## Install deps + venv + build + run tests (macOS: uses Homebrew)
 	./scripts/bootstrap.sh
 
 .PHONY: sync
-sync: ## Install/update dev tools (ruff/pyright/nanobind) in .venv
+sync: ## Install/update dev tools (ruff/ty/nanobind) in .venv
 	$(UV) sync --dev
 
 .PHONY: configure
@@ -64,8 +64,8 @@ lint: ## Lint Python (ruff check)
 	PYTHONPATH="$(PYTHONPATH)" $(UV) run ruff check src tests examples
 
 .PHONY: typecheck
-typecheck: ## Typecheck Python (pyright)
-	PYTHONPATH="$(PYTHONPATH)" $(UV) run pyright
+typecheck: ## Typecheck Python (ty)
+	PYTHONPATH="$(PYTHONPATH)" $(UV) run ty check
 
 .PHONY: check
 check: lint typecheck test ## Run lint + typecheck + tests

@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ipykernel", "nanobind", "pyright", "ruff"]
+dev = ["ipykernel", "nanobind", "ruff", "ty"]
 
 [tool.ruff]
 target-version = "py313"
@@ -25,6 +25,18 @@ extend-exclude = ["third_party", "build"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.ty.environment]
+python = ".venv"
+python-version = "3.13"
+root = ["./src", "."]
+
+[tool.ty.src]
+include = ["src", "tests", "examples"]
+exclude = ["build", "third_party"]
+
+[tool.ty.terminal]
+error-on-warning = true
 
 [tool.setuptools]
 package-dir = {"" = "src"}
