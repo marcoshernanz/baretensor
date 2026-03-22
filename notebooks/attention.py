@@ -41,6 +41,35 @@ class LayerNorm:
 
 # %%
 
+
+class CausalSelfAttention:
+    query_weights: jax.Array
+    key_weights: jax.Array
+    value_weights: jax.Array
+    output_weights: jax.Array
+
+    def __init__(self, rng: jax.Array):
+        query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
+        self.query_weights = jax.random.normal(query_rng, (EMBEDDING_DIM, ATTENTION_DIM))
+        self.key_weights = jax.random.normal(key_rng, (EMBEDDING_DIM, ATTENTION_DIM))
+        self.value_weights = jax.random.normal(value_rng, (EMBEDDING_DIM, ATTENTION_DIM))
+        self.output_weights = jax.random.normal(output_rng, (ATTENTION_DIM, EMBEDDING_DIM))
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        queries = x @ self.query_weights
+        keys = x @ self.key_weights
+        values = x @ self.value_weights
+
+        scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
+        causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
+        masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
+        attention_weights = jnn.softmax(masked_scores, axis=-1)
+        mixed_values = attention_weights @ values
+        return mixed_values @ self.output_weights
+
+
+# %%
+
 key = jax.random.key(SEED)
 corpus = DATA_PATH.read_text(encoding="utf-8")
 
