@@ -77,7 +77,7 @@ class FeedForward(eqx.Module):
         return hidden @ self.output_weights + self.output_bias
 
 
-class Transformer(eqx.Module):
+class DecoderBlock(eqx.Module):
     attention: CausalSelfAttention
     attention_norm: LayerNorm
     feed_forward: FeedForward
@@ -91,14 +91,16 @@ class Transformer(eqx.Module):
         self.feed_forward_norm = LayerNorm()
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        attention = self.attention_norm(x + self.attention(x))
-        return self.feed_forward_norm(attention + self.feed_forward(attention))
+        attention_block_output = self.attention_norm(x + self.attention(x))
+        return self.feed_forward_norm(
+            attention_block_output + self.feed_forward(attention_block_output)
+        )
 
 
 class LanguageModel(eqx.Module):
     token_embeddings: jax.Array
     position_embeddings: jax.Array
-    transformer: Transformer
+    decoder_block: DecoderBlock
     logit_weights: jax.Array
     logit_bias: jax.Array
 
@@ -107,19 +109,19 @@ class LanguageModel(eqx.Module):
 
         self.token_embeddings = jax.random.normal(embedding_rng, (vocab_size, EMBEDDING_DIM))
         self.position_embeddings = jax.random.normal(position_rng, (CONTEXT_WINDOW, EMBEDDING_DIM))
-        self.transformer = Transformer(transformer_rng)
+        self.decoder_block = DecoderBlock(transformer_rng)
         self.logit_weights = jax.random.normal(logits_rng, (EMBEDDING_DIM, vocab_size)) * (
             1.0 / math.sqrt(EMBEDDING_DIM)
         )
         self.logit_bias = jnp.zeros((vocab_size,))
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
-        positions = jnp.arange(input_ids.shape[1], dtype=jnp.int32)
+        positions = jnp.arange(input_ids.shape[-1], dtype=jnp.int32)
         token_embeddings = self.token_embeddings[input_ids]
         position_embeddings = self.position_embeddings[positions]
-        embeddings = token_embeddings + position_embeddings
-        transformer_output = self.transformer(embeddings)
-        return transformer_output @ self.logit_weights + self.logit_bias
+        decoder_input = token_embeddings + position_embeddings
+        decoder_output = self.decoder_block(decoder_input)
+        return decoder_output @ self.logit_weights + self.logit_bias
 
 
 @eqx.filter_value_and_grad
@@ -141,9 +143,8 @@ def train_step(
 
 
 def sample_batch(batch_key: jax.Array, token_ids: jax.Array) -> tuple[jax.Array, jax.Array]:
-    start_positions = jax.random.randint(
-        batch_key, (BATCH_SIZE,), 0, token_ids.shape[0] - CONTEXT_WINDOW
-    )
+    max_start = token_ids.shape[0] - CONTEXT_WINDOW
+    start_positions = jax.random.randint(batch_key, (BATCH_SIZE,), 0, max_start)
     input_positions = start_positions[:, None] + jnp.arange(CONTEXT_WINDOW)
     input_ids = token_ids[input_positions]
     target_ids = token_ids[input_positions + 1]
