@@ -70,6 +70,27 @@ class CausalSelfAttention:
 
 # %%
 
+
+class FeedForward:
+    hidden_weights: jax.Array
+    hidden_bias: jax.Array
+    output_weights: jax.Array
+    output_bias: jax.Array
+
+    def __init__(self, rng: jax.Array) -> None:
+        hidden_rng, output_rng = jax.random.split(rng, 2)
+        self.hidden_weights = jax.random.normal(hidden_rng, (EMBEDDING_DIM, HIDDEN_DIM))
+        self.hidden_bias = jnp.zeros((HIDDEN_DIM,))
+        self.output_weights = jax.random.normal(output_rng, (HIDDEN_DIM, EMBEDDING_DIM))
+        self.output_bias = jnp.zeros((EMBEDDING_DIM,))
+
+    def __call__(self, x: jax.Array):
+        hidden = jnp.tanh(x @ self.hidden_weights + self.hidden_bias)
+        return hidden @ self.output_weights + self.output_bias
+
+
+# %%
+
 key = jax.random.key(SEED)
 corpus = DATA_PATH.read_text(encoding="utf-8")
 
