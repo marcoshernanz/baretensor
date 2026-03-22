@@ -1,6 +1,7 @@
 from pathlib import Path
 import math
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.nn as jnn
@@ -14,10 +15,10 @@ CONTEXT_WINDOW = 512
 ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
+LAYER_NORM_EPS = 1e-5
 
 
-class LayerNorm:
-    eps: float = 1e-5
+class LayerNorm(eqx.Module):
     scale: jax.Array
     shift: jax.Array
 
@@ -28,11 +29,11 @@ class LayerNorm:
     def __call__(self, x: jax.Array) -> jax.Array:
         mean = x.mean(axis=-1, keepdims=True)
         variance = x.var(axis=-1, keepdims=True)
-        normalized = (x - mean) / jnp.sqrt(variance + self.eps)
+        normalized = (x - mean) / jnp.sqrt(variance + LAYER_NORM_EPS)
         return self.scale * normalized + self.shift
 
 
-class CausalSelfAttention:
+class CausalSelfAttention(eqx.Module):
     query_weights: jax.Array
     key_weights: jax.Array
     value_weights: jax.Array
@@ -58,7 +59,7 @@ class CausalSelfAttention:
         return mixed_values @ self.output_weights
 
 
-class FeedForward:
+class FeedForward(eqx.Module):
     hidden_weights: jax.Array
     hidden_bias: jax.Array
     output_weights: jax.Array
@@ -76,7 +77,7 @@ class FeedForward:
         return hidden @ self.output_weights + self.output_bias
 
 
-class LanguageModel:
+class LanguageModel(eqx.Module):
     token_embeddings: jax.Array
     position_embeddings: jax.Array
     attention: CausalSelfAttention
@@ -111,6 +112,7 @@ class LanguageModel:
         return transformer @ self.logit_weights + self.logit_bias
 
 
+@eqx.filter_value_and_grad
 def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
     logits = model(input_ids)
     log_probs = jnn.log_softmax(logits, axis=-1)
@@ -118,13 +120,14 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
     return loss_per_token.mean()
 
 
-@jax.jit
+@eqx.filter_jit
 def train_step(
     model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
 ) -> tuple[LanguageModel, jax.Array]:
-    loss, grads = jax.value_and_grad(loss_fn)(model, input_ids, target_ids)
-    updated_model = jax.tree_util.tree_map(lambda param, grad: param - LEARNING_RATE * grad, model, grads)
-    return updated_model, loss
+    loss, grads = loss_fn(model, input_ids, target_ids)
+    updates = jax.tree_util.tree_map(lambda grad: -LEARNING_RATE * grad, grads)
+    model = eqx.apply_updates(model, updates)
+    return model, loss
 
 
 def sample_batch(batch_key: jax.Array, token_ids: jax.Array) -> tuple[jax.Array, jax.Array]:
