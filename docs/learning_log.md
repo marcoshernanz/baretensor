@@ -37,6 +37,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 202
 | 012 | `experiments/012_attention_residual_layer_norm_jax.py` | 100000 | 2.182534 | 2.259682 | 252.862 | 395.473 | 297.579 | [csv](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_history.csv) | [svg](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_curve.svg) |
 | 013 | `experiments/013_attention_residual_layer_norm_ffn_jax.py` | 100000 | 1.690038 | 1.878318 | 432.607 | 231.157 | 504.172 | [csv](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_history.csv) | [svg](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_curve.svg) |
 | 014 | `experiments/014_single_block_decoder_only_transformer_jax.py` | 100000 | 1.686884 | 1.873174 | 411.317 | 243.122 | 483.435 | [csv](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_history.csv) | [svg](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_curve.svg) |
+| 015 | `experiments/015_single_block_multi_head_decoder_only_transformer_jax.py` | 100000 | 1.822181 | 1.956108 | 681.613 | 146.711 | 804.293 | [csv](../artifacts/experiments/015_single_block_multi_head_decoder_only_transformer_jax/20260323_184835_096532/loss_history.csv) | [svg](../artifacts/experiments/015_single_block_multi_head_decoder_only_transformer_jax/20260323_184835_096532/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -717,4 +718,25 @@ All fule'd henot saters, he sermeol,
 Wheing to so, be the master in me.
 
 ISe Esles a to they No Eigh I so; hi te more; se
+```
+
+## 015 Single-Block Multi-Head Decoder-Only Transformer JAX
+
+- Script: `experiments/015_single_block_multi_head_decoder_only_transformer_jax.py`
+- Steps: `100000`
+- Train loss: `1.822181`
+- Val loss: `1.956108`
+- Train seconds: `681.613`
+- Steps per second: `146.711`
+- Total seconds: `804.293`
+
+![015 single-block multi-head decoder-only transformer jax loss curve](../artifacts/experiments/015_single_block_multi_head_decoder_only_transformer_jax/20260323_184835_096532/loss_curve.svg)
+
+```text
+ give pardon to a slave?
+My brother slew no man; his fault was to tas aursurr,
+The fule thee wend Iellf,
+Tusend by bothing lorsoved that ma glee,
+To bodieltass? nay sermfeato ' hourss of thee mone;
+Th
 ```
