@@ -1,5 +1,6 @@
 from pathlib import Path
 import math
+from typing import Optional
 
 import equinox as eqx
 import jax
@@ -33,84 +34,114 @@ class LayerNorm(eqx.Module):
         return self.scale * normalized + self.shift
 
 
+class Embedding(eqx.Module):
+    weight: jax.Array
+
+    def __init__(self, num_embeddings: int, embedding_dim: int, rng: jax.Array):
+        self.weight = jax.random.normal(rng, (num_embeddings, embedding_dim)) * 0.1
+
+    def __call__(self, indices: jax.Array) -> jax.Array:
+        return self.weight[indices]
+
+
+class Linear(eqx.Module):
+    weight: jax.Array
+    bias: Optional[jax.Array]
+
+    def __init__(self, in_features: int, out_features: int, rng: jax.Array, bias: bool = True):
+        self.weight = jax.random.normal(rng, (in_features, out_features)) * (
+            1.0 / math.sqrt(in_features)
+        )
+        self.bias = jnp.zeros((out_features,)) if bias else None
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        output = x @ self.weight
+        if self.bias is not None:
+            output = output + self.bias
+        return output
+
+
 class CausalSelfAttention(eqx.Module):
-    query_weights: jax.Array
-    key_weights: jax.Array
-    value_weights: jax.Array
-    output_weights: jax.Array
+    query: Linear
+    key: Linear
+    value: Linear
+    output: Linear
 
     def __init__(self, rng: jax.Array):
         query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query_weights = jax.random.normal(query_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.key_weights = jax.random.normal(key_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.value_weights = jax.random.normal(value_rng, (EMBEDDING_DIM, ATTENTION_DIM))
-        self.output_weights = jax.random.normal(output_rng, (ATTENTION_DIM, EMBEDDING_DIM))
+        self.query = Linear(EMBEDDING_DIM, ATTENTION_DIM, query_rng, bias=False)
+        self.key = Linear(EMBEDDING_DIM, ATTENTION_DIM, key_rng, bias=False)
+        self.value = Linear(EMBEDDING_DIM, ATTENTION_DIM, value_rng, bias=False)
+        self.output = Linear(ATTENTION_DIM, EMBEDDING_DIM, output_rng, bias=False)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        queries = x @ self.query_weights
-        keys = x @ self.key_weights
-        values = x @ self.value_weights
+        queries = self.query(x)
+        keys = self.key(x)
+        values = self.value(x)
 
         scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
         causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
         masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
         attention_weights = jnn.softmax(masked_scores, axis=-1)
         mixed_values = attention_weights @ values
-        return mixed_values @ self.output_weights
+        return self.output(mixed_values)
 
 
 class FeedForward(eqx.Module):
-    hidden_weights: jax.Array
-    hidden_bias: jax.Array
-    output_weights: jax.Array
-    output_bias: jax.Array
+    hidden: Linear
+    output: Linear
 
     def __init__(self, rng: jax.Array):
         hidden_rng, output_rng = jax.random.split(rng, 2)
-        self.hidden_weights = jax.random.normal(hidden_rng, (EMBEDDING_DIM, HIDDEN_DIM))
-        self.hidden_bias = jnp.zeros((HIDDEN_DIM,))
-        self.output_weights = jax.random.normal(output_rng, (HIDDEN_DIM, EMBEDDING_DIM))
-        self.output_bias = jnp.zeros((EMBEDDING_DIM,))
+        self.hidden = Linear(EMBEDDING_DIM, HIDDEN_DIM, hidden_rng)
+        self.output = Linear(HIDDEN_DIM, EMBEDDING_DIM, output_rng)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        hidden = jnp.tanh(x @ self.hidden_weights + self.hidden_bias)
-        return hidden @ self.output_weights + self.output_bias
+        hidden = jnp.tanh(self.hidden(x))
+        return self.output(hidden)
 
 
-class LanguageModel(eqx.Module):
-    token_embeddings: jax.Array
-    position_embeddings: jax.Array
+class DecoderBlock(eqx.Module):
     attention: CausalSelfAttention
     attention_norm: LayerNorm
     feed_forward: FeedForward
     feed_forward_norm: LayerNorm
-    logit_weights: jax.Array
-    logit_bias: jax.Array
 
-    def __init__(self, rng: jax.Array, vocab_size: int):
-        embedding_rng, position_rng, attention_rng, feed_forward_rng, logits_rng = jax.random.split(
-            rng, 5
-        )
-        self.token_embeddings = jax.random.normal(embedding_rng, (vocab_size, EMBEDDING_DIM))
-        self.position_embeddings = jax.random.normal(position_rng, (CONTEXT_WINDOW, EMBEDDING_DIM))
+    def __init__(self, rng: jax.Array):
+        attention_rng, feed_forward_rng = jax.random.split(rng, 2)
         self.attention = CausalSelfAttention(attention_rng)
         self.attention_norm = LayerNorm()
         self.feed_forward = FeedForward(feed_forward_rng)
         self.feed_forward_norm = LayerNorm()
-        self.logit_weights = jax.random.normal(logits_rng, (EMBEDDING_DIM, vocab_size)) * (
-            1.0 / math.sqrt(EMBEDDING_DIM)
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        attention_block_output = self.attention_norm(x + self.attention(x))
+        return self.feed_forward_norm(
+            attention_block_output + self.feed_forward(attention_block_output)
         )
-        self.logit_bias = jnp.zeros((vocab_size,))
+
+
+class LanguageModel(eqx.Module):
+    token_embedding: Embedding
+    position_embedding: Embedding
+    decoder_block: DecoderBlock
+    lm_head: Linear
+
+    def __init__(self, rng: jax.Array, vocab_size: int):
+        embedding_rng, position_rng, transformer_rng, logits_rng = jax.random.split(rng, 4)
+
+        self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, embedding_rng)
+        self.position_embedding = Embedding(CONTEXT_WINDOW, EMBEDDING_DIM, position_rng)
+        self.decoder_block = DecoderBlock(transformer_rng)
+        self.lm_head = Linear(EMBEDDING_DIM, vocab_size, logits_rng)
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
-        positions = jnp.arange(input_ids.shape[1], dtype=jnp.int32)
-        token_embeddings = self.token_embeddings[input_ids]
-        position_embeddings = self.position_embeddings[positions]
-        embeddings = token_embeddings + position_embeddings
-
-        attention = self.attention_norm(embeddings + self.attention(embeddings))
-        transformer = self.feed_forward_norm(attention + self.feed_forward(attention))
-        return transformer @ self.logit_weights + self.logit_bias
+        positions = jnp.arange(input_ids.shape[-1], dtype=jnp.int32)
+        token_embeddings = self.token_embedding(input_ids)
+        position_embeddings = self.position_embedding(positions)
+        decoder_input = token_embeddings + position_embeddings
+        decoder_output = self.decoder_block(decoder_input)
+        return self.lm_head(decoder_output)
 
 
 @eqx.filter_value_and_grad
@@ -132,9 +163,8 @@ def train_step(
 
 
 def sample_batch(batch_key: jax.Array, token_ids: jax.Array) -> tuple[jax.Array, jax.Array]:
-    start_positions = jax.random.randint(
-        batch_key, (BATCH_SIZE,), 0, token_ids.shape[0] - CONTEXT_WINDOW
-    )
+    max_start = token_ids.shape[0] - CONTEXT_WINDOW
+    start_positions = jax.random.randint(batch_key, (BATCH_SIZE,), 0, max_start)
     input_positions = start_positions[:, None] + jnp.arange(CONTEXT_WINDOW)
     input_ids = token_ids[input_positions]
     target_ids = token_ids[input_positions + 1]
