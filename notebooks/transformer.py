@@ -11,9 +11,10 @@ DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespea
 SEED = 1337
 BATCH_SIZE = 64
 EMBEDDING_DIM = 128
+NUM_HEADS = 4
+HEAD_DIM = EMBEDDING_DIM // NUM_HEADS
 HIDDEN_DIM = 256
 CONTEXT_WINDOW = 512
-ATTENTION_DIM = 32
 LEARNING_RATE = 0.05
 TRAIN_STEPS = 5_000
 LAYER_NORM_EPS = 1e-5
@@ -69,22 +70,26 @@ class CausalSelfAttention(eqx.Module):
 
     def __init__(self, rng: jax.Array):
         query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query = Linear(EMBEDDING_DIM, ATTENTION_DIM, query_rng, bias=False)
-        self.key = Linear(EMBEDDING_DIM, ATTENTION_DIM, key_rng, bias=False)
-        self.value = Linear(EMBEDDING_DIM, ATTENTION_DIM, value_rng, bias=False)
-        self.output = Linear(ATTENTION_DIM, EMBEDDING_DIM, output_rng, bias=False)
+        self.query = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, query_rng, bias=False)
+        self.key = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, key_rng, bias=False)
+        self.value = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, value_rng, bias=False)
+        self.output = Linear(NUM_HEADS * HEAD_DIM, EMBEDDING_DIM, output_rng, bias=False)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        queries = self.query(x)
-        keys = self.key(x)
-        values = self.value(x)
+        batch_size, seq_len, _ = x.shape
+        head_dims = (batch_size, seq_len, NUM_HEADS, HEAD_DIM)
+        queries = self.query(x).reshape(head_dims).swapaxes(1, 2)
+        keys = self.key(x).reshape(head_dims).swapaxes(1, 2)
+        values = self.value(x).reshape(head_dims).swapaxes(1, 2)
 
-        scores = (queries @ keys.mT) / jnp.sqrt(ATTENTION_DIM)
-        causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
+        scores = (queries @ keys.mT) / jnp.sqrt(HEAD_DIM)
+        causal_mask = jnp.triu(jnp.ones((seq_len, seq_len), dtype=bool), k=1)
         masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
         attention_weights = jnn.softmax(masked_scores, axis=-1)
         mixed_values = attention_weights @ values
-        return self.output(mixed_values)
+
+        output_dims = (batch_size, seq_len, NUM_HEADS * HEAD_DIM)
+        return self.output(mixed_values.swapaxes(1, 2).reshape(output_dims))
 
 
 class FeedForward(eqx.Module):
