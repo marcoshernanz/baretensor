@@ -1,6 +1,5 @@
 from pathlib import Path
 import math
-from typing import Optional
 
 from flax import nnx
 import jax
@@ -61,7 +60,7 @@ class Linear(nnx.Module):
     ):
         scale = 1.0 / math.sqrt(in_features)
         self.weight = nnx.Param(rngs.params.normal((in_features, out_features)) * scale)
-        self.bias: Optional[nnx.Param] = nnx.Param(jnp.zeros((out_features,))) if bias else None
+        self.bias = nnx.Param(jnp.zeros((out_features,))) if bias else None
 
     def __call__(self, x: jax.Array) -> jax.Array:
         output = x @ self.weight
@@ -145,7 +144,7 @@ class DecoderBlock(nnx.Module):
 
 
 class Decoder(nnx.Module):
-    blocks: nnx.List
+    blocks: nnx.List[DecoderBlock]
 
     def __init__(
         self,
@@ -200,7 +199,7 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
 @nnx.jit
 def train_step(
     model: LanguageModel,
-    optimizer: nnx.Optimizer,
+    optimizer: nnx.Optimizer[LanguageModel],
     input_ids: jax.Array,
     target_ids: jax.Array,
 ) -> jax.Array:
