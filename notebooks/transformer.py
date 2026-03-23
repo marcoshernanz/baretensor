@@ -75,21 +75,29 @@ class CausalSelfAttention(eqx.Module):
         self.value = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, value_rng, bias=False)
         self.output = Linear(NUM_HEADS * HEAD_DIM, EMBEDDING_DIM, output_rng, bias=False)
 
+    def split_heads(self, x: jax.Array) -> jax.Array:
+        batch_size, sequence_length, _ = x.shape
+        head_shape = (batch_size, sequence_length, NUM_HEADS, HEAD_DIM)
+        return x.reshape(head_shape).swapaxes(1, 2)
+
+    def combine_heads(self, x: jax.Array) -> jax.Array:
+        batch_size, _, sequence_length, _ = x.shape
+        combined_shape = (batch_size, sequence_length, NUM_HEADS * HEAD_DIM)
+        return x.swapaxes(1, 2).reshape(combined_shape)
+
     def __call__(self, x: jax.Array) -> jax.Array:
-        batch_size, seq_len, _ = x.shape
-        head_dims = (batch_size, seq_len, NUM_HEADS, HEAD_DIM)
-        queries = self.query(x).reshape(head_dims).swapaxes(1, 2)
-        keys = self.key(x).reshape(head_dims).swapaxes(1, 2)
-        values = self.value(x).reshape(head_dims).swapaxes(1, 2)
+        sequence_length = x.shape[1]
+        queries = self.split_heads(self.query(x))
+        keys = self.split_heads(self.key(x))
+        values = self.split_heads(self.value(x))
 
-        scores = (queries @ keys.mT) / jnp.sqrt(HEAD_DIM)
-        causal_mask = jnp.triu(jnp.ones((seq_len, seq_len), dtype=bool), k=1)
-        masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
-        attention_weights = jnn.softmax(masked_scores, axis=-1)
-        mixed_values = attention_weights @ values
-
-        output_dims = (batch_size, seq_len, NUM_HEADS * HEAD_DIM)
-        return self.output(mixed_values.swapaxes(1, 2).reshape(output_dims))
+        attention_scores = (queries @ keys.mT) / math.sqrt(HEAD_DIM)
+        causal_mask = jnp.triu(jnp.ones((sequence_length, sequence_length), dtype=bool), k=1)
+        masked_attention_scores = jnp.where(causal_mask, -jnp.inf, attention_scores)
+        attention_weights = jnn.softmax(masked_attention_scores, axis=-1)
+        attended_values = attention_weights @ values
+        combined_heads = self.combine_heads(attended_values)
+        return self.output(combined_heads)
 
 
 class FeedForward(eqx.Module):
@@ -102,8 +110,8 @@ class FeedForward(eqx.Module):
         self.output = Linear(HIDDEN_DIM, EMBEDDING_DIM, output_rng)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        hidden = jnp.tanh(self.hidden(x))
-        return self.output(hidden)
+        hidden_activation = jnp.tanh(self.hidden(x))
+        return self.output(hidden_activation)
 
 
 class DecoderBlock(eqx.Module):
@@ -120,10 +128,11 @@ class DecoderBlock(eqx.Module):
         self.feed_forward_norm = LayerNorm()
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        attention_block_output = self.attention_norm(x + self.attention(x))
-        return self.feed_forward_norm(
-            attention_block_output + self.feed_forward(attention_block_output)
-        )
+        attention_residual = x + self.attention(x)
+        attention_block_output = self.attention_norm(attention_residual)
+
+        feed_forward_residual = attention_block_output + self.feed_forward(attention_block_output)
+        return self.feed_forward_norm(feed_forward_residual)
 
 
 class LanguageModel(eqx.Module):
