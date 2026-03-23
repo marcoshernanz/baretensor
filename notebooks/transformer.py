@@ -6,7 +6,7 @@ from flax import nnx
 import jax
 import jax.numpy as jnp
 import jax.nn as jnn
-import optax
+import optax  # pyright: ignore
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
