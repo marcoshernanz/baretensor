@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 from time import perf_counter
+from typing import Optional
 
 import equinox as eqx
 import jax
@@ -14,34 +15,18 @@ from experiment_artifacts import write_loss_artifacts
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 SEED = 1337
-EMBEDDING_DIM = 512
-HIDDEN_DIM = 4048
-ATTENTION_DIM = 128
-CONTEXT_LENGTH = 128
-BATCH_SIZE = 128
-EVAL_BATCH_SIZE = 256
+EMBEDDING_DIM = 128
+HIDDEN_DIM = 256
+ATTENTION_DIM = 32
+CONTEXT_LENGTH = 64
+BATCH_SIZE = 16
+EVAL_BATCH_SIZE = 64
 SAMPLE_LENGTH = 200
 LEARNING_RATE = 0.02
-TRAIN_STEPS = 300_000
+TRAIN_STEPS = 100_000
 LOSS_EMA_DECAY = 0.95
 LOG_INTERVAL = 1000
 LAYER_NORM_EPS = 1e-5
-
-
-# DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
-# SEED = 1337
-# EMBEDDING_DIM = 128
-# HIDDEN_DIM = 256
-# ATTENTION_DIM = 32
-# CONTEXT_LENGTH = 64
-# BATCH_SIZE = 16
-# EVAL_BATCH_SIZE = 64
-# SAMPLE_LENGTH = 200
-# LEARNING_RATE = 0.02
-# TRAIN_STEPS = 100_000
-# LOSS_EMA_DECAY = 0.95
-# LOG_INTERVAL = 1000
-# LAYER_NORM_EPS = 1e-5
 
 
 class LayerNorm(eqx.Module):
@@ -59,101 +44,121 @@ class LayerNorm(eqx.Module):
         return self.scale * normalized + self.shift
 
 
+class Embedding(eqx.Module):
+    weight: jax.Array
+
+    def __init__(self, num_embeddings: int, embedding_dim: int, rng: jax.Array) -> None:
+        self.weight = (
+            jax.random.normal(rng, (num_embeddings, embedding_dim), dtype=jnp.float32) * 0.1
+        )
+
+    def __call__(self, indices: jax.Array) -> jax.Array:
+        return self.weight[indices]
+
+
+class Linear(eqx.Module):
+    weight: jax.Array
+    bias: Optional[jax.Array]
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        rng: jax.Array,
+        bias: bool = True,
+    ) -> None:
+        self.weight = jax.random.normal(rng, (in_features, out_features), dtype=jnp.float32) * (
+            1.0 / math.sqrt(in_features)
+        )
+        self.bias = jnp.zeros((out_features,), dtype=jnp.float32) if bias else None
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        output = x @ self.weight
+        if self.bias is not None:
+            output = output + self.bias
+        return output
+
+
 class CausalSelfAttention(eqx.Module):
-    query_weights: jax.Array
-    key_weights: jax.Array
-    value_weights: jax.Array
-    output_weights: jax.Array
+    query: Linear
+    key: Linear
+    value: Linear
+    output: Linear
 
     def __init__(self, rng: jax.Array) -> None:
         query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query_weights = jax.random.normal(
-            query_rng, (EMBEDDING_DIM, ATTENTION_DIM), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(EMBEDDING_DIM))
-        self.key_weights = jax.random.normal(
-            key_rng, (EMBEDDING_DIM, ATTENTION_DIM), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(EMBEDDING_DIM))
-        self.value_weights = jax.random.normal(
-            value_rng, (EMBEDDING_DIM, ATTENTION_DIM), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(EMBEDDING_DIM))
-        self.output_weights = jax.random.normal(
-            output_rng, (ATTENTION_DIM, EMBEDDING_DIM), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(ATTENTION_DIM))
+        self.query = Linear(EMBEDDING_DIM, ATTENTION_DIM, query_rng, bias=False)
+        self.key = Linear(EMBEDDING_DIM, ATTENTION_DIM, key_rng, bias=False)
+        self.value = Linear(EMBEDDING_DIM, ATTENTION_DIM, value_rng, bias=False)
+        self.output = Linear(ATTENTION_DIM, EMBEDDING_DIM, output_rng, bias=False)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        queries = x @ self.query_weights
-        keys = x @ self.key_weights
-        values = x @ self.value_weights
+        queries = self.query(x)
+        keys = self.key(x)
+        values = self.value(x)
 
-        scores = (queries @ keys.mT) / math.sqrt(ATTENTION_DIM)
+        scores = (queries @ jnp.swapaxes(keys, -1, -2)) / math.sqrt(ATTENTION_DIM)
         causal_mask = jnp.triu(jnp.ones((x.shape[-2], x.shape[-2]), dtype=bool), k=1)
         masked_scores = jnp.where(causal_mask, -jnp.inf, scores)
         attention_weights = jnn.softmax(masked_scores, axis=-1)
         mixed_values = attention_weights @ values
-        return mixed_values @ self.output_weights
+        return self.output(mixed_values)
 
 
 class FeedForward(eqx.Module):
-    hidden_weights: jax.Array
-    hidden_bias: jax.Array
-    output_weights: jax.Array
-    output_bias: jax.Array
+    hidden: Linear
+    output: Linear
 
     def __init__(self, rng: jax.Array) -> None:
         hidden_rng, output_rng = jax.random.split(rng, 2)
-        self.hidden_weights = jax.random.normal(
-            hidden_rng, (EMBEDDING_DIM, HIDDEN_DIM), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(EMBEDDING_DIM))
-        self.hidden_bias = jnp.zeros((HIDDEN_DIM,), dtype=jnp.float32)
-        self.output_weights = jax.random.normal(
-            output_rng, (HIDDEN_DIM, EMBEDDING_DIM), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(HIDDEN_DIM))
-        self.output_bias = jnp.zeros((EMBEDDING_DIM,), dtype=jnp.float32)
+        self.hidden = Linear(EMBEDDING_DIM, HIDDEN_DIM, hidden_rng)
+        self.output = Linear(HIDDEN_DIM, EMBEDDING_DIM, output_rng)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        hidden = jnp.tanh(x @ self.hidden_weights + self.hidden_bias)
-        return hidden @ self.output_weights + self.output_bias
+        hidden = jnp.tanh(self.hidden(x))
+        return self.output(hidden)
 
 
-class LanguageModel(eqx.Module):
-    token_embeddings: jax.Array
-    position_embeddings: jax.Array
+class DecoderBlock(eqx.Module):
     attention: CausalSelfAttention
     attention_norm: LayerNorm
     feed_forward: FeedForward
     feed_forward_norm: LayerNorm
-    logit_weights: jax.Array
-    logit_bias: jax.Array
 
-    def __init__(self, rng: jax.Array, vocab_size: int) -> None:
-        embedding_rng, position_rng, attention_rng, feed_forward_rng, logits_rng = jax.random.split(
-            rng, 5
-        )
-        self.token_embeddings = (
-            jax.random.normal(embedding_rng, (vocab_size, EMBEDDING_DIM), dtype=jnp.float32) * 0.1
-        )
-        self.position_embeddings = (
-            jax.random.normal(position_rng, (CONTEXT_LENGTH, EMBEDDING_DIM), dtype=jnp.float32)
-            * 0.1
-        )
+    def __init__(self, rng: jax.Array) -> None:
+        attention_rng, feed_forward_rng = jax.random.split(rng, 2)
         self.attention = CausalSelfAttention(attention_rng)
         self.attention_norm = LayerNorm()
         self.feed_forward = FeedForward(feed_forward_rng)
         self.feed_forward_norm = LayerNorm()
-        self.logit_weights = jax.random.normal(
-            logits_rng, (EMBEDDING_DIM, vocab_size), dtype=jnp.float32
-        ) * (1.0 / math.sqrt(EMBEDDING_DIM))
-        self.logit_bias = jnp.zeros((vocab_size,), dtype=jnp.float32)
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        attention_block_output = self.attention_norm(x + self.attention(x))
+        return self.feed_forward_norm(
+            attention_block_output + self.feed_forward(attention_block_output)
+        )
+
+
+class LanguageModel(eqx.Module):
+    token_embedding: Embedding
+    position_embedding: Embedding
+    decoder_block: DecoderBlock
+    lm_head: Linear
+
+    def __init__(self, rng: jax.Array, vocab_size: int) -> None:
+        embedding_rng, position_rng, decoder_rng, lm_head_rng = jax.random.split(rng, 4)
+        self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, embedding_rng)
+        self.position_embedding = Embedding(CONTEXT_LENGTH, EMBEDDING_DIM, position_rng)
+        self.decoder_block = DecoderBlock(decoder_rng)
+        self.lm_head = Linear(EMBEDDING_DIM, vocab_size, lm_head_rng)
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
-        positions = jnp.arange(input_ids.shape[1], dtype=jnp.int32)
-        token_embeddings = self.token_embeddings[input_ids]
-        position_embeddings = self.position_embeddings[positions]
-        embeddings = token_embeddings + position_embeddings
-
-        attention = self.attention_norm(embeddings + self.attention(embeddings))
-        transformer = self.feed_forward_norm(attention + self.feed_forward(attention))
-        return transformer @ self.logit_weights + self.logit_bias
+        positions = jnp.arange(input_ids.shape[-1], dtype=jnp.int32)
+        token_embeddings = self.token_embedding(input_ids)
+        position_embeddings = self.position_embedding(positions)
+        decoder_input = token_embeddings + position_embeddings
+        decoder_output = self.decoder_block(decoder_input)
+        return self.lm_head(decoder_output)
 
 
 def load_text(path: Path) -> str:
@@ -192,7 +197,9 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
 
 @eqx.filter_jit
 def train_step(
-    model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array
+    model: LanguageModel,
+    input_ids: jax.Array,
+    target_ids: jax.Array,
 ) -> tuple[LanguageModel, jax.Array]:
     loss, grads = loss_fn(model, input_ids, target_ids)
     updates = jax.tree_util.tree_map(lambda grad: -LEARNING_RATE * grad, grads)
@@ -208,7 +215,8 @@ def train_steps(
     num_steps: int,
 ) -> tuple[LanguageModel, jax.Array, jax.Array]:
     def scan_step(
-        carry: tuple[LanguageModel, jax.Array], _: None
+        carry: tuple[LanguageModel, jax.Array],
+        _: None,
     ) -> tuple[tuple[LanguageModel, jax.Array], jax.Array]:
         current_model, current_rng = carry
         current_rng, batch_rng = jax.random.split(current_rng)
@@ -261,11 +269,11 @@ def evaluate_split(token_ids: jax.Array, model: LanguageModel) -> float:
     return total_loss / total_examples
 
 
-def sample_text(
-    vocab_chars: list[str],
-    sample_length: int,
+def generate_text(
     model: LanguageModel,
+    vocab_chars: list[str],
     seed_token_ids: jax.Array,
+    sample_length: int,
     rng: jax.Array,
 ) -> str:
     if sample_length <= 0:
@@ -342,7 +350,7 @@ def main() -> None:
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
     rng, sample_rng = jax.random.split(rng)
-    sample = sample_text(vocab_chars, SAMPLE_LENGTH, model, train_token_ids, sample_rng)
+    sample = generate_text(model, vocab_chars, train_token_ids, SAMPLE_LENGTH, sample_rng)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
     total_seconds = perf_counter() - total_start
 
