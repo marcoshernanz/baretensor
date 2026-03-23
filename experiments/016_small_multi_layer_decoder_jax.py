@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import math
 from pathlib import Path
+import math
 from time import perf_counter
-from typing import Optional
 
-import equinox as eqx
+from flax import nnx
 import jax
 import jax.numpy as jnp
 import jax.nn as jnn
 import numpy as np
+import optax  # pyright: ignore
 
 from experiment_artifacts import write_loss_artifacts
 
@@ -31,13 +31,13 @@ LOG_INTERVAL = 1000
 LAYER_NORM_EPS = 1e-5
 
 
-class LayerNorm(eqx.Module):
-    scale: jax.Array
-    shift: jax.Array
+class LayerNorm(nnx.Module):
+    scale: nnx.Param[jax.Array]
+    shift: nnx.Param[jax.Array]
 
-    def __init__(self) -> None:
-        self.scale = jnp.ones((EMBEDDING_DIM,), dtype=jnp.float32)
-        self.shift = jnp.zeros((EMBEDDING_DIM,), dtype=jnp.float32)
+    def __init__(self, features: int):
+        self.scale = nnx.Param(jnp.ones((features,)))
+        self.shift = nnx.Param(jnp.zeros((features,)))
 
     def __call__(self, x: jax.Array) -> jax.Array:
         mean = x.mean(axis=-1, keepdims=True)
@@ -46,33 +46,31 @@ class LayerNorm(eqx.Module):
         return self.scale * normalized + self.shift
 
 
-class Embedding(eqx.Module):
-    weight: jax.Array
+class Embedding(nnx.Module):
+    weight: nnx.Param[jax.Array]
 
-    def __init__(self, num_embeddings: int, embedding_dim: int, rng: jax.Array) -> None:
-        self.weight = (
-            jax.random.normal(rng, (num_embeddings, embedding_dim), dtype=jnp.float32) * 0.1
-        )
+    def __init__(self, num_embeddings: int, embedding_dim: int, *, rngs: nnx.Rngs):
+        self.weight = nnx.Param(rngs.params.normal((num_embeddings, embedding_dim)) * 0.1)
 
     def __call__(self, indices: jax.Array) -> jax.Array:
         return self.weight[indices]
 
 
-class Linear(eqx.Module):
-    weight: jax.Array
-    bias: Optional[jax.Array]
+class Linear(nnx.Module):
+    weight: nnx.Param[jax.Array]
+    bias: nnx.Param[jax.Array] | None
 
     def __init__(
         self,
         in_features: int,
         out_features: int,
-        rng: jax.Array,
+        *,
+        rngs: nnx.Rngs,
         bias: bool = True,
-    ) -> None:
-        self.weight = jax.random.normal(rng, (in_features, out_features), dtype=jnp.float32) * (
-            1.0 / math.sqrt(in_features)
-        )
-        self.bias = jnp.zeros((out_features,), dtype=jnp.float32) if bias else None
+    ):
+        scale = 1.0 / math.sqrt(in_features)
+        self.weight = nnx.Param(rngs.params.normal((in_features, out_features)) * scale)
+        self.bias = nnx.Param(jnp.zeros((out_features,))) if bias else None
 
     def __call__(self, x: jax.Array) -> jax.Array:
         output = x @ self.weight
@@ -81,27 +79,30 @@ class Linear(eqx.Module):
         return output
 
 
-class CausalSelfAttention(eqx.Module):
+class CausalSelfAttention(nnx.Module):
     query: Linear
     key: Linear
     value: Linear
     output: Linear
+    num_heads: int
+    head_dim: int
 
-    def __init__(self, rng: jax.Array) -> None:
-        query_rng, key_rng, value_rng, output_rng = jax.random.split(rng, 4)
-        self.query = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, query_rng, bias=False)
-        self.key = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, key_rng, bias=False)
-        self.value = Linear(EMBEDDING_DIM, NUM_HEADS * HEAD_DIM, value_rng, bias=False)
-        self.output = Linear(NUM_HEADS * HEAD_DIM, EMBEDDING_DIM, output_rng, bias=False)
+    def __init__(self, embedding_dim: int, num_heads: int, *, rngs: nnx.Rngs):
+        self.num_heads = num_heads
+        self.head_dim = embedding_dim // num_heads
+        self.query = Linear(embedding_dim, embedding_dim, rngs=rngs, bias=False)
+        self.key = Linear(embedding_dim, embedding_dim, rngs=rngs, bias=False)
+        self.value = Linear(embedding_dim, embedding_dim, rngs=rngs, bias=False)
+        self.output = Linear(embedding_dim, embedding_dim, rngs=rngs, bias=False)
 
     def split_heads(self, x: jax.Array) -> jax.Array:
         batch_size, sequence_length, _ = x.shape
-        head_shape = (batch_size, sequence_length, NUM_HEADS, HEAD_DIM)
+        head_shape = (batch_size, sequence_length, self.num_heads, self.head_dim)
         return x.reshape(head_shape).swapaxes(1, 2)
 
     def combine_heads(self, x: jax.Array) -> jax.Array:
         batch_size, _, sequence_length, _ = x.shape
-        combined_shape = (batch_size, sequence_length, NUM_HEADS * HEAD_DIM)
+        combined_shape = (batch_size, sequence_length, self.num_heads * self.head_dim)
         return x.swapaxes(1, 2).reshape(combined_shape)
 
     def __call__(self, x: jax.Array) -> jax.Array:
@@ -110,7 +111,7 @@ class CausalSelfAttention(eqx.Module):
         keys = self.split_heads(self.key(x))
         values = self.split_heads(self.value(x))
 
-        attention_scores = (queries @ keys.mT) / math.sqrt(HEAD_DIM)
+        attention_scores = (queries @ keys.mT) / math.sqrt(self.head_dim)
         causal_mask = jnp.triu(jnp.ones((sequence_length, sequence_length), dtype=bool), k=1)
         masked_attention_scores = jnp.where(causal_mask, -jnp.inf, attention_scores)
         attention_weights = jnn.softmax(masked_attention_scores, axis=-1)
@@ -119,32 +120,30 @@ class CausalSelfAttention(eqx.Module):
         return self.output(combined_heads)
 
 
-class FeedForward(eqx.Module):
+class FeedForward(nnx.Module):
     hidden: Linear
     output: Linear
 
-    def __init__(self, rng: jax.Array) -> None:
-        hidden_rng, output_rng = jax.random.split(rng, 2)
-        self.hidden = Linear(EMBEDDING_DIM, HIDDEN_DIM, hidden_rng)
-        self.output = Linear(HIDDEN_DIM, EMBEDDING_DIM, output_rng)
+    def __init__(self, embedding_dim: int, hidden_dim: int, *, rngs: nnx.Rngs):
+        self.hidden = Linear(embedding_dim, hidden_dim, rngs=rngs)
+        self.output = Linear(hidden_dim, embedding_dim, rngs=rngs)
 
     def __call__(self, x: jax.Array) -> jax.Array:
         hidden_activation = jnp.tanh(self.hidden(x))
         return self.output(hidden_activation)
 
 
-class DecoderBlock(eqx.Module):
+class DecoderBlock(nnx.Module):
     attention: CausalSelfAttention
     attention_norm: LayerNorm
     feed_forward: FeedForward
     feed_forward_norm: LayerNorm
 
-    def __init__(self, rng: jax.Array) -> None:
-        attention_rng, feed_forward_rng = jax.random.split(rng, 2)
-        self.attention = CausalSelfAttention(attention_rng)
-        self.attention_norm = LayerNorm()
-        self.feed_forward = FeedForward(feed_forward_rng)
-        self.feed_forward_norm = LayerNorm()
+    def __init__(self, embedding_dim: int, hidden_dim: int, num_heads: int, *, rngs: nnx.Rngs):
+        self.attention = CausalSelfAttention(embedding_dim, num_heads, rngs=rngs)
+        self.attention_norm = LayerNorm(embedding_dim)
+        self.feed_forward = FeedForward(embedding_dim, hidden_dim, rngs=rngs)
+        self.feed_forward_norm = LayerNorm(embedding_dim)
 
     def __call__(self, x: jax.Array) -> jax.Array:
         attention_residual = x + self.attention(x)
@@ -154,12 +153,24 @@ class DecoderBlock(eqx.Module):
         return self.feed_forward_norm(feed_forward_residual)
 
 
-class Decoder(eqx.Module):
-    blocks: tuple[DecoderBlock, ...]
+class Decoder(nnx.Module):
+    blocks: nnx.List[DecoderBlock]
 
-    def __init__(self, rng: jax.Array) -> None:
-        block_rngs = jax.random.split(rng, NUM_DECODER_BLOCKS)
-        self.blocks = tuple(DecoderBlock(block_rng) for block_rng in block_rngs)
+    def __init__(
+        self,
+        embedding_dim: int,
+        hidden_dim: int,
+        num_heads: int,
+        num_blocks: int,
+        *,
+        rngs: nnx.Rngs,
+    ):
+        self.blocks = nnx.List(
+            [
+                DecoderBlock(embedding_dim, hidden_dim, num_heads, rngs=rngs)
+                for _ in range(num_blocks)
+            ]
+        )
 
     def __call__(self, x: jax.Array) -> jax.Array:
         for block in self.blocks:
@@ -167,18 +178,17 @@ class Decoder(eqx.Module):
         return x
 
 
-class LanguageModel(eqx.Module):
+class LanguageModel(nnx.Module):
     token_embedding: Embedding
     position_embedding: Embedding
     decoder: Decoder
     lm_head: Linear
 
-    def __init__(self, rng: jax.Array, vocab_size: int) -> None:
-        embedding_rng, position_rng, decoder_rng, lm_head_rng = jax.random.split(rng, 4)
-        self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, embedding_rng)
-        self.position_embedding = Embedding(CONTEXT_LENGTH, EMBEDDING_DIM, position_rng)
-        self.decoder = Decoder(decoder_rng)
-        self.lm_head = Linear(EMBEDDING_DIM, vocab_size, lm_head_rng)
+    def __init__(self, vocab_size: int, *, rngs: nnx.Rngs):
+        self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, rngs=rngs)
+        self.position_embedding = Embedding(CONTEXT_LENGTH, EMBEDDING_DIM, rngs=rngs)
+        self.decoder = Decoder(EMBEDDING_DIM, HIDDEN_DIM, NUM_HEADS, NUM_DECODER_BLOCKS, rngs=rngs)
+        self.lm_head = Linear(EMBEDDING_DIM, vocab_size, rngs=rngs)
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
         positions = jnp.arange(input_ids.shape[-1], dtype=jnp.int32)
@@ -201,10 +211,6 @@ def load_text(path: Path) -> str:
     return text
 
 
-def set_seed(seed: int) -> jax.Array:
-    return jax.random.key(seed)
-
-
 def build_examples(
     token_ids: jax.Array,
     start_positions: jax.Array,
@@ -215,7 +221,6 @@ def build_examples(
     return input_ids, target_ids
 
 
-@eqx.filter_value_and_grad
 def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -> jax.Array:
     logits = model(input_ids)
     log_probs = jnn.log_softmax(logits, axis=-1)
@@ -223,30 +228,29 @@ def loss_fn(model: LanguageModel, input_ids: jax.Array, target_ids: jax.Array) -
     return loss_per_token.mean()
 
 
-@eqx.filter_jit
+@nnx.jit
 def train_step(
     model: LanguageModel,
+    optimizer: nnx.Optimizer[LanguageModel],
     input_ids: jax.Array,
     target_ids: jax.Array,
-) -> tuple[LanguageModel, jax.Array]:
-    loss, grads = loss_fn(model, input_ids, target_ids)
-    updates = jax.tree_util.tree_map(lambda grad: -LEARNING_RATE * grad, grads)
-    model = eqx.apply_updates(model, updates)
-    return model, loss
+) -> jax.Array:
+    loss, grads = nnx.value_and_grad(loss_fn)(model, input_ids, target_ids)
+    optimizer.update(model, grads)
+    return loss
 
 
-@eqx.filter_jit
 def train_steps(
     model: LanguageModel,
+    optimizer: nnx.Optimizer[LanguageModel],
     token_ids: jax.Array,
     rng: jax.Array,
     num_steps: int,
-) -> tuple[LanguageModel, jax.Array, jax.Array]:
-    def scan_step(
-        carry: tuple[LanguageModel, jax.Array],
-        _: None,
-    ) -> tuple[tuple[LanguageModel, jax.Array], jax.Array]:
-        current_model, current_rng = carry
+) -> tuple[jax.Array, list[float]]:
+    losses: list[float] = []
+    current_rng = rng
+
+    for _ in range(num_steps):
         current_rng, batch_rng = jax.random.split(current_rng)
         start_positions = jax.random.randint(
             batch_rng,
@@ -255,23 +259,19 @@ def train_steps(
             maxval=token_ids.shape[0] - CONTEXT_LENGTH,
         )
         input_ids, target_ids = build_examples(token_ids, start_positions)
-        current_model, loss = train_step(current_model, input_ids, target_ids)
-        return (current_model, current_rng), loss
+        loss = train_step(model, optimizer, input_ids, target_ids)
+        losses.append(float(loss))
 
-    (model, rng), losses = jax.lax.scan(scan_step, (model, rng), length=num_steps)
-    return model, rng, losses
+    return current_rng, losses
 
 
-@eqx.filter_jit
+@nnx.jit
 def evaluate_batch_loss(
     model: LanguageModel,
     input_ids: jax.Array,
     target_ids: jax.Array,
 ) -> jax.Array:
-    logits = model(input_ids)
-    log_probs = jnn.log_softmax(logits, axis=-1)
-    loss_per_token = -jnp.take_along_axis(log_probs, target_ids[..., None], axis=-1).squeeze(-1)
-    return loss_per_token.mean()
+    return loss_fn(model, input_ids, target_ids)
 
 
 def evaluate_split(token_ids: jax.Array, model: LanguageModel) -> float:
@@ -291,7 +291,7 @@ def evaluate_split(token_ids: jax.Array, model: LanguageModel) -> float:
         input_ids, target_ids = build_examples(token_ids, start_positions)
         batch_loss = evaluate_batch_loss(model, input_ids, target_ids)
         batch_size = int(start_positions.shape[0])
-        total_loss += float(batch_loss.item()) * batch_size
+        total_loss += float(batch_loss) * batch_size
         total_examples += batch_size
 
     return total_loss / total_examples
@@ -314,7 +314,7 @@ def generate_text(
             shape=(),
             minval=0,
             maxval=seed_token_ids.shape[0] - CONTEXT_LENGTH,
-        ).item()
+        )
     )
     context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
     sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length].tolist()]
@@ -322,7 +322,7 @@ def generate_text(
     for _ in range(max(sample_length - len(sample), 0)):
         logits = model(context[None, :])
         rng, token_rng = jax.random.split(rng)
-        next_token_id = int(jax.random.categorical(token_rng, logits[0, -1]).item())
+        next_token_id = int(jax.random.categorical(token_rng, logits[0, -1]))
         sample.append(vocab_chars[next_token_id])
         context = jnp.concatenate((context[1:], jnp.asarray([next_token_id], dtype=jnp.int32)))
 
@@ -331,7 +331,7 @@ def generate_text(
 
 def main() -> None:
     total_start = perf_counter()
-    rng = set_seed(SEED)
+    rngs = nnx.Rngs(SEED)
     text = load_text(DATA_PATH)
 
     vocab_chars = sorted(set(text))
@@ -348,16 +348,17 @@ def main() -> None:
             "Need at least one full context window plus one target token in each split."
         )
 
-    rng, model_rng = jax.random.split(rng)
-    model = LanguageModel(model_rng, vocab_size)
+    model = LanguageModel(vocab_size, rngs=rngs)
+    optimizer = nnx.Optimizer(model, optax.sgd(LEARNING_RATE), wrt=nnx.Param)
     loss_history: list[tuple[int, float, float]] = []
     ema_loss: float | None = None
     train_start = perf_counter()
 
+    batch_rng = jax.random.key(SEED)
     for chunk_start in range(0, TRAIN_STEPS, LOG_INTERVAL):
         chunk_steps = min(LOG_INTERVAL, TRAIN_STEPS - chunk_start)
-        model, rng, losses = train_steps(model, train_token_ids, rng, chunk_steps)
-        losses_np = np.asarray(jax.device_get(losses), dtype=np.float32)
+        batch_rng, losses = train_steps(model, optimizer, train_token_ids, batch_rng, chunk_steps)
+        losses_np = np.asarray(losses, dtype=np.float32)
 
         for offset, raw_loss in enumerate(losses_np):
             step = chunk_start + offset
@@ -377,7 +378,7 @@ def main() -> None:
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
     validation_loss = evaluate_split(val_token_ids, model)
-    rng, sample_rng = jax.random.split(rng)
+    batch_rng, sample_rng = jax.random.split(batch_rng)
     sample = generate_text(model, vocab_chars, train_token_ids, SAMPLE_LENGTH, sample_rng)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
     total_seconds = perf_counter() - total_start
