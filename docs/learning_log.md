@@ -1,6 +1,6 @@
 # Learning Log
 
-Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 2026-03-21, and 2026-03-22.
+Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 2026-03-21, 2026-03-22, and 2026-03-23.
 
 ## Summary
 
@@ -36,6 +36,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 202
 | 011 | `experiments/011_attention_residual_jax.py` | 100000 | 2.315200 | 2.356931 | 276.444 | 361.737 | 332.165 | [csv](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_history.csv) | [svg](../artifacts/experiments/011_attention_residual_jax/20260322_091010_566218/loss_curve.svg) |
 | 012 | `experiments/012_attention_residual_layer_norm_jax.py` | 100000 | 2.182534 | 2.259682 | 252.862 | 395.473 | 297.579 | [csv](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_history.csv) | [svg](../artifacts/experiments/012_attention_residual_layer_norm_jax/20260322_125705_316057/loss_curve.svg) |
 | 013 | `experiments/013_attention_residual_layer_norm_ffn_jax.py` | 100000 | 1.690038 | 1.878318 | 432.607 | 231.157 | 504.172 | [csv](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_history.csv) | [svg](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_curve.svg) |
+| 014 | `experiments/014_single_block_decoder_only_transformer_jax.py` | 100000 | 1.686884 | 1.873174 | 411.317 | 243.122 | 483.435 | [csv](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_history.csv) | [svg](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -695,4 +696,25 @@ My brother slew no man; his fault was to tallay suf Lord, fueell-be you nor shal
 
 Pealet, vermons thas eangy seamfears ciesed
 someh reevess wish
+```
+
+## 014 Single-Block Decoder-Only Transformer JAX
+
+- Script: `experiments/014_single_block_decoder_only_transformer_jax.py`
+- Steps: `100000`
+- Train loss: `1.686884`
+- Val loss: `1.873174`
+- Train seconds: `411.317`
+- Steps per second: `243.122`
+- Total seconds: `483.435`
+
+![014 single-block decoder-only transformer jax loss curve](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_curve.svg)
+
+```text
+ give pardon to a slave?
+My brother slew no man; his fault was to tallagagurd,
+All fule'd henot saters, he sermeol,
+Wheing to so, be the master in me.
+
+ISe Esles a to they No Eigh I so; hi te more; se
 ```
