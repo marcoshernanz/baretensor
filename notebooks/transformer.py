@@ -23,8 +23,8 @@ LAYER_NORM_EPS = 1e-5
 
 
 class LayerNorm(nnx.Module):
-    scale: nnx.Param[jax.Array]  # [C]
-    shift: nnx.Param[jax.Array]  # [C]
+    scale: nnx.Param[jax.Array]
+    shift: nnx.Param[jax.Array]
 
     def __init__(self, features: int):
         self.scale = nnx.Param(jnp.ones((features,)))
@@ -38,7 +38,7 @@ class LayerNorm(nnx.Module):
 
 
 class Embedding(nnx.Module):
-    weight: nnx.Param[jax.Array]  # [V, C]
+    weight: nnx.Param[jax.Array]
 
     def __init__(self, num_embeddings: int, embedding_dim: int, *, rngs: nnx.Rngs):
         self.weight = nnx.Param(rngs.params.normal((num_embeddings, embedding_dim)) * 0.1)
@@ -48,8 +48,8 @@ class Embedding(nnx.Module):
 
 
 class Linear(nnx.Module):
-    weight: nnx.Param[jax.Array]  # [C_in, C_out]
-    bias: nnx.Param[jax.Array] | None  # [C_out] | None
+    weight: nnx.Param[jax.Array]
+    bias: nnx.Param[jax.Array] | None
 
     def __init__(
         self,
