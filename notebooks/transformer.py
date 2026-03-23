@@ -23,6 +23,9 @@ LAYER_NORM_EPS = 1e-5
 
 
 class LayerNorm(nnx.Module):
+    scale: nnx.Param[jax.Array]  # [C]
+    shift: nnx.Param[jax.Array]  # [C]
+
     def __init__(self, features: int):
         self.scale = nnx.Param(jnp.ones((features,)))
         self.shift = nnx.Param(jnp.zeros((features,)))
@@ -35,6 +38,8 @@ class LayerNorm(nnx.Module):
 
 
 class Embedding(nnx.Module):
+    weight: nnx.Param[jax.Array]  # [V, C]
+
     def __init__(self, num_embeddings: int, embedding_dim: int, *, rngs: nnx.Rngs):
         self.weight = nnx.Param(rngs.params.normal((num_embeddings, embedding_dim)) * 0.1)
 
@@ -43,6 +48,9 @@ class Embedding(nnx.Module):
 
 
 class Linear(nnx.Module):
+    weight: nnx.Param[jax.Array]  # [C_in, C_out]
+    bias: nnx.Param[jax.Array] | None  # [C_out] | None
+
     def __init__(
         self,
         in_features: int,
@@ -63,6 +71,13 @@ class Linear(nnx.Module):
 
 
 class CausalSelfAttention(nnx.Module):
+    query: Linear
+    key: Linear
+    value: Linear
+    output: Linear
+    num_heads: int
+    head_dim: int
+
     def __init__(self, embedding_dim: int, num_heads: int, *, rngs: nnx.Rngs):
         self.num_heads = num_heads
         self.head_dim = embedding_dim // num_heads
@@ -97,6 +112,9 @@ class CausalSelfAttention(nnx.Module):
 
 
 class FeedForward(nnx.Module):
+    hidden: Linear
+    output: Linear
+
     def __init__(self, embedding_dim: int, hidden_dim: int, *, rngs: nnx.Rngs):
         self.hidden = Linear(embedding_dim, hidden_dim, rngs=rngs)
         self.output = Linear(hidden_dim, embedding_dim, rngs=rngs)
@@ -107,6 +125,11 @@ class FeedForward(nnx.Module):
 
 
 class DecoderBlock(nnx.Module):
+    attention: CausalSelfAttention
+    attention_norm: LayerNorm
+    feed_forward: FeedForward
+    feed_forward_norm: LayerNorm
+
     def __init__(self, embedding_dim: int, hidden_dim: int, num_heads: int, *, rngs: nnx.Rngs):
         self.attention = CausalSelfAttention(embedding_dim, num_heads, rngs=rngs)
         self.attention_norm = LayerNorm(embedding_dim)
@@ -122,6 +145,8 @@ class DecoderBlock(nnx.Module):
 
 
 class Decoder(nnx.Module):
+    blocks: nnx.List
+
     def __init__(
         self,
         embedding_dim: int,
@@ -145,6 +170,11 @@ class Decoder(nnx.Module):
 
 
 class LanguageModel(nnx.Module):
+    token_embedding: Embedding
+    position_embedding: Embedding
+    decoder: Decoder
+    lm_head: Linear
+
     def __init__(self, vocab_size: int, *, rngs: nnx.Rngs):
         self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, rngs=rngs)
         self.position_embedding = Embedding(CONTEXT_WINDOW, EMBEDDING_DIM, rngs=rngs)
