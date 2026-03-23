@@ -476,9 +476,49 @@ You should come out of this milestone able to:
   - Lecture 8: self-attention and Transformers.
   - Lecture 9: pretraining.
 
+## Milestone 015: Single-Block Multi-Head Decoder-Only Transformer
+### Model
+- Keep one decoder block.
+- Replace single-head attention with multi-head attention.
+- Still character-level.
+
+### Implementation Path
+- Split the model dimension across multiple heads.
+- Recombine the heads cleanly through one output projection.
+
+### Understanding Needed Before Implementing
+- Why multi-head attention is different from just making one head wider.
+- What each head can specialize in.
+- How head splitting and concatenation work mechanically.
+
+### Learning Outcomes
+You should come out of this milestone able to:
+- Explain multi-head attention from memory,
+- Trace the tensor shapes through split, attention, concat, and projection,
+- Articulate what multi-head adds beyond single-head attention.
+
+## Milestone 016: Small Multi-Layer Decoder
+### Model
+- Stack a few decoder blocks.
+- Keep scale modest.
+- Stay character-level.
+
+### Implementation Path
+- Build the stacked decoder on top of the single-block decoder path.
+
+### Understanding Needed Before Implementing
+- Why stacking changes optimization and representation depth.
+- Why this is a different milestone from just making one block bigger.
+
+### Learning Outcomes
+You should come out of this milestone able to:
+- Explain depth vs width tradeoffs more concretely,
+- Understand how information is progressively transformed across blocks,
+- Recognize when experiment boilerplate is now the real bottleneck.
+
 ## Break B: Tokenizer
 ### Why this break exists
-Only now has character-level modeling done enough work to justify tokenization.
+Only now have single-block, multi-head, and small stacked decoder experiments done enough work to justify tokenization.
 
 ### What to implement
 - Basic BPE training script.
@@ -490,9 +530,9 @@ You should come out of this break able to:
 - Explain what tokenization changes in the modeling problem,
 - Reason about vocabulary granularity and sequence length tradeoffs.
 
-## Milestone 015: Tokenized Single-Block Decoder
+## Milestone 017: Tokenized Single-Block Decoder
 ### Model
-- Same decoder idea as `014`.
+- Same decoder idea as `015` / `016`, but on tokenized data.
 - Move from characters to tokens.
 
 ### Implementation Path
@@ -506,25 +546,8 @@ You should come out of this milestone able to:
 - Explain why tokenization matters,
 - Interpret tokenized samples and losses coherently.
 
-## Milestone 016: Small Multi-Layer Decoder
-### Model
-- Stack a few decoder blocks.
-- Keep scale modest.
-
-### Implementation Path
-- Build the stacked version first.
-
-### Understanding Needed Before Implementing
-- Why stacking changes optimization and representation depth.
-- Why this is a different milestone from just making one block bigger.
-
-### Learning Outcomes
-You should come out of this milestone able to:
-- Explain depth vs width tradeoffs more concretely,
-- Recognize when experiment boilerplate is now the real bottleneck.
-
 ## Break C: Training Runner and Config
-Do this only after `016`.
+Do this only after `017`.
 
 What to build:
 - One `train.py` entrypoint.
@@ -557,5 +580,5 @@ Rule:
 - Do not let `010` change the default style of later milestones; return to raw experiment code for `011+`.
 - Include RNNs because they maximize understanding of sequence state and gradient flow.
 - Do not include CNNs on the main path unless you later want a side learning branch.
-- Do not start tokenizer work before the first stable decoder block exists.
+- Do not start tokenizer work before the single-block decoder, the first multi-head decoder, and the first small stacked decoder are stable.
 - Do not start CUDA work before the model semantics are stable.
