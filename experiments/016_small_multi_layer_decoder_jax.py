@@ -18,6 +18,7 @@ SEED = 1337
 EMBEDDING_DIM = 128
 NUM_HEADS = 4
 HEAD_DIM = EMBEDDING_DIM // NUM_HEADS
+NUM_DECODER_BLOCKS = 4
 HIDDEN_DIM = 256
 CONTEXT_LENGTH = 64
 BATCH_SIZE = 16
@@ -153,17 +154,30 @@ class DecoderBlock(eqx.Module):
         return self.feed_forward_norm(feed_forward_residual)
 
 
+class Decoder(eqx.Module):
+    blocks: tuple[DecoderBlock, ...]
+
+    def __init__(self, rng: jax.Array) -> None:
+        block_rngs = jax.random.split(rng, NUM_DECODER_BLOCKS)
+        self.blocks = tuple(DecoderBlock(block_rng) for block_rng in block_rngs)
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        for block in self.blocks:
+            x = block(x)
+        return x
+
+
 class LanguageModel(eqx.Module):
     token_embedding: Embedding
     position_embedding: Embedding
-    decoder_block: DecoderBlock
+    decoder: Decoder
     lm_head: Linear
 
     def __init__(self, rng: jax.Array, vocab_size: int) -> None:
         embedding_rng, position_rng, decoder_rng, lm_head_rng = jax.random.split(rng, 4)
         self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, embedding_rng)
         self.position_embedding = Embedding(CONTEXT_LENGTH, EMBEDDING_DIM, position_rng)
-        self.decoder_block = DecoderBlock(decoder_rng)
+        self.decoder = Decoder(decoder_rng)
         self.lm_head = Linear(EMBEDDING_DIM, vocab_size, lm_head_rng)
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
@@ -171,7 +185,7 @@ class LanguageModel(eqx.Module):
         token_embeddings = self.token_embedding(input_ids)
         position_embeddings = self.position_embedding(positions)
         decoder_input = token_embeddings + position_embeddings
-        decoder_output = self.decoder_block(decoder_input)
+        decoder_output = self.decoder(decoder_input)
         return self.lm_head(decoder_output)
 
 
