@@ -140,7 +140,7 @@ class Decoder(eqx.Module):
     decoder_blocks: list[DecoderBlock]
 
     def __init__(self, rng: jax.Array):
-        rngs = jax.random.split(rng)
+        rngs = jax.random.split(rng, NUM_DECODER_BLOCKS)
         self.decoder_blocks = [DecoderBlock(rng) for rng in rngs]
 
     def __call__(self, x: jax.Array) -> jax.Array:
@@ -152,7 +152,7 @@ class Decoder(eqx.Module):
 class LanguageModel(eqx.Module):
     token_embedding: Embedding
     position_embedding: Embedding
-    decoder_block: DecoderBlock
+    decoder: Decoder
     lm_head: Linear
 
     def __init__(self, rng: jax.Array, vocab_size: int):
@@ -160,7 +160,7 @@ class LanguageModel(eqx.Module):
 
         self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, embedding_rng)
         self.position_embedding = Embedding(CONTEXT_WINDOW, EMBEDDING_DIM, position_rng)
-        self.decoder_block = DecoderBlock(transformer_rng)
+        self.decoder = Decoder(transformer_rng)
         self.lm_head = Linear(EMBEDDING_DIM, vocab_size, logits_rng)
 
     def __call__(self, input_ids: jax.Array) -> jax.Array:
@@ -168,7 +168,7 @@ class LanguageModel(eqx.Module):
         token_embeddings = self.token_embedding(input_ids)
         position_embeddings = self.position_embedding(positions)
         decoder_input = token_embeddings + position_embeddings
-        decoder_output = self.decoder_block(decoder_input)
+        decoder_output = self.decoder(decoder_input)
         return self.lm_head(decoder_output)
 
 
