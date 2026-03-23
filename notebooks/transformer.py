@@ -13,6 +13,7 @@ BATCH_SIZE = 64
 EMBEDDING_DIM = 128
 NUM_HEADS = 4
 HEAD_DIM = EMBEDDING_DIM // NUM_HEADS
+NUM_DECODER_BLOCKS = 4
 HIDDEN_DIM = 256
 CONTEXT_WINDOW = 512
 LEARNING_RATE = 0.05
@@ -133,6 +134,19 @@ class DecoderBlock(eqx.Module):
 
         feed_forward_residual = attention_block_output + self.feed_forward(attention_block_output)
         return self.feed_forward_norm(feed_forward_residual)
+
+
+class Decoder(eqx.Module):
+    decoder_blocks: list[DecoderBlock]
+
+    def __init__(self, rng: jax.Array):
+        rngs = jax.random.split(rng)
+        self.decoder_blocks = [DecoderBlock(rng) for rng in rngs]
+
+    def __call__(self, x: jax.Array) -> jax.Array:
+        for decoder_block in self.decoder_blocks:
+            x = decoder_block(x)
+        return x
 
 
 class LanguageModel(eqx.Module):
