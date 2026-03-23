@@ -137,15 +137,15 @@ class DecoderBlock(eqx.Module):
 
 
 class Decoder(eqx.Module):
-    decoder_blocks: list[DecoderBlock]
+    blocks: tuple[DecoderBlock, ...]
 
     def __init__(self, rng: jax.Array):
-        rngs = jax.random.split(rng, NUM_DECODER_BLOCKS)
-        self.decoder_blocks = [DecoderBlock(rng) for rng in rngs]
+        block_rngs = jax.random.split(rng, NUM_DECODER_BLOCKS)
+        self.blocks = tuple(DecoderBlock(block_rng) for block_rng in block_rngs)
 
     def __call__(self, x: jax.Array) -> jax.Array:
-        for decoder_block in self.decoder_blocks:
-            x = decoder_block(x)
+        for block in self.blocks:
+            x = block(x)
         return x
 
 
