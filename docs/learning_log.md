@@ -38,6 +38,7 @@ Runs recorded on 2026-03-09, 2026-03-12, 2026-03-14, 2026-03-15, 2026-03-16, 202
 | 013 | `experiments/013_attention_residual_layer_norm_ffn_jax.py` | 100000 | 1.690038 | 1.878318 | 432.607 | 231.157 | 504.172 | [csv](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_history.csv) | [svg](../artifacts/experiments/013_attention_residual_layer_norm_ffn_jax/20260322_200628_017070/loss_curve.svg) |
 | 014 | `experiments/014_single_block_decoder_only_transformer_jax.py` | 100000 | 1.686884 | 1.873174 | 411.317 | 243.122 | 483.435 | [csv](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_history.csv) | [svg](../artifacts/experiments/014_single_block_decoder_only_transformer_jax/20260323_011612_784899/loss_curve.svg) |
 | 015 | `experiments/015_single_block_multi_head_decoder_only_transformer_jax.py` | 100000 | 1.822181 | 1.956108 | 681.613 | 146.711 | 804.293 | [csv](../artifacts/experiments/015_single_block_multi_head_decoder_only_transformer_jax/20260323_184835_096532/loss_history.csv) | [svg](../artifacts/experiments/015_single_block_multi_head_decoder_only_transformer_jax/20260323_184835_096532/loss_curve.svg) |
+| 016 | `experiments/016_small_multi_layer_decoder_jax.py` | 100000 | 1.624889 | 1.826635 | 817.049 | 61.196 | 1025.764 | [csv](../artifacts/experiments/016_small_multi_layer_decoder_jax/20260324_002448_334792/loss_history.csv) | [svg](../artifacts/experiments/016_small_multi_layer_decoder_jax/20260324_002448_334792/loss_curve.svg) |
 
 BareTensor reruns on 2026-03-14 use the optimized `Release` build without any BLAS/Accelerate `matmul` fast path.
 
@@ -739,4 +740,28 @@ The fule thee wend Iellf,
 Tusend by bothing lorsoved that ma glee,
 To bodieltass? nay sermfeato ' hourss of thee mone;
 Th
+```
+
+## 016 Small Multi-Layer Decoder JAX
+
+- Script: `experiments/016_small_multi_layer_decoder_jax.py`
+- Steps: `100000`
+- Train loss: `1.624889`
+- Val loss: `1.826635`
+- Train seconds: `817.049`
+- Steps per second: `61.196`
+- Total seconds: `1025.764`
+
+![016 small multi-layer decoder jax loss curve](../artifacts/experiments/016_small_multi_layer_decoder_jax/20260324_002448_334792/loss_curve.svg)
+
+```text
+e, that is meant love.
+
+CAPULET:
+How now, how now, chop-logic! What nate manone!
+Come, murd, where night or Clizen:
+Oncaraget and, mandombles us onentive
+A foull good wither to too moinon's on him.
+
+K
 ```
