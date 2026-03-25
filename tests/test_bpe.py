@@ -1,6 +1,11 @@
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
 from tokenizer.bpe import BYTE_VOCAB_SIZE
+from tokenizer.bpe import BPEModel
+from tokenizer.bpe import TOKENIZER_ARTIFACT_VERSION
 from tokenizer.bpe import split_text
 from tokenizer.bpe import train_bpe
 
@@ -41,6 +46,33 @@ class BPETests(unittest.TestCase):
 
         self.assertEqual(pair, (32, 97))
         self.assertEqual(model.vocab[token_id], b" a")
+
+    def test_save_load_preserves_tokenizer_behavior(self) -> None:
+        text = "banana bandana\n"
+        model = train_bpe(text, BYTE_VOCAB_SIZE + 4)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_path = Path(temp_dir) / "tokenizer.json"
+            model.save(artifact_path)
+            loaded_model = BPEModel.load(artifact_path)
+
+        self.assertEqual(loaded_model.split_pattern, model.split_pattern)
+        self.assertEqual(loaded_model.merges, model.merges)
+        self.assertEqual(loaded_model.vocab_size, model.vocab_size)
+        self.assertEqual(loaded_model.encode(text), model.encode(text))
+        self.assertEqual(loaded_model.decode(model.encode(text)), text)
+
+    def test_save_writes_minimal_artifact_schema(self) -> None:
+        model = train_bpe("banana bandana\n", BYTE_VOCAB_SIZE + 2)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_path = Path(temp_dir) / "tokenizer.json"
+            model.save(artifact_path)
+            payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["version"], TOKENIZER_ARTIFACT_VERSION)
+        self.assertEqual(payload["split_pattern"], model.split_pattern)
+        self.assertEqual(payload["merge_pairs"], [[97, 110], [98, 256]])
 
 
 if __name__ == "__main__":
