@@ -1,11 +1,13 @@
 import argparse
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 from typing import Sequence
 
 BYTE_VOCAB_SIZE = 256
 DEFAULT_SPLIT_PATTERN = r"\s+\S+|\S+|\s+"
+TOKENIZER_ARTIFACT_VERSION = 1
 
 type TokenId = int
 type TokenPair = tuple[TokenId, TokenId]
@@ -42,6 +44,41 @@ class BPEModel:
     def decode(self, token_ids: Sequence[TokenId]) -> str:
         decoded = b"".join(self.vocab[token_id] for token_id in token_ids)
         return decoded.decode("utf-8")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "version": TOKENIZER_ARTIFACT_VERSION,
+            "split_pattern": self.split_pattern,
+            "merge_pairs": [list(pair) for pair, _ in self.merges],
+        }
+
+    def save(self, path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(self.to_dict(), indent=2) + "\n", encoding="utf-8")
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, object]) -> "BPEModel":
+        version = payload.get("version")
+        if version != TOKENIZER_ARTIFACT_VERSION:
+            raise ValueError(
+                f"Unsupported tokenizer artifact version {version!r}; "
+                f"expected {TOKENIZER_ARTIFACT_VERSION}."
+            )
+
+        split_pattern = payload.get("split_pattern")
+        if not isinstance(split_pattern, str):
+            raise ValueError("Tokenizer artifact must contain a string split_pattern.")
+
+        merge_pairs_payload = payload.get("merge_pairs")
+        if not isinstance(merge_pairs_payload, list):
+            raise ValueError("Tokenizer artifact must contain a list merge_pairs.")
+
+        merges = build_merges_from_pairs(merge_pairs_payload)
+        return build_model(split_pattern, merges)
+
+    @classmethod
+    def load(cls, path: Path) -> "BPEModel":
+        return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
 
 def split_text(text: str, split_pattern: str = DEFAULT_SPLIT_PATTERN) -> list[bytes]:
@@ -108,6 +145,31 @@ def build_merge_tokens(merges: Sequence[Merge]) -> dict[TokenPair, TokenId]:
     return {pair: token_id for pair, token_id in merges}
 
 
+def build_merges_from_pairs(merge_pairs: Sequence[object]) -> tuple[Merge, ...]:
+    merges: list[Merge] = []
+    next_token_id = BYTE_VOCAB_SIZE
+    for merge_pair in merge_pairs:
+        if not isinstance(merge_pair, list) or len(merge_pair) != 2:
+            raise ValueError("Each merge pair must be a two-item list of token ids.")
+        left_token_id, right_token_id = merge_pair
+        if not isinstance(left_token_id, int) or not isinstance(right_token_id, int):
+            raise ValueError("Merge pair token ids must be integers.")
+        merges.append(((left_token_id, right_token_id), next_token_id))
+        next_token_id += 1
+    return tuple(merges)
+
+
+def build_model(split_pattern: str, merges: Sequence[Merge]) -> BPEModel:
+    frozen_merges = tuple(merges)
+    return BPEModel(
+        split_pattern=split_pattern,
+        vocab=build_vocab(frozen_merges),
+        merges=frozen_merges,
+        merge_ranks=build_merge_ranks(frozen_merges),
+        merge_tokens=build_merge_tokens(frozen_merges),
+    )
+
+
 def train_bpe(
     text: str,
     vocab_size: int,
@@ -130,14 +192,7 @@ def train_bpe(
         merges.append((best_pair, next_token_id))
         next_token_id += 1
 
-    frozen_merges = tuple(merges)
-    return BPEModel(
-        split_pattern=split_pattern,
-        vocab=build_vocab(frozen_merges),
-        merges=frozen_merges,
-        merge_ranks=build_merge_ranks(frozen_merges),
-        merge_tokens=build_merge_tokens(frozen_merges),
-    )
+    return build_model(split_pattern, merges)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -165,6 +220,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_SPLIT_PATTERN,
         help="Regex used to split text into independently merged chunks.",
     )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        required=True,
+        help="Path to the tokenizer JSON artifact to write.",
+    )
     return parser.parse_args(argv)
 
 
@@ -179,8 +240,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         args.vocab_size,
         split_pattern=args.split_pattern,
     )
+    model.save(args.output_path)
     print(f"trained {len(model.merges)} merges")
     print(f"vocab size: {model.vocab_size}")
+    print(f"saved tokenizer to {args.output_path}")
 
 
 if __name__ == "__main__":
