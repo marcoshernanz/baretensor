@@ -29,6 +29,7 @@ def apply_merge(words: list[list[int]], pair: tuple[int, int], value: int) -> li
         skip = False
         for i in range(len(word)):
             if skip:
+                skip = False
                 continue
 
             if i + 1 < len(word) and (word[i], word[i + 1]) == pair:
