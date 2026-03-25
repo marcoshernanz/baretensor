@@ -27,6 +27,20 @@ class BPEModel:
     def vocab_size(self) -> int:
         return len(self.vocab)
 
+    def encode(self, text: str) -> list[TokenId]:
+        token_ids: list[TokenId] = []
+        for chunk in split_text(text, self.split_pattern):
+            token_ids.extend(self.encode_chunk(chunk))
+        return token_ids
+
+    def encode_chunk(self, chunk: bytes) -> list[TokenId]:
+        sequence = list(chunk)
+        while True:
+            pair = select_best_mergeable_pair(sequence, self.merge_ranks)
+            if pair is None:
+                return sequence
+            sequence = merge_sequence(sequence, pair, self.merge_tokens[pair])
+
 
 def split_text(text: str, split_pattern: str = DEFAULT_SPLIT_PATTERN) -> list[bytes]:
     return [chunk.encode("utf-8") for chunk in re.findall(split_pattern, text)]
