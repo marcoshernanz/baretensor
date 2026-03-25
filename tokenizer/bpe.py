@@ -17,3 +17,25 @@ def most_frequent_pair(words: list[list[int]]) -> tuple[int, int]:
             freq[pair] = freq[pair] + 1 if pair in freq else 1
 
     return max(freq.items(), key=lambda item: item[1])[0]
+
+
+# %%
+
+
+def apply_merge(words: list[list[int]], pair: tuple[int, int], value: int) -> list[list[int]]:
+    new_words = []
+    for word in words:
+        new_word = []
+        skip = False
+        for i in range(len(word)):
+            if skip:
+                continue
+
+            if i + 1 < len(word) and (word[i], word[i + 1]) == pair:
+                new_word.append(value)
+                skip = True
+            else:
+                new_word.append(word[i])
+        new_words.append(new_word)
+
+    return new_words
