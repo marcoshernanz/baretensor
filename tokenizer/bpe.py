@@ -23,6 +23,10 @@ class BPEModel:
     merge_ranks: dict[TokenPair, int]
     merge_tokens: dict[TokenPair, TokenId]
 
+    @property
+    def vocab_size(self) -> int:
+        return len(self.vocab)
+
 
 def split_text(text: str, split_pattern: str = DEFAULT_SPLIT_PATTERN) -> list[bytes]:
     return [chunk.encode("utf-8") for chunk in re.findall(split_pattern, text)]
@@ -162,6 +166,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         split_pattern=args.split_pattern,
     )
     print(f"trained {len(model.merges)} merges")
+    print(f"vocab size: {model.vocab_size}")
 
 
 if __name__ == "__main__":
