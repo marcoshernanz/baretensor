@@ -41,6 +41,10 @@ class BPEModel:
                 return sequence
             sequence = merge_sequence(sequence, pair, self.merge_tokens[pair])
 
+    def decode(self, token_ids: Sequence[TokenId]) -> str:
+        decoded = b"".join(self.vocab[token_id] for token_id in token_ids)
+        return decoded.decode("utf-8")
+
 
 def split_text(text: str, split_pattern: str = DEFAULT_SPLIT_PATTERN) -> list[bytes]:
     return [chunk.encode("utf-8") for chunk in re.findall(split_pattern, text)]
