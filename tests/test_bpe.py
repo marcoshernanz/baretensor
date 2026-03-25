@@ -14,7 +14,7 @@ class BPETests(unittest.TestCase):
     def test_train_bpe_raises_for_vocab_below_byte_range(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
-            rf"target_vocab_size must be at least {BYTE_VOCAB_SIZE} for byte-level BPE\.",
+            rf"vocab_size must be at least {BYTE_VOCAB_SIZE} for byte-level BPE\.",
         ):
             _ = train_bpe("hello", BYTE_VOCAB_SIZE - 1)
 

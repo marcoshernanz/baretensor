@@ -4,9 +4,7 @@ from pathlib import Path
 import re
 from typing import Sequence
 
-DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
 BYTE_VOCAB_SIZE = 256
-DEFAULT_TARGET_VOCAB_SIZE = 266
 DEFAULT_SPLIT_PATTERN = r"\s+\S+|\S+|\s+"
 
 type TokenId = int
@@ -112,20 +110,18 @@ def build_merge_tokens(merges: Sequence[Merge]) -> dict[TokenPair, TokenId]:
 
 def train_bpe(
     text: str,
-    target_vocab_size: int,
+    vocab_size: int,
     *,
     split_pattern: str = DEFAULT_SPLIT_PATTERN,
 ) -> BPEModel:
-    if target_vocab_size < BYTE_VOCAB_SIZE:
-        raise ValueError(
-            f"target_vocab_size must be at least {BYTE_VOCAB_SIZE} for byte-level BPE."
-        )
+    if vocab_size < BYTE_VOCAB_SIZE:
+        raise ValueError(f"vocab_size must be at least {BYTE_VOCAB_SIZE} for byte-level BPE.")
 
     sequences = [list(chunk) for chunk in split_text(text, split_pattern)]
     merges: list[Merge] = []
     next_token_id = BYTE_VOCAB_SIZE
 
-    while next_token_id < target_vocab_size:
+    while next_token_id < vocab_size:
         pair_counts = count_pairs(sequences)
         best_pair = select_best_pair(pair_counts)
         if best_pair is None:
@@ -149,13 +145,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--data-path",
         type=Path,
-        default=DATA_PATH,
+        required=True,
         help="Path to the UTF-8 training corpus.",
     )
     parser.add_argument(
-        "--target-vocab-size",
+        "--vocab-size",
         type=int,
-        default=DEFAULT_TARGET_VOCAB_SIZE,
+        required=True,
         help="Final vocabulary size, including the 256 byte tokens.",
     )
     parser.add_argument(
@@ -180,7 +176,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     model = train_bpe(
         text,
-        args.target_vocab_size,
+        args.vocab_size,
         split_pattern=args.split_pattern,
     )
     print(f"trained {len(model.merges)} merges")
