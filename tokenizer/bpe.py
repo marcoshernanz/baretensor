@@ -39,3 +39,14 @@ def apply_merge(words: list[list[int]], pair: tuple[int, int], value: int) -> li
         new_words.append(new_word)
 
     return new_words
+
+
+# %%
+
+vocab_size = 256
+merges = []
+while vocab_size < target_vocab_size and max([len(word) for word in words]) > 1:
+    pair = most_frequent_pair(words)
+    words = apply_merge(words, pair, vocab_size)
+    merges.append((pair, vocab_size))
+    vocab_size += 1
