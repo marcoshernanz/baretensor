@@ -1,29 +1,36 @@
 from __future__ import annotations
 
-from pathlib import Path
 import math
+from pathlib import Path
 from time import perf_counter
 
 from flax import nnx
 import jax
-import jax.numpy as jnp
 import jax.nn as jnn
+import jax.numpy as jnp
 import numpy as np
 import optax  # pyright: ignore
 
 from experiment_artifacts import write_loss_artifacts
+from tokenizer.bpe import BPEModel
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
+TOKENIZER_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "artifacts"
+    / "tokenizers"
+    / "tinyshakespeare_bpe_512.json"
+)
 SEED = 1337
 EMBEDDING_DIM = 64
 NUM_HEADS = 4
 HEAD_DIM = EMBEDDING_DIM // NUM_HEADS
 NUM_DECODER_BLOCKS = 4
 HIDDEN_DIM = 128
-CONTEXT_LENGTH = 64
+CONTEXT_TOKENS = 64
 BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 64
-SAMPLE_LENGTH = 200
+SAMPLE_TOKENS = 200
 LEARNING_RATE = 0.02
 TRAIN_STEPS = 50_000
 LOSS_EMA_DECAY = 0.95
@@ -186,7 +193,7 @@ class LanguageModel(nnx.Module):
 
     def __init__(self, vocab_size: int, *, rngs: nnx.Rngs):
         self.token_embedding = Embedding(vocab_size, EMBEDDING_DIM, rngs=rngs)
-        self.position_embedding = Embedding(CONTEXT_LENGTH, EMBEDDING_DIM, rngs=rngs)
+        self.position_embedding = Embedding(CONTEXT_TOKENS, EMBEDDING_DIM, rngs=rngs)
         self.decoder = Decoder(EMBEDDING_DIM, HIDDEN_DIM, NUM_HEADS, NUM_DECODER_BLOCKS, rngs=rngs)
         self.lm_head = Linear(EMBEDDING_DIM, vocab_size, rngs=rngs)
 
@@ -211,11 +218,33 @@ def load_text(path: Path) -> str:
     return text
 
 
+def load_tokenizer(path: Path) -> BPEModel:
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Tokenizer artifact not found at {path}. "
+            "Train and freeze the tokenizer before running this experiment."
+        )
+    return BPEModel.load(path)
+
+
+def encode_text(tokenizer: BPEModel, text: str) -> jax.Array:
+    return jnp.asarray(tokenizer.encode(text), dtype=jnp.int32)
+
+
+def build_token_splits(text: str, tokenizer: BPEModel) -> tuple[jax.Array, jax.Array, str, str]:
+    split_index = int(len(text) * 0.8)
+    train_text = text[:split_index]
+    validation_text = text[split_index:]
+    train_token_ids = encode_text(tokenizer, train_text)
+    validation_token_ids = encode_text(tokenizer, validation_text)
+    return train_token_ids, validation_token_ids, train_text, validation_text
+
+
 def build_examples(
     token_ids: jax.Array,
     start_positions: jax.Array,
 ) -> tuple[jax.Array, jax.Array]:
-    offsets = jnp.arange(CONTEXT_LENGTH, dtype=start_positions.dtype)
+    offsets = jnp.arange(CONTEXT_TOKENS, dtype=start_positions.dtype)
     input_ids = token_ids[start_positions[:, None] + offsets]
     target_ids = token_ids[start_positions[:, None] + offsets + 1]
     return input_ids, target_ids
@@ -256,7 +285,7 @@ def train_steps(
             batch_rng,
             shape=(BATCH_SIZE,),
             minval=0,
-            maxval=token_ids.shape[0] - CONTEXT_LENGTH,
+            maxval=token_ids.shape[0] - CONTEXT_TOKENS,
         )
         input_ids, target_ids = build_examples(token_ids, start_positions)
         loss = train_step(model, optimizer, input_ids, target_ids)
@@ -275,10 +304,10 @@ def evaluate_batch_loss(
 
 
 def evaluate_split(token_ids: jax.Array, model: LanguageModel) -> float:
-    max_start = token_ids.shape[0] - CONTEXT_LENGTH
+    max_start = token_ids.shape[0] - CONTEXT_TOKENS
     if max_start <= 0:
         raise ValueError(
-            f"Dataset split is too small for context length {CONTEXT_LENGTH}. "
+            f"Dataset split is too small for context length {CONTEXT_TOKENS}. "
             "Need at least one full context window plus one target token."
         )
 
@@ -299,12 +328,12 @@ def evaluate_split(token_ids: jax.Array, model: LanguageModel) -> float:
 
 def generate_text(
     model: LanguageModel,
-    vocab_chars: list[str],
+    tokenizer: BPEModel,
     seed_token_ids: jax.Array,
-    sample_length: int,
+    sample_tokens: int,
     rng: jax.Array,
 ) -> str:
-    if sample_length <= 0:
+    if sample_tokens <= 0:
         return ""
 
     rng, seed_rng = jax.random.split(rng)
@@ -313,38 +342,39 @@ def generate_text(
             seed_rng,
             shape=(),
             minval=0,
-            maxval=seed_token_ids.shape[0] - CONTEXT_LENGTH,
+            maxval=seed_token_ids.shape[0] - CONTEXT_TOKENS,
         )
     )
-    context = seed_token_ids[seed_start : seed_start + CONTEXT_LENGTH]
-    sample = [vocab_chars[int(token_id)] for token_id in context[:sample_length].tolist()]
+    context = seed_token_ids[seed_start : seed_start + CONTEXT_TOKENS]
+    generated_token_ids = context[:sample_tokens].tolist()
 
-    for _ in range(max(sample_length - len(sample), 0)):
+    for _ in range(max(sample_tokens - len(generated_token_ids), 0)):
         logits = model(context[None, :])
         rng, token_rng = jax.random.split(rng)
         next_token_id = int(jax.random.categorical(token_rng, logits[0, -1]))
-        sample.append(vocab_chars[next_token_id])
+        generated_token_ids.append(next_token_id)
         context = jnp.concatenate((context[1:], jnp.asarray([next_token_id], dtype=jnp.int32)))
 
-    return "".join(sample)
+    return tokenizer.decode(generated_token_ids)
 
 
 def main() -> None:
     total_start = perf_counter()
     rngs = nnx.Rngs(SEED)
     text = load_text(DATA_PATH)
+    tokenizer = load_tokenizer(TOKENIZER_PATH)
+    train_token_ids, validation_token_ids, train_text, validation_text = build_token_splits(
+        text,
+        tokenizer,
+    )
+    vocab_size = tokenizer.vocab_size
 
-    vocab_chars = sorted(set(text))
-    char_to_index = {char: idx for idx, char in enumerate(vocab_chars)}
-    vocab_size = len(char_to_index)
-
-    token_ids = jnp.asarray([char_to_index[ch] for ch in text], dtype=jnp.int32)
-    num_tokens = token_ids.shape[0]
-    train_token_ids = token_ids[: int(num_tokens * 0.8)]
-    val_token_ids = token_ids[int(num_tokens * 0.8) :]
-    if train_token_ids.shape[0] <= CONTEXT_LENGTH or val_token_ids.shape[0] <= CONTEXT_LENGTH:
+    if (
+        train_token_ids.shape[0] <= CONTEXT_TOKENS
+        or validation_token_ids.shape[0] <= CONTEXT_TOKENS
+    ):
         raise ValueError(
-            f"Dataset splits are too small for context length {CONTEXT_LENGTH}. "
+            f"Dataset splits are too small for context length {CONTEXT_TOKENS}. "
             "Need at least one full context window plus one target token in each split."
         )
 
@@ -377,12 +407,22 @@ def main() -> None:
 
     train_seconds = perf_counter() - train_start
     train_loss = evaluate_split(train_token_ids, model)
-    validation_loss = evaluate_split(val_token_ids, model)
+    validation_loss = evaluate_split(validation_token_ids, model)
     batch_rng, sample_rng = jax.random.split(batch_rng)
-    sample = generate_text(model, vocab_chars, train_token_ids, SAMPLE_LENGTH, sample_rng)
+    sample = generate_text(model, tokenizer, train_token_ids, SAMPLE_TOKENS, sample_rng)
     loss_history_csv, loss_curve_svg = write_loss_artifacts(Path(__file__), loss_history)
     total_seconds = perf_counter() - total_start
 
+    print(f"tokenizer_path={TOKENIZER_PATH}")
+    print(f"vocab_size={vocab_size}")
+    print(f"train_chars={len(train_text)}")
+    print(f"validation_chars={len(validation_text)}")
+    print(f"train_tokens={train_token_ids.shape[0]}")
+    print(f"validation_tokens={validation_token_ids.shape[0]}")
+    print(f"train_chars_per_token={len(train_text) / int(train_token_ids.shape[0]):.4f}")
+    print(
+        f"validation_chars_per_token={len(validation_text) / int(validation_token_ids.shape[0]):.4f}"
+    )
     print(f"train_loss={train_loss:.6f}")
     print(f"validation_loss={validation_loss:.6f}")
     print(f"loss_history_csv={loss_history_csv}")
