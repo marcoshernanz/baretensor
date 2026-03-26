@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from dataclasses import dataclass
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from time import perf_counter
 
@@ -77,11 +78,15 @@ def _execute_training(
             )
 
             completed_steps = step + 1
-            is_eval_step = completed_steps % EVAL_INTERVAL == 0 or completed_steps == config.train.steps
+            is_eval_step = (
+                completed_steps % EVAL_INTERVAL == 0 or completed_steps == config.train.steps
+            )
             is_sample_step = (
                 completed_steps % SAMPLE_INTERVAL == 0 or completed_steps == config.train.steps
             )
-            is_log_step = completed_steps % LOG_INTERVAL == 0 or completed_steps == config.train.steps
+            is_log_step = (
+                completed_steps % LOG_INTERVAL == 0 or completed_steps == config.train.steps
+            )
 
             validation_loss: float | None = None
             if is_eval_step:
@@ -202,4 +207,4 @@ def _build_metadata(
 
 
 def _utcnow() -> str:
-    return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
