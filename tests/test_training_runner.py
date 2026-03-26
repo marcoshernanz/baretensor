@@ -46,8 +46,7 @@ class TrainingRunnerTests(unittest.TestCase):
 
             metadata = json.loads((run_dir / "run_metadata.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["status"], "completed")
-            self.assertIn("dataset_sha256", metadata)
-            self.assertIn("tokenizer_sha256", metadata)
+            self.assertEqual(metadata["recipe_name"], "tokenized_decoder_jax")
             self.assertIn("train_summary", metadata)
 
 
@@ -63,17 +62,11 @@ def _write_tiny_training_fixture(root: Path, *, steps: int = 3) -> Path:
     config_path.write_text(
         f"""
 [run]
-experiment_name = "tiny_break_c"
 seed = 7
-output_root = "{root / "runs"}"
-log_interval = 1
-eval_interval = 1
-sample_interval = 1
 
 [data]
 dataset_path = "{dataset_path}"
 tokenizer_path = "{tokenizer_path}"
-train_split_ratio = 0.8
 context_tokens = 8
 # text_limit = null
 
@@ -82,10 +75,8 @@ embedding_dim = 8
 num_heads = 2
 num_decoder_blocks = 1
 hidden_dim = 16
-layer_norm_eps = 1e-5
 
 [optimizer]
-name = "sgd"
 learning_rate = 0.05
 
 [train]
@@ -93,7 +84,6 @@ steps = {steps}
 batch_size = 2
 eval_batch_size = 4
 sample_tokens = 12
-loss_ema_decay = 0.9
 """.strip()
         + "\n",
         encoding="utf-8",

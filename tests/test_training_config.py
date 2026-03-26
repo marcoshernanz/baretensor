@@ -21,17 +21,11 @@ class TrainingConfigTests(unittest.TestCase):
             config_path.write_text(
                 f"""
 [run]
-experiment_name = "test"
 seed = 1
-output_root = "{temp_path / "runs"}"
-log_interval = 1
-eval_interval = 1
-sample_interval = 1
 
 [data]
 dataset_path = "{dataset_path}"
 tokenizer_path = "{tokenizer_path}"
-train_split_ratio = 0.8
 context_tokens = 4
 # text_limit = null
 
@@ -40,10 +34,8 @@ embedding_dim = 8
 num_heads = 2
 num_decoder_blocks = 1
 hidden_dim = 16
-layer_norm_eps = 1e-5
 
 [optimizer]
-name = "sgd"
 learning_rate = 0.1
 
 [train]
@@ -51,7 +43,6 @@ steps = 2
 batch_size = 2
 eval_batch_size = 2
 sample_tokens = 4
-loss_ema_decay = 0.9
 """.strip()
                 + "\n",
                 encoding="utf-8",
@@ -59,7 +50,7 @@ loss_ema_decay = 0.9
 
             config = load_config(config_path)
 
-        self.assertEqual(config.run.experiment_name, "test")
+        self.assertEqual(config.run.seed, 1)
         self.assertEqual(config.data.context_tokens, 4)
         self.assertIsNone(config.data.text_limit)
 
@@ -76,18 +67,12 @@ loss_ema_decay = 0.9
             config_path.write_text(
                 f"""
 [run]
-experiment_name = "test"
 seed = 1
-output_root = "{temp_path / "runs"}"
-log_interval = 1
-eval_interval = 1
-sample_interval = 1
 extra = 1
 
 [data]
 dataset_path = "{dataset_path}"
 tokenizer_path = "{tokenizer_path}"
-train_split_ratio = 0.8
 context_tokens = 4
 # text_limit = null
 
@@ -96,10 +81,8 @@ embedding_dim = 8
 num_heads = 2
 num_decoder_blocks = 1
 hidden_dim = 16
-layer_norm_eps = 1e-5
 
 [optimizer]
-name = "sgd"
 learning_rate = 0.1
 
 [train]
@@ -107,7 +90,6 @@ steps = 2
 batch_size = 2
 eval_batch_size = 2
 sample_tokens = 4
-loss_ema_decay = 0.9
 """.strip()
                 + "\n",
                 encoding="utf-8",
@@ -129,17 +111,11 @@ loss_ema_decay = 0.9
             config_path.write_text(
                 f"""
 [run]
-experiment_name = "test"
 seed = 1
-output_root = "{temp_path / "runs"}"
-log_interval = 1
-eval_interval = 1
-sample_interval = 1
 
 [data]
 dataset_path = "{dataset_path}"
 tokenizer_path = "{tokenizer_path}"
-train_split_ratio = 0.8
 context_tokens = 4
 # text_limit = null
 
@@ -148,10 +124,8 @@ embedding_dim = 7
 num_heads = 2
 num_decoder_blocks = 1
 hidden_dim = 16
-layer_norm_eps = 1e-5
 
 [optimizer]
-name = "sgd"
 learning_rate = 0.1
 
 [train]
@@ -159,7 +133,6 @@ steps = 2
 batch_size = 2
 eval_batch_size = 2
 sample_tokens = 4
-loss_ema_decay = 0.9
 """.strip()
                 + "\n",
                 encoding="utf-8",
@@ -168,7 +141,7 @@ loss_ema_decay = 0.9
             with self.assertRaisesRegex(ValueError, "divisible"):
                 _ = load_config(config_path)
 
-    def test_invalid_interval_fails(self) -> None:
+    def test_invalid_seed_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             dataset_path = temp_path / "dataset.txt"
@@ -181,17 +154,11 @@ loss_ema_decay = 0.9
             config_path.write_text(
                 f"""
 [run]
-experiment_name = "test"
-seed = 1
-output_root = "{temp_path / "runs"}"
-log_interval = 0
-eval_interval = 1
-sample_interval = 1
+seed = 0
 
 [data]
 dataset_path = "{dataset_path}"
 tokenizer_path = "{tokenizer_path}"
-train_split_ratio = 0.8
 context_tokens = 4
 # text_limit = null
 
@@ -200,10 +167,8 @@ embedding_dim = 8
 num_heads = 2
 num_decoder_blocks = 1
 hidden_dim = 16
-layer_norm_eps = 1e-5
 
 [optimizer]
-name = "sgd"
 learning_rate = 0.1
 
 [train]
@@ -211,7 +176,6 @@ steps = 2
 batch_size = 2
 eval_batch_size = 2
 sample_tokens = 4
-loss_ema_decay = 0.9
 """.strip()
                 + "\n",
                 encoding="utf-8",
