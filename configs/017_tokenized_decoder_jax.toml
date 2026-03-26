@@ -1,0 +1,33 @@
+[run]
+experiment_name = "017_tokenized_decoder_jax"
+seed = 1337
+output_root = "artifacts/runs"
+log_interval = 1000
+eval_interval = 1000
+checkpoint_interval = 1000
+sample_interval = 1000
+
+[data]
+dataset_path = "datasets/tinyshakespeare.txt"
+tokenizer_path = "artifacts/tokenizers/tinyshakespeare_bpe_512.json"
+train_split_ratio = 0.8
+context_tokens = 64
+# text_limit = null
+
+[model]
+embedding_dim = 64
+num_heads = 4
+num_decoder_blocks = 4
+hidden_dim = 128
+layer_norm_eps = 1e-5
+
+[optimizer]
+name = "sgd"
+learning_rate = 0.02
+
+[train]
+steps = 50000
+batch_size = 16
+eval_batch_size = 64
+sample_tokens = 100
+loss_ema_decay = 0.95
