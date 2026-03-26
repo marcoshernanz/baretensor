@@ -530,20 +530,25 @@ You should come out of this break able to:
 - Explain what tokenization changes in the modeling problem,
 - Reason about vocabulary granularity and sequence length tradeoffs.
 
-## Milestone 017: Tokenized Single-Block Decoder
+## Milestone 017: Tokenized Small Multi-Layer Decoder
 ### Model
-- Same decoder idea as `015` / `016`, but on tokenized data.
-- Move from characters to tokens.
+- Direct extension of `experiments/016_small_multi_layer_decoder_jax.py`.
+- Keep the small stacked decoder architecture from `016`.
+- Move from characters to tokenizer-produced tokens.
 
 ### Implementation Path
-- Rebuild the model on tokenized data first.
+- Keep the `016` multi-layer decoder structure intact.
+- Replace the character-level dataset path with tokenizer training, encode/decode, and token IDs.
+- Rebuild the stacked decoder experiment on tokenized data before scaling anything else.
 
 ### Understanding Needed Before Implementing
 - How tokenization changes sequence length, vocabulary size, and modeling difficulty.
+- Why this milestone should isolate the representation change, not introduce a new architecture change at the same time.
 
 ### Learning Outcomes
 You should come out of this milestone able to:
 - Explain why tokenization matters,
+- Explain the difference between changing the input representation and changing decoder depth,
 - Interpret tokenized samples and losses coherently.
 
 ## Break C: Training Runner and Config
