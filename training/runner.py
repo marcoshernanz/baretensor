@@ -4,7 +4,6 @@ from dataclasses import asdict
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
-import json
 from pathlib import Path
 import platform
 import socket
@@ -20,15 +19,10 @@ from training.artifacts import MetricRow
 from training.artifacts import RunPaths
 from training.artifacts import append_metric_row
 from training.artifacts import create_run_paths
-from training.artifacts import ensure_run_paths
-from training.artifacts import read_metric_rows
 from training.artifacts import regenerate_loss_curve
 from training.artifacts import write_json
 from training.artifacts import write_sample
 from training.artifacts import write_text
-from training.checkpoints import CheckpointState
-from training.checkpoints import load_checkpoint
-from training.checkpoints import save_checkpoint
 from training.config import TrainingConfig
 from training.config import load_config
 from training.config import render_config_toml
@@ -54,57 +48,29 @@ def run_from_config(config_path: Path) -> RunResult:
     metadata = _build_metadata(config, paths.run_dir, status="running")
     write_text(paths.resolved_config_path, render_config_toml(config))
     write_json(paths.metadata_path, metadata)
-    return _execute_training(config, paths, metadata, resume_state=None)
-
-
-def run_from_resume(run_dir: Path) -> RunResult:
-    paths = ensure_run_paths(run_dir.resolve(), create=False)
-    config = load_config(paths.resolved_config_path)
-    metadata = _read_metadata(paths.metadata_path)
-    metadata["status"] = "running"
-    metadata["end_time"] = None
-    metadata["last_update_time"] = _utcnow()
-    write_json(paths.metadata_path, metadata)
-    recipe = TokenizedDecoderJaxRecipe.create(config)
-    resume_state = load_checkpoint(
-        paths.latest_checkpoint_path,
-        model=recipe.model,
-        optimizer=recipe.optimizer,
-    )
-    return _execute_training(config, paths, metadata, resume_state=resume_state, recipe=recipe)
+    return _execute_training(config, paths, metadata)
 
 
 def _execute_training(
     config: TrainingConfig,
     paths: RunPaths,
     metadata: dict[str, object],
-    *,
-    resume_state: CheckpointState | None,
-    recipe: TokenizedDecoderJaxRecipe | None = None,
 ) -> RunResult:
     total_start = perf_counter()
-    recipe = recipe or TokenizedDecoderJaxRecipe.create(config)
+    recipe = TokenizedDecoderJaxRecipe.create(config)
     train_start = perf_counter()
 
-    if resume_state is None:
-        batch_rng = jax.random.key(config.run.seed)
-        next_step = 0
-        ema_train_loss: float | None = None
-        best_validation_loss: float | None = None
-        sample_rng = jax.random.key(config.run.seed)
-        _, sample_text = recipe.generate_sample(sample_rng)
-        write_sample(paths.samples_dir, 0, sample_text)
-    else:
-        batch_rng = resume_state.batch_rng
-        next_step = resume_state.next_step
-        ema_train_loss = resume_state.ema_train_loss
-        best_validation_loss = resume_state.best_validation_loss
-        _validate_resume_metrics(paths.metrics_path, next_step)
+    batch_rng = jax.random.key(config.run.seed)
+    ema_train_loss: float | None = None
+
+    sample_rng = jax.random.key(config.run.seed)
+    _, sample_text = recipe.generate_sample(sample_rng)
+    write_sample(paths.samples_dir, 0, sample_text)
 
     interrupted = False
 
     try:
-        for step in range(next_step, config.train.steps):
+        for step in range(config.train.steps):
             batch_rng, raw_train_loss = recipe.train_batch(batch_rng)
             ema_train_loss = (
                 raw_train_loss
@@ -122,10 +88,6 @@ def _execute_training(
                 completed_steps % config.run.sample_interval == 0
                 or completed_steps == config.train.steps
             )
-            is_checkpoint_step = (
-                completed_steps % config.run.checkpoint_interval == 0
-                or completed_steps == config.train.steps
-            )
             is_log_step = (
                 completed_steps % config.run.log_interval == 0
                 or completed_steps == config.train.steps
@@ -134,20 +96,6 @@ def _execute_training(
             validation_loss: float | None = None
             if is_eval_step:
                 validation_loss = recipe.evaluate_validation_loss()
-                if best_validation_loss is None or validation_loss < best_validation_loss:
-                    best_validation_loss = validation_loss
-                    save_checkpoint(
-                        paths.best_checkpoint_path,
-                        model=recipe.model,
-                        optimizer=recipe.optimizer,
-                        state=CheckpointState(
-                            next_step=completed_steps,
-                            best_validation_loss=best_validation_loss,
-                            ema_train_loss=ema_train_loss,
-                            batch_rng=batch_rng,
-                            status="running",
-                        ),
-                    )
 
             append_metric_row(
                 paths.metrics_path,
@@ -163,22 +111,6 @@ def _execute_training(
                 batch_rng, sample_text = recipe.generate_sample(batch_rng)
                 write_sample(paths.samples_dir, completed_steps, sample_text)
 
-            if is_checkpoint_step:
-                save_checkpoint(
-                    paths.latest_checkpoint_path,
-                    model=recipe.model,
-                    optimizer=recipe.optimizer,
-                    state=CheckpointState(
-                        next_step=completed_steps,
-                        best_validation_loss=best_validation_loss,
-                        ema_train_loss=ema_train_loss,
-                        batch_rng=batch_rng,
-                        status="running",
-                    ),
-                )
-                metadata["last_update_time"] = _utcnow()
-                write_json(paths.metadata_path, metadata)
-
             if is_log_step:
                 message = (
                     f"step={completed_steps} raw_train_loss={raw_train_loss:.6f} "
@@ -189,59 +121,18 @@ def _execute_training(
                 print(message)
     except KeyboardInterrupt:
         interrupted = True
-        save_checkpoint(
-            paths.latest_checkpoint_path,
-            model=recipe.model,
-            optimizer=recipe.optimizer,
-            state=CheckpointState(
-                next_step=step if "step" in locals() else next_step,
-                best_validation_loss=best_validation_loss,
-                ema_train_loss=ema_train_loss,
-                batch_rng=batch_rng,
-                status="interrupted",
-            ),
-        )
         metadata["status"] = "interrupted"
         metadata["last_update_time"] = _utcnow()
         metadata["end_time"] = _utcnow()
         write_json(paths.metadata_path, metadata)
         regenerate_loss_curve(paths.metrics_path, paths.loss_curve_path)
-        train_seconds = perf_counter() - train_start
-        total_seconds = perf_counter() - total_start
         raise SystemExit(130) from None
 
     train_seconds = perf_counter() - train_start
     train_loss = recipe.evaluate_train_loss()
     validation_loss = recipe.evaluate_validation_loss()
-    if best_validation_loss is None or validation_loss < best_validation_loss:
-        best_validation_loss = validation_loss
-        save_checkpoint(
-            paths.best_checkpoint_path,
-            model=recipe.model,
-            optimizer=recipe.optimizer,
-            state=CheckpointState(
-                next_step=config.train.steps,
-                best_validation_loss=best_validation_loss,
-                ema_train_loss=ema_train_loss,
-                batch_rng=batch_rng,
-                status="completed",
-            ),
-        )
-
     batch_rng, sample_text = recipe.generate_sample(batch_rng)
     write_sample(paths.samples_dir, config.train.steps, sample_text)
-    save_checkpoint(
-        paths.latest_checkpoint_path,
-        model=recipe.model,
-        optimizer=recipe.optimizer,
-        state=CheckpointState(
-            next_step=config.train.steps,
-            best_validation_loss=best_validation_loss,
-            ema_train_loss=ema_train_loss,
-            batch_rng=batch_rng,
-            status="completed",
-        ),
-    )
     regenerate_loss_curve(paths.metrics_path, paths.loss_curve_path)
 
     metadata["status"] = "completed"
@@ -252,6 +143,7 @@ def _execute_training(
         "validation_loss": validation_loss,
         "train_seconds": train_seconds,
         "steps_per_second": config.train.steps / train_seconds,
+        "final_ema_train_loss": ema_train_loss,
         "dataset_stats": asdict(recipe.stats),
     }
     write_json(paths.metadata_path, metadata)
@@ -333,20 +225,6 @@ def _build_metadata(
         "hostname": socket.gethostname(),
         "platform": platform.platform(),
     }
-
-
-def _read_metadata(path: Path) -> dict[str, object]:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _validate_resume_metrics(metrics_path: Path, next_step: int) -> None:
-    rows = read_metric_rows(metrics_path)
-    if not rows and next_step != 0:
-        raise ValueError("Cannot resume: metrics.csv is missing completed steps.")
-    if rows and rows[-1].step != next_step - 1:
-        raise ValueError(
-            "Cannot resume: latest checkpoint step does not match the last metrics.csv row."
-        )
 
 
 def _sha256(path: Path) -> str:
