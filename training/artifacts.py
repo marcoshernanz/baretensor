@@ -16,7 +16,7 @@ SVG_WIDTH = 800
 @dataclass(frozen=True, slots=True)
 class RunPaths:
     run_dir: Path
-    resolved_config_path: Path
+    config_path: Path
     metadata_path: Path
     metrics_path: Path
     loss_curve_path: Path
@@ -45,7 +45,7 @@ def ensure_run_paths(run_dir: Path, *, create: bool) -> RunPaths:
         samples_dir.mkdir(parents=True, exist_ok=False)
     return RunPaths(
         run_dir=run_dir,
-        resolved_config_path=run_dir / "resolved_config.toml",
+        config_path=run_dir / "config.toml",
         metadata_path=run_dir / "run_metadata.json",
         metrics_path=run_dir / "metrics.csv",
         loss_curve_path=run_dir / "loss_curve.svg",
