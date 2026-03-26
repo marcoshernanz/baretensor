@@ -32,7 +32,7 @@ class TrainingRunnerTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             run_dir = _extract_run_dir(result.stdout)
-            self.assertTrue((run_dir / "resolved_config.toml").exists())
+            self.assertTrue((run_dir / "config.toml").exists())
             self.assertTrue((run_dir / "run_metadata.json").exists())
             self.assertTrue((run_dir / "metrics.csv").exists())
             self.assertTrue((run_dir / "loss_curve.svg").exists())
