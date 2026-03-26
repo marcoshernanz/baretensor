@@ -14,13 +14,10 @@ import optax  # pyright: ignore
 from experiment_artifacts import write_loss_artifacts
 from tokenizer.bpe import BPEModel
 
-DATA_PATH = Path(__file__).resolve().parent.parent / "datasets" / "tinyshakespeare.txt"
-TOKENIZER_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "artifacts"
-    / "tokenizers"
-    / "tinyshakespeare_bpe_512.json"
-)
+ROOT_DIR = Path(__file__).resolve().parent.parent
+DATA_PATH = ROOT_DIR / "datasets" / "tinyshakespeare.txt"
+TOKENIZER_PATH = ROOT_DIR / "artifacts" / "tokenizers" / "tinyshakespeare_bpe_512.json"
+
 SEED = 1337
 EMBEDDING_DIM = 64
 NUM_HEADS = 4
