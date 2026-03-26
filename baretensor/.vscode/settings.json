@@ -3,11 +3,8 @@
 
   "ruff.enable": true,
   "ruff.organizeImports": true,
-  "cmake.useCMakePresets": "always",
 
-  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
   "cmake.cmakePath": "/opt/homebrew/bin/cmake",
 
-  "pylint.enabled": false,
   "cSpell.words": ["maxval", "minval", "nanobind", "numel", "softmax"]
 }
