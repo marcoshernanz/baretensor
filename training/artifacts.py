@@ -21,9 +21,6 @@ class RunPaths:
     metrics_path: Path
     loss_curve_path: Path
     samples_dir: Path
-    checkpoints_dir: Path
-    latest_checkpoint_path: Path
-    best_checkpoint_path: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,10 +41,8 @@ def ensure_run_paths(run_dir: Path, *, create: bool) -> RunPaths:
     if create:
         run_dir.mkdir(parents=True, exist_ok=False)
     samples_dir = run_dir / "samples"
-    checkpoints_dir = run_dir / "checkpoints"
     if create:
         samples_dir.mkdir(parents=True, exist_ok=False)
-        checkpoints_dir.mkdir(parents=True, exist_ok=False)
     return RunPaths(
         run_dir=run_dir,
         resolved_config_path=run_dir / "resolved_config.toml",
@@ -55,9 +50,6 @@ def ensure_run_paths(run_dir: Path, *, create: bool) -> RunPaths:
         metrics_path=run_dir / "metrics.csv",
         loss_curve_path=run_dir / "loss_curve.svg",
         samples_dir=samples_dir,
-        checkpoints_dir=checkpoints_dir,
-        latest_checkpoint_path=checkpoints_dir / "latest.msgpack",
-        best_checkpoint_path=checkpoints_dir / "best.msgpack",
     )
 
 
