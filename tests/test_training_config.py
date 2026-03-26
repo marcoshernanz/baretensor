@@ -26,7 +26,6 @@ seed = 1
 output_root = "{temp_path / "runs"}"
 log_interval = 1
 eval_interval = 1
-checkpoint_interval = 1
 sample_interval = 1
 
 [data]
@@ -82,7 +81,6 @@ seed = 1
 output_root = "{temp_path / "runs"}"
 log_interval = 1
 eval_interval = 1
-checkpoint_interval = 1
 sample_interval = 1
 extra = 1
 
@@ -136,7 +134,6 @@ seed = 1
 output_root = "{temp_path / "runs"}"
 log_interval = 1
 eval_interval = 1
-checkpoint_interval = 1
 sample_interval = 1
 
 [data]
@@ -189,7 +186,6 @@ seed = 1
 output_root = "{temp_path / "runs"}"
 log_interval = 0
 eval_interval = 1
-checkpoint_interval = 1
 sample_interval = 1
 
 [data]
