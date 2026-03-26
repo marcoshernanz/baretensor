@@ -1,0 +1,182 @@
+[
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/python/bindings.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/python/bindings.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/python/bindings.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/python/bindings.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/autograd.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/autograd.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/autograd.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/autograd.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/detail/broadcast.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/broadcast.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/broadcast.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/detail/broadcast.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/detail/dims.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/dims.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/dims.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/detail/dims.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/detail/format.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/format.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/format.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/detail/format.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/detail/shape.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/shape.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/shape.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/detail/shape.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/detail/tensor_cast.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/tensor_cast.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/tensor_cast.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/detail/tensor_cast.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/detail/tensor_copy.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/tensor_copy.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/detail/tensor_copy.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/detail/tensor_copy.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/ops.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/ops.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/ops.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/ops.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/storage.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/storage.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/storage.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/storage.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_core.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_core.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_core.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_core.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_factories.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_factories.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_factories.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_factories.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_indexing.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_indexing.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_indexing.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_indexing.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_join.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_join.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_join.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_join.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_linalg.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_linalg.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_linalg.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_linalg.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_nn_autograd.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_nn_autograd.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_nn_autograd.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_nn_autograd.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_nn_ops.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_nn_ops.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_nn_ops.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_nn_ops.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_reductions.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_reductions.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_reductions.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_reductions.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_triangular.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_triangular.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_triangular.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_triangular.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -D_C_EXPORTS -I/Users/marcoshernanz/dev/baretensor/baretensor/native/include -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-stack-protector -o CMakeFiles/_C.dir/native/src/tensor_views.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_views.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/native/src/tensor_views.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir/native/src/tensor_views.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_internals.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_internals.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_internals.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_internals.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_func.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_func.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_func.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_func.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_type.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_type.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_type.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_type.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_enum.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_enum.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_enum.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_enum.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_ndarray.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_ndarray.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_ndarray.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_ndarray.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_static_property.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_static_property.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/nb_static_property.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/nb_static_property.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/common.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/common.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/common.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/common.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/error.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/error.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/error.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/error.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/trampoline.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/trampoline.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/trampoline.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/trampoline.cpp.o"
+},
+{
+  "directory": "/Users/marcoshernanz/dev/baretensor/baretensor/build",
+  "command": "/usr/bin/c++ -DNB_COMPACT_ASSERTIONS -I/Users/marcoshernanz/.local/share/uv/python/cpython-3.13-macos-aarch64-none/include/python3.13 -I/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/include -isystem /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/ext/robin_map/include -O3 -DNDEBUG -ffp-contract=fast -std=gnu++20 -flto=thin -arch arm64 -fPIC -fvisibility=hidden -fno-strict-aliasing -o CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/implicit.cpp.o -c /Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/implicit.cpp",
+  "file": "/Users/marcoshernanz/dev/baretensor/baretensor/.venv/lib/python3.13/site-packages/nanobind/src/implicit.cpp",
+  "output": "/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir/.venv/lib/python3.13/site-packages/nanobind/src/implicit.cpp.o"
+}
+]

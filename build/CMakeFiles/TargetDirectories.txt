@@ -1,0 +1,5 @@
+/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/_C.dir
+/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/nanobind-static.dir
+/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/bt_stub.dir
+/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/edit_cache.dir
+/Users/marcoshernanz/dev/baretensor/baretensor/build/CMakeFiles/rebuild_cache.dir
