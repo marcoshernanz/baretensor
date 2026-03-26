@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import tomllib
-from typing import Any
-
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -87,60 +85,6 @@ def load_config(path: Path) -> TrainingConfig:
         raise ValueError(str(exc)) from exc
 
 
-def render_config_toml(config: TrainingConfig) -> str:
-    sections: list[str] = []
-    sections.append(
-        _render_section(
-            "run",
-            [
-                ("seed", config.run.seed),
-            ],
-        )
-    )
-    sections.append(
-        _render_section(
-            "data",
-            [
-                ("dataset_path", str(config.data.dataset_path)),
-                ("tokenizer_path", str(config.data.tokenizer_path)),
-                ("context_tokens", config.data.context_tokens),
-                ("text_limit", config.data.text_limit),
-            ],
-        )
-    )
-    sections.append(
-        _render_section(
-            "model",
-            [
-                ("embedding_dim", config.model.embedding_dim),
-                ("num_heads", config.model.num_heads),
-                ("num_decoder_blocks", config.model.num_decoder_blocks),
-                ("hidden_dim", config.model.hidden_dim),
-            ],
-        )
-    )
-    sections.append(
-        _render_section(
-            "optimizer",
-            [
-                ("learning_rate", config.optimizer.learning_rate),
-            ],
-        )
-    )
-    sections.append(
-        _render_section(
-            "train",
-            [
-                ("steps", config.train.steps),
-                ("batch_size", config.train.batch_size),
-                ("eval_batch_size", config.train.eval_batch_size),
-                ("sample_tokens", config.train.sample_tokens),
-            ],
-        )
-    )
-    return "\n\n".join(sections) + "\n"
-
-
 def _resolve_path(name: str, value: object, info: ValidationInfo) -> Path:
     if not isinstance(value, str) or value == "":
         raise ValueError(f"{name} must be a non-empty string.")
@@ -153,26 +97,3 @@ def _resolve_path(name: str, value: object, info: ValidationInfo) -> Path:
     else:
         path = path.resolve()
     return path
-
-
-def _render_section(name: str, rows: list[tuple[str, Any]]) -> str:
-    rendered = [f"[{name}]"]
-    for key, value in rows:
-        if value is None:
-            rendered.append(f"# {key} = null")
-            continue
-        rendered.append(f"{key} = {_format_toml_value(value)}")
-    return "\n".join(rendered)
-
-
-def _format_toml_value(value: Any) -> str:
-    if isinstance(value, str):
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        return repr(value)
-    raise TypeError(f"Unsupported TOML value type: {type(value)!r}")
