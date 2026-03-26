@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+import sys
 from time import perf_counter
 
 from flax import nnx
@@ -11,10 +12,13 @@ import jax.numpy as jnp
 import numpy as np
 import optax  # pyright: ignore
 
-from experiment_artifacts import write_loss_artifacts
-from tokenizer.bpe import BPEModel
-
 ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from experiment_artifacts import write_loss_artifacts  # noqa: E402
+from tokenizer.bpe import BPEModel  # noqa: E402
+
 DATA_PATH = ROOT_DIR / "datasets" / "tinyshakespeare.txt"
 TOKENIZER_PATH = ROOT_DIR / "artifacts" / "tokenizers" / "tinyshakespeare_bpe_512.json"
 
