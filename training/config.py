@@ -121,8 +121,6 @@ class TrainingConfig(ConfigModel):
 def load_config(path: Path) -> TrainingConfig:
     config_path = path.resolve()
     payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError("Config root must be a TOML table.")
     try:
         return TrainingConfig.model_validate(payload, context={"base_dir": config_path.parent})
     except ValidationError as exc:
