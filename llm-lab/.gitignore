@@ -6,18 +6,7 @@ __pycache__/
 .ruff_cache/
 .pyright/
 .kaggle/
-
-# CMake / native builds
-build/
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-compile_commands.json
-
-# Native artifacts (if built outside build/)
-*.so
-*.dylib
-*.pyd
+.ipynb_checkpoints/
 
 # OS / editor
 .DS_Store
