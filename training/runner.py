@@ -19,7 +19,6 @@ from training.artifacts import write_sample
 from training.artifacts import write_text
 from training.config import TrainingConfig
 from training.config import load_config
-from training.config import render_config_toml
 from training.recipes import TokenizedDecoderJaxRecipe
 
 
@@ -42,10 +41,11 @@ class RunResult:
 
 
 def run_from_config(config_path: Path) -> RunResult:
-    config = load_config(config_path)
+    resolved_config_path = config_path.resolve()
+    config = load_config(resolved_config_path)
     paths = create_run_paths(DEFAULT_OUTPUT_ROOT, RECIPE_NAME)
     metadata = _build_metadata(config, status="running")
-    write_text(paths.resolved_config_path, render_config_toml(config))
+    write_text(paths.config_path, resolved_config_path.read_text(encoding="utf-8"))
     write_json(paths.metadata_path, metadata)
     return _execute_training(config, paths, metadata)
 
