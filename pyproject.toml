@@ -12,6 +12,7 @@ dependencies = [
     "jax>=0.9.1",
     "numpy>=2.4.2",
     "optax>=0.2.8",
+    "pydantic>=2.12.5",
     "torch>=2.10.0",
 ]
 
@@ -33,7 +34,7 @@ python-version = "3.13"
 root = ["./src", "."]
 
 [tool.ty.src]
-include = ["src", "tests", "examples"]
+include = ["src", "tests", "examples", "train.py", "training", "models"]
 exclude = ["build", "third_party"]
 
 [tool.ty.terminal]

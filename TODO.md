@@ -1,3 +1,6 @@
+- PyTest
+- AGENTS.md
+
 - dtype
 - bt.Tensor.op vs tensor.op(bt.Tensor)
 

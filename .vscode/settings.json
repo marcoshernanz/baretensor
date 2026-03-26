@@ -9,5 +9,5 @@
   "cmake.cmakePath": "/opt/homebrew/bin/cmake",
 
   "pylint.enabled": false,
-  "cSpell.words": ["nanobind", "numel", "softmax"]
+  "cSpell.words": ["maxval", "minval", "nanobind", "numel", "softmax"]
 }
