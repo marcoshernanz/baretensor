@@ -23,7 +23,6 @@ class RunConfig(ConfigModel):
     output_root: Path
     log_interval: int = Field(gt=0)
     eval_interval: int = Field(gt=0)
-    checkpoint_interval: int = Field(gt=0)
     sample_interval: int = Field(gt=0)
 
     @field_validator("experiment_name")
@@ -138,7 +137,6 @@ def render_config_toml(config: TrainingConfig) -> str:
                 ("output_root", str(config.run.output_root)),
                 ("log_interval", config.run.log_interval),
                 ("eval_interval", config.run.eval_interval),
-                ("checkpoint_interval", config.run.checkpoint_interval),
                 ("sample_interval", config.run.sample_interval),
             ],
         )
