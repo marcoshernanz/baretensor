@@ -4,7 +4,6 @@ seed = 1337
 output_root = "artifacts/runs"
 log_interval = 1000
 eval_interval = 1000
-checkpoint_interval = 1000
 sample_interval = 1000
 
 [data]
