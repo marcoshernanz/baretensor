@@ -34,7 +34,7 @@ python-version = "3.13"
 root = ["./src", "."]
 
 [tool.ty.src]
-include = ["src", "tests", "examples"]
+include = ["src", "tests", "examples", "train.py", "training", "models"]
 exclude = ["build", "third_party"]
 
 [tool.ty.terminal]
