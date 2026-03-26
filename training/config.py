@@ -18,30 +18,12 @@ class ConfigModel(BaseModel):
 
 
 class RunConfig(ConfigModel):
-    experiment_name: str
     seed: int = Field(gt=0)
-    output_root: Path
-    log_interval: int = Field(gt=0)
-    eval_interval: int = Field(gt=0)
-    sample_interval: int = Field(gt=0)
-
-    @field_validator("experiment_name")
-    @classmethod
-    def validate_experiment_name(cls, value: str) -> str:
-        if value == "":
-            raise ValueError("experiment_name must be a non-empty string.")
-        return value
-
-    @field_validator("output_root", mode="before")
-    @classmethod
-    def resolve_output_root(cls, value: object, info: ValidationInfo) -> Path:
-        return _resolve_path("run.output_root", value, info)
 
 
 class DataConfig(ConfigModel):
     dataset_path: Path
     tokenizer_path: Path
-    train_split_ratio: float
     context_tokens: int = Field(gt=0)
     text_limit: int | None = Field(default=None, gt=0)
 
@@ -61,8 +43,6 @@ class DataConfig(ConfigModel):
             raise ValueError(f"Dataset path does not exist: {self.dataset_path}")
         if not self.tokenizer_path.exists():
             raise ValueError(f"Tokenizer path does not exist: {self.tokenizer_path}")
-        if not 0.0 < self.train_split_ratio < 1.0:
-            raise ValueError("train_split_ratio must satisfy 0 < value < 1.")
         return self
 
 
@@ -71,21 +51,10 @@ class ModelConfig(ConfigModel):
     num_heads: int = Field(gt=0)
     num_decoder_blocks: int = Field(gt=0)
     hidden_dim: int = Field(gt=0)
-    layer_norm_eps: float = Field(gt=0)
 
 
 class OptimizerConfig(ConfigModel):
-    name: str
     learning_rate: float = Field(gt=0)
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, value: str) -> str:
-        if value != "sgd":
-            raise ValueError(
-                f"Unsupported optimizer name {value!r}. Break C v1 only supports 'sgd'."
-            )
-        return value
 
 
 class TrainConfig(ConfigModel):
@@ -93,14 +62,6 @@ class TrainConfig(ConfigModel):
     batch_size: int = Field(gt=0)
     eval_batch_size: int = Field(gt=0)
     sample_tokens: int = Field(gt=0)
-    loss_ema_decay: float
-
-    @field_validator("loss_ema_decay")
-    @classmethod
-    def validate_loss_ema_decay(cls, value: float) -> float:
-        if not 0.0 <= value < 1.0:
-            raise ValueError("loss_ema_decay must satisfy 0 <= value < 1.")
-        return value
 
 
 class TrainingConfig(ConfigModel):
@@ -132,12 +93,7 @@ def render_config_toml(config: TrainingConfig) -> str:
         _render_section(
             "run",
             [
-                ("experiment_name", config.run.experiment_name),
                 ("seed", config.run.seed),
-                ("output_root", str(config.run.output_root)),
-                ("log_interval", config.run.log_interval),
-                ("eval_interval", config.run.eval_interval),
-                ("sample_interval", config.run.sample_interval),
             ],
         )
     )
@@ -147,7 +103,6 @@ def render_config_toml(config: TrainingConfig) -> str:
             [
                 ("dataset_path", str(config.data.dataset_path)),
                 ("tokenizer_path", str(config.data.tokenizer_path)),
-                ("train_split_ratio", config.data.train_split_ratio),
                 ("context_tokens", config.data.context_tokens),
                 ("text_limit", config.data.text_limit),
             ],
@@ -161,7 +116,6 @@ def render_config_toml(config: TrainingConfig) -> str:
                 ("num_heads", config.model.num_heads),
                 ("num_decoder_blocks", config.model.num_decoder_blocks),
                 ("hidden_dim", config.model.hidden_dim),
-                ("layer_norm_eps", config.model.layer_norm_eps),
             ],
         )
     )
@@ -169,7 +123,6 @@ def render_config_toml(config: TrainingConfig) -> str:
         _render_section(
             "optimizer",
             [
-                ("name", config.optimizer.name),
                 ("learning_rate", config.optimizer.learning_rate),
             ],
         )
@@ -182,7 +135,6 @@ def render_config_toml(config: TrainingConfig) -> str:
                 ("batch_size", config.train.batch_size),
                 ("eval_batch_size", config.train.eval_batch_size),
                 ("sample_tokens", config.train.sample_tokens),
-                ("loss_ema_decay", config.train.loss_ema_decay),
             ],
         )
     )
