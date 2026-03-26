@@ -2,7 +2,7 @@
   "pythonVersion": "3.13",
   "venvPath": ".",
   "venv": ".venv",
-  "include": ["src", "tests", "examples", "train.py", "training", "models"],
+  "include": ["src", "tests", "experiments", "scripts"],
   "exclude": ["build", "third_party"],
   "typeCheckingMode": "strict",
 

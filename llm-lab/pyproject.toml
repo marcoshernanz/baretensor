@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "baretensor"
+name = "llm-lab"
 version = "0.0.0"
 requires-python = ">=3.13"
 dependencies = [
@@ -13,17 +13,16 @@ dependencies = [
     "numpy>=2.4.2",
     "optax>=0.2.8",
     "pydantic>=2.12.5",
-    "torch>=2.10.0",
 ]
 
 [dependency-groups]
-dev = ["ipykernel", "nanobind", "ruff", "ty"]
+dev = ["ipykernel", "ruff", "ty"]
 
 [tool.ruff]
 target-version = "py313"
 line-length = 100
-src = ["src"]
-extend-exclude = ["third_party", "build"]
+src = ["models", "tokenizer", "training", "tests", "experiments"]
+extend-exclude = ["artifacts", "notebooks"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -31,21 +30,19 @@ quote-style = "double"
 [tool.ty.environment]
 python = ".venv"
 python-version = "3.13"
-root = ["./src", "."]
+root = ["."]
 
 [tool.ty.src]
-include = ["src", "tests", "examples", "train.py", "training", "models"]
-exclude = ["build", "third_party"]
+include = ["tests", "train.py", "training", "models", "tokenizer", "experiments"]
+exclude = ["artifacts", "notebooks"]
 
 [tool.ty.terminal]
 error-on-warning = true
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["bt*"]
-
-[tool.setuptools.package-data]
-bt = ["py.typed", "*.pyi", "_C*.so", "_C*.dylib", "_C*.pyd"]
+where = ["."]
+include = ["models*", "tokenizer*", "training*"]
+namespaces = true

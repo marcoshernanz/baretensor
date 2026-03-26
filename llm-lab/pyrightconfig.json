@@ -2,8 +2,8 @@
   "pythonVersion": "3.13",
   "venvPath": ".",
   "venv": ".venv",
-  "include": ["src", "tests", "examples", "train.py", "training", "models"],
-  "exclude": ["build", "third_party"],
+  "include": ["tests", "train.py", "training", "models", "tokenizer", "experiments"],
+  "exclude": ["artifacts", "notebooks"],
   "typeCheckingMode": "strict",
 
   "reportUnknownMemberType": false,
