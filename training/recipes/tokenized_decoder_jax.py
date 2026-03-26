@@ -224,9 +224,7 @@ class TokenizedDecoderJaxRecipe:
         text = _load_text(config.data.dataset_path, config.data.text_limit)
         tokenizer = _load_tokenizer(config.data.tokenizer_path)
         train_token_ids, validation_token_ids, train_text, validation_text = _build_token_splits(
-            text,
-            tokenizer,
-            train_split_ratio=TRAIN_SPLIT_RATIO,
+            text, tokenizer, train_split_ratio=TRAIN_SPLIT_RATIO
         )
         if (
             train_token_ids.shape[0] <= config.data.context_tokens
