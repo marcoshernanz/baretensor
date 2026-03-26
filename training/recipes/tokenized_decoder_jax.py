@@ -237,11 +237,7 @@ class TokenizedDecoderJaxRecipe:
 
         rngs = nnx.Rngs(config.run.seed)
         model = LanguageModel(config, tokenizer.vocab_size, rngs=rngs)
-        optimizer = nnx.Optimizer(
-            model,
-            optax.sgd(config.optimizer.learning_rate),
-            wrt=nnx.Param,
-        )
+        optimizer = nnx.Optimizer(model, optax.sgd(config.optimizer.learning_rate), wrt=nnx.Param)
         stats = DatasetStats(
             vocab_size=tokenizer.vocab_size,
             train_chars=len(train_text),
