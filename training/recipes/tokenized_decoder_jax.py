@@ -14,6 +14,10 @@ from tokenizer.bpe import BPEModel
 from training.config import TrainingConfig
 
 
+TRAIN_SPLIT_RATIO = 0.8
+LAYER_NORM_EPS = 1e-5
+
+
 @dataclass(frozen=True, slots=True)
 class DatasetStats:
     vocab_size: int
@@ -177,10 +181,8 @@ class LanguageModel(nnx.Module):
     position_embedding: Embedding
     decoder: Decoder
     lm_head: Linear
-    layer_norm_eps: float
 
     def __init__(self, config: TrainingConfig, vocab_size: int, *, rngs: nnx.Rngs):
-        self.layer_norm_eps = config.model.layer_norm_eps
         self.token_embedding = Embedding(vocab_size, config.model.embedding_dim, rngs=rngs)
         self.position_embedding = Embedding(
             config.data.context_tokens,
@@ -201,7 +203,7 @@ class LanguageModel(nnx.Module):
         token_embeddings = self.token_embedding(input_ids)
         position_embeddings = self.position_embedding(positions)
         decoder_input = token_embeddings + position_embeddings
-        decoder_output = self.decoder(decoder_input, eps=self.layer_norm_eps)
+        decoder_output = self.decoder(decoder_input, eps=LAYER_NORM_EPS)
         return self.lm_head(decoder_output)
 
 
@@ -224,7 +226,7 @@ class TokenizedDecoderJaxRecipe:
         train_token_ids, validation_token_ids, train_text, validation_text = _build_token_splits(
             text,
             tokenizer,
-            train_split_ratio=config.data.train_split_ratio,
+            train_split_ratio=TRAIN_SPLIT_RATIO,
         )
         if (
             train_token_ids.shape[0] <= config.data.context_tokens
