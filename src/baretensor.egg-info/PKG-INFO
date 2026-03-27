@@ -1,6 +1,0 @@
-Metadata-Version: 2.4
-Name: baretensor
-Version: 0.0.0
-Requires-Python: >=3.13
-Requires-Dist: numpy>=2.4.2
-Requires-Dist: torch>=2.10.0
