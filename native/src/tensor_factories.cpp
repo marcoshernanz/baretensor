@@ -17,8 +17,8 @@ namespace bt {
 /*
  * Creates a tensor filled with a constant value.
  */
-Tensor full(const std::vector<int64_t> &shape, const double fill_value,
-            const ScalarType dtype, const bool requires_grad) {
+Tensor full(const std::vector<int64_t> &shape, const double fill_value, const ScalarType dtype,
+            const bool requires_grad) {
   Tensor tensor(shape, dtype);
   tensor.storage->fill(fill_value);
   if (requires_grad) {
@@ -30,16 +30,14 @@ Tensor full(const std::vector<int64_t> &shape, const double fill_value,
 /*
  * Creates a tensor filled with zeros.
  */
-Tensor zeros(const std::vector<int64_t> &shape, const ScalarType dtype,
-             const bool requires_grad) {
+Tensor zeros(const std::vector<int64_t> &shape, const ScalarType dtype, const bool requires_grad) {
   return full(shape, 0.0, dtype, requires_grad);
 }
 
 /*
  * Creates a tensor filled with ones.
  */
-Tensor ones(const std::vector<int64_t> &shape, const ScalarType dtype,
-            const bool requires_grad) {
+Tensor ones(const std::vector<int64_t> &shape, const ScalarType dtype, const bool requires_grad) {
   return full(shape, 1.0, dtype, requires_grad);
 }
 

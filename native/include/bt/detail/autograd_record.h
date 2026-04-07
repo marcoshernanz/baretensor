@@ -23,8 +23,7 @@ namespace bt::detail {
 /*
  * Returns whether a binary operation should record an autograd node.
  */
-[[nodiscard]] inline bool should_record_binary(const bt::Tensor &lhs,
-                                               const bt::Tensor &rhs) {
+[[nodiscard]] inline bool should_record_binary(const bt::Tensor &lhs, const bt::Tensor &rhs) {
   return bt::autograd::is_grad_enabled() && (lhs.requires_grad() || rhs.requires_grad());
 }
 

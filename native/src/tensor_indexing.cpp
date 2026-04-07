@@ -40,16 +40,15 @@ struct NormalizedSlice {
 /*
  * Normalizes and validates one integer index for select().
  */
-[[nodiscard]] int64_t
-normalize_select_index_checked(const std::string_view operation_name,
-                               const std::vector<int64_t> &shape,
-                               const int64_t normalized_dim, const int64_t index) {
+[[nodiscard]] int64_t normalize_select_index_checked(const std::string_view operation_name,
+                                                     const std::vector<int64_t> &shape,
+                                                     const int64_t normalized_dim,
+                                                     const int64_t index) {
   const int64_t dim_size = shape[static_cast<size_t>(normalized_dim)];
   if (dim_size <= 0) {
     std::ostringstream oss;
-    oss << operation_name << " failed for tensor with shape "
-        << bt::detail::shape_to_string(shape) << ": cannot index into dimension "
-        << normalized_dim << " with size " << dim_size << ".";
+    oss << operation_name << " failed for tensor with shape " << bt::detail::shape_to_string(shape)
+        << ": cannot index into dimension " << normalized_dim << " with size " << dim_size << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -59,8 +58,7 @@ normalize_select_index_checked(const std::string_view operation_name,
       std::ostringstream oss;
       oss << operation_name << " failed for tensor with shape "
           << bt::detail::shape_to_string(shape) << ": index " << index
-          << " is out of range for dim " << normalized_dim << " with size " << dim_size
-          << ".";
+          << " is out of range for dim " << normalized_dim << " with size " << dim_size << ".";
       throw std::invalid_argument(oss.str());
     }
     normalized_index = index + dim_size;
@@ -68,10 +66,9 @@ normalize_select_index_checked(const std::string_view operation_name,
 
   if (normalized_index < 0 || normalized_index >= dim_size) {
     std::ostringstream oss;
-    oss << operation_name << " failed for tensor with shape "
-        << bt::detail::shape_to_string(shape) << ": index " << index
-        << " is out of range for dim " << normalized_dim << " with size " << dim_size
-        << ".";
+    oss << operation_name << " failed for tensor with shape " << bt::detail::shape_to_string(shape)
+        << ": index " << index << " is out of range for dim " << normalized_dim << " with size "
+        << dim_size << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -98,9 +95,10 @@ normalize_select_index_checked(const std::string_view operation_name,
 /*
  * Normalizes and validates one positive-step slice for slice().
  */
-[[nodiscard]] NormalizedSlice
-normalize_slice_checked(const std::vector<int64_t> &shape, const int64_t normalized_dim,
-                        const int64_t start, const int64_t stop, const int64_t step) {
+[[nodiscard]] NormalizedSlice normalize_slice_checked(const std::vector<int64_t> &shape,
+                                                      const int64_t normalized_dim,
+                                                      const int64_t start, const int64_t stop,
+                                                      const int64_t step) {
   if (step <= 0) {
     std::ostringstream oss;
     oss << "slice failed for tensor with shape " << bt::detail::shape_to_string(shape)
@@ -135,8 +133,7 @@ public:
   SelectNode(const bt::Tensor &input, const int64_t dim, const int64_t index)
       : bt::Node({input}), input_shape_(input.shape), dim_(dim), index_(index) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     bt::Tensor input_grad = bt::zeros(input_shape_);
     if (out_grad.numel() == 0) {
       return {input_grad};
@@ -149,8 +146,7 @@ public:
     selected_strides.erase(selected_strides.begin() + static_cast<std::ptrdiff_t>(dim_));
 
     const int64_t selected_offset = index_ * input_grad.strides[dim_];
-    bt::Tensor selected_grad(input_grad.storage,
-                             input_grad.storage_offset + selected_offset,
+    bt::Tensor selected_grad(input_grad.storage, input_grad.storage_offset + selected_offset,
                              std::move(selected_shape), std::move(selected_strides));
     bt::detail::copy_tensor_values(out_grad, selected_grad);
     return {input_grad};
@@ -168,13 +164,12 @@ private:
  */
 class SliceNode final : public bt::Node {
 public:
-  SliceNode(const bt::Tensor &input, const int64_t dim, const int64_t start,
-            const int64_t step, const int64_t size)
-      : bt::Node({input}), input_shape_(input.shape), dim_(dim), start_(start),
-        step_(step), size_(size) {}
+  SliceNode(const bt::Tensor &input, const int64_t dim, const int64_t start, const int64_t step,
+            const int64_t size)
+      : bt::Node({input}), input_shape_(input.shape), dim_(dim), start_(start), step_(step),
+        size_(size) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     bt::Tensor input_grad = bt::zeros(input_shape_);
     if (out_grad.numel() == 0) {
       return {input_grad};
@@ -213,25 +208,19 @@ namespace bt {
  */
 Tensor Tensor::select(const int64_t dim, const int64_t index) const {
   bt::detail::validate_copy_metadata(*this, "select");
-  const int64_t normalized_dim =
-      detail::normalize_dim_checked("select", shape, dim, "dim");
+  const int64_t normalized_dim = detail::normalize_dim_checked("select", shape, dim, "dim");
   const int64_t normalized_index =
       normalize_select_index_checked("select", shape, normalized_dim, index);
 
   std::vector<int64_t> selected_shape = shape;
-  selected_shape.erase(selected_shape.begin() +
-                       static_cast<std::ptrdiff_t>(normalized_dim));
+  selected_shape.erase(selected_shape.begin() + static_cast<std::ptrdiff_t>(normalized_dim));
   std::vector<int64_t> selected_strides = strides;
-  selected_strides.erase(selected_strides.begin() +
-                         static_cast<std::ptrdiff_t>(normalized_dim));
+  selected_strides.erase(selected_strides.begin() + static_cast<std::ptrdiff_t>(normalized_dim));
 
-  const int64_t selected_offset =
-      storage_offset + (normalized_index * strides[normalized_dim]);
-  Tensor out(storage, selected_offset, std::move(selected_shape),
-             std::move(selected_strides));
+  const int64_t selected_offset = storage_offset + (normalized_index * strides[normalized_dim]);
+  Tensor out(storage, selected_offset, std::move(selected_shape), std::move(selected_strides));
   if (bt::detail::should_record_unary(*this)) {
-    out.set_grad_fn(
-        std::make_shared<SelectNode>(*this, normalized_dim, normalized_index));
+    out.set_grad_fn(std::make_shared<SelectNode>(*this, normalized_dim, normalized_index));
   }
   return out;
 }
@@ -242,8 +231,7 @@ Tensor Tensor::select(const int64_t dim, const int64_t index) const {
 Tensor Tensor::slice(const int64_t dim, const int64_t start, const int64_t stop,
                      const int64_t step) const {
   bt::detail::validate_copy_metadata(*this, "slice");
-  const int64_t normalized_dim =
-      detail::normalize_dim_checked("slice", shape, dim, "dim");
+  const int64_t normalized_dim = detail::normalize_dim_checked("slice", shape, dim, "dim");
   const NormalizedSlice normalized_slice =
       normalize_slice_checked(shape, normalized_dim, start, stop, step);
 
@@ -252,13 +240,11 @@ Tensor Tensor::slice(const int64_t dim, const int64_t start, const int64_t stop,
   std::vector<int64_t> sliced_strides = strides;
   sliced_strides[static_cast<size_t>(normalized_dim)] *= normalized_slice.step;
 
-  const int64_t sliced_offset =
-      storage_offset + (normalized_slice.start * strides[normalized_dim]);
+  const int64_t sliced_offset = storage_offset + (normalized_slice.start * strides[normalized_dim]);
   Tensor out(storage, sliced_offset, std::move(sliced_shape), std::move(sliced_strides));
   if (bt::detail::should_record_unary(*this)) {
-    out.set_grad_fn(
-        std::make_shared<SliceNode>(*this, normalized_dim, normalized_slice.start,
-                                    normalized_slice.step, normalized_slice.size));
+    out.set_grad_fn(std::make_shared<SliceNode>(*this, normalized_dim, normalized_slice.start,
+                                                normalized_slice.step, normalized_slice.size));
   }
   return out;
 }

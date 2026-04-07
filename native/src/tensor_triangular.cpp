@@ -38,8 +38,7 @@ enum class TriangularMode { kUpper, kLower };
   return lhs + rhs;
 }
 
-void validate_triangular_input(const bt::Tensor &input,
-                               const std::string_view operation_name) {
+void validate_triangular_input(const bt::Tensor &input, const std::string_view operation_name) {
   const std::string op_name(operation_name);
   bt::detail::validate_copy_metadata(input, op_name);
 
@@ -77,10 +76,8 @@ void copy_triangular_matrix(const T *input_matrix, T *output_matrix, const int64
       continue;
     }
 
-    const T *input_ptr =
-        input_matrix + (row * input_row_stride) + (col_start * input_col_stride);
-    T *output_ptr =
-        output_matrix + (row * output_row_stride) + (col_start * output_col_stride);
+    const T *input_ptr = input_matrix + (row * input_row_stride) + (col_start * input_col_stride);
+    T *output_ptr = output_matrix + (row * output_row_stride) + (col_start * output_col_stride);
     for (int64_t col = col_start; col < col_end; ++col) {
       *output_ptr = *input_ptr;
       input_ptr += input_col_stride;
@@ -91,8 +88,7 @@ void copy_triangular_matrix(const T *input_matrix, T *output_matrix, const int64
 
 template <typename T>
 void copy_triangular_batch(const size_t batch_dim, const size_t batch_ndim,
-                           const std::vector<int64_t> &shape, const T *input_ptr,
-                           T *output_ptr,
+                           const std::vector<int64_t> &shape, const T *input_ptr, T *output_ptr,
                            const std::vector<int64_t> &input_strides,
                            const std::vector<int64_t> &output_strides,
                            const int64_t input_row_stride, const int64_t input_col_stride,
@@ -100,9 +96,8 @@ void copy_triangular_batch(const size_t batch_dim, const size_t batch_ndim,
                            const int64_t rows, const int64_t cols, const int64_t diagonal,
                            const TriangularMode mode) {
   if (batch_dim == batch_ndim) {
-    copy_triangular_matrix(input_ptr, output_ptr, rows, cols, input_row_stride,
-                           input_col_stride, output_row_stride, output_col_stride,
-                           diagonal, mode);
+    copy_triangular_matrix(input_ptr, output_ptr, rows, cols, input_row_stride, input_col_stride,
+                           output_row_stride, output_col_stride, diagonal, mode);
     return;
   }
 
@@ -110,21 +105,18 @@ void copy_triangular_batch(const size_t batch_dim, const size_t batch_ndim,
   for (int64_t idx = 0; idx < dim_size; ++idx) {
     copy_triangular_batch(batch_dim + 1, batch_ndim, shape,
                           input_ptr + (idx * input_strides[batch_dim]),
-                          output_ptr + (idx * output_strides[batch_dim]),
-                          input_strides, output_strides, input_row_stride,
-                          input_col_stride, output_row_stride, output_col_stride,
-                          rows, cols, diagonal, mode);
+                          output_ptr + (idx * output_strides[batch_dim]), input_strides,
+                          output_strides, input_row_stride, input_col_stride, output_row_stride,
+                          output_col_stride, rows, cols, diagonal, mode);
   }
 }
 
 class TriangularNode final : public bt::Node {
 public:
-  TriangularNode(const bt::Tensor &input, const int64_t diagonal,
-                 const TriangularMode mode)
+  TriangularNode(const bt::Tensor &input, const int64_t diagonal, const TriangularMode mode)
       : bt::Node({input}), diagonal_(diagonal), mode_(mode) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     if (mode_ == TriangularMode::kUpper) {
       return {out_grad.triu(diagonal_)};
     }
@@ -156,16 +148,14 @@ private:
     T *output_ptr = output.data_ptr<T>();
 
     if (batch_ndim == 0) {
-      copy_triangular_matrix(input_ptr, output_ptr, rows, cols, input_row_stride,
-                             input_col_stride, output_row_stride, output_col_stride,
-                             diagonal, mode);
+      copy_triangular_matrix(input_ptr, output_ptr, rows, cols, input_row_stride, input_col_stride,
+                             output_row_stride, output_col_stride, diagonal, mode);
       return;
     }
 
-    copy_triangular_batch(0, batch_ndim, input.shape, input_ptr, output_ptr,
-                          input.strides, output.strides, input_row_stride,
-                          input_col_stride, output_row_stride, output_col_stride,
-                          rows, cols, diagonal, mode);
+    copy_triangular_batch(0, batch_ndim, input.shape, input_ptr, output_ptr, input.strides,
+                          output.strides, input_row_stride, input_col_stride, output_row_stride,
+                          output_col_stride, rows, cols, diagonal, mode);
   });
 
   if (bt::detail::should_record_unary(input)) {
@@ -190,12 +180,8 @@ Tensor Tensor::tril(const int64_t diagonal) const {
   return triangular_impl(*this, diagonal, TriangularMode::kLower, "tril");
 }
 
-Tensor triu(const Tensor &input, const int64_t diagonal) {
-  return input.triu(diagonal);
-}
+Tensor triu(const Tensor &input, const int64_t diagonal) { return input.triu(diagonal); }
 
-Tensor tril(const Tensor &input, const int64_t diagonal) {
-  return input.tril(diagonal);
-}
+Tensor tril(const Tensor &input, const int64_t diagonal) { return input.tril(diagonal); }
 
 } // namespace bt

@@ -156,22 +156,18 @@ decltype(auto) visit_floating_dtype(const ScalarType type, const std::string_vie
 [[nodiscard]] inline int64_t checked_int64_from_double(const double value,
                                                        const std::string_view context) {
   if (!std::isfinite(value)) {
-    throw std::invalid_argument(std::string(context) +
-                                " expected a finite integer-valued scalar.");
+    throw std::invalid_argument(std::string(context) + " expected a finite integer-valued scalar.");
   }
 
   const double truncated = std::trunc(value);
   if (truncated != value) {
-    throw std::invalid_argument(std::string(context) +
-                                " expected an integer-valued scalar.");
+    throw std::invalid_argument(std::string(context) + " expected an integer-valued scalar.");
   }
 
-  const double int64_min =
-      static_cast<double>(std::numeric_limits<int64_t>::lowest());
+  const double int64_min = static_cast<double>(std::numeric_limits<int64_t>::lowest());
   const double int64_max = static_cast<double>(std::numeric_limits<int64_t>::max());
   if (truncated < int64_min || truncated > int64_max) {
-    throw std::invalid_argument(std::string(context) +
-                                " expected a scalar in the int64 range.");
+    throw std::invalid_argument(std::string(context) + " expected a scalar in the int64 range.");
   }
 
   return static_cast<int64_t>(truncated);

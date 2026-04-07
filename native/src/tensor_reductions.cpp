@@ -58,9 +58,9 @@ struct ReductionPlan {
 /*
  * Normalizes and validates reduction dimensions.
  */
-[[nodiscard]] std::vector<int64_t>
-normalize_reduction_dims(const bt::Tensor &tensor, const std::vector<int64_t> &dim,
-                         const std::string_view operation_name) {
+[[nodiscard]] std::vector<int64_t> normalize_reduction_dims(const bt::Tensor &tensor,
+                                                            const std::vector<int64_t> &dim,
+                                                            const std::string_view operation_name) {
   const int64_t rank = static_cast<int64_t>(tensor.shape.size());
   std::vector<int64_t> normalized_dims;
   normalized_dims.reserve(dim.size());
@@ -85,9 +85,9 @@ normalize_reduction_dims(const bt::Tensor &tensor, const std::vector<int64_t> &d
 /*
  * Builds reduction metadata for reduction(dim, keepdim).
  */
-[[nodiscard]] ReductionPlan
-build_reduction_plan(const bt::Tensor &tensor,
-                     const std::vector<int64_t> &normalized_dims, const bool keepdim) {
+[[nodiscard]] ReductionPlan build_reduction_plan(const bt::Tensor &tensor,
+                                                 const std::vector<int64_t> &normalized_dims,
+                                                 const bool keepdim) {
   const size_t rank = tensor.shape.size();
   ReductionPlan plan{
       .reduce_mask = std::vector<bool>(rank, false),
@@ -131,8 +131,8 @@ build_reduction_plan(const bt::Tensor &tensor,
 void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
                           const std::vector<int64_t> &input_strides,
                           const std::vector<int64_t> &output_strides,
-                          const std::vector<int64_t> &input_to_output_dim,
-                          const float *input_ptr, float *output_ptr) {
+                          const std::vector<int64_t> &input_to_output_dim, const float *input_ptr,
+                          float *output_ptr) {
   if (dim == shape.size()) {
     *output_ptr += *input_ptr;
     return;
@@ -150,31 +150,28 @@ void recursive_sum_reduce(const size_t dim, const std::vector<int64_t> &shape,
       next_output_ptr += index * output_strides[static_cast<size_t>(out_dim)];
     }
 
-    recursive_sum_reduce(dim + 1, shape, input_strides, output_strides,
-                         input_to_output_dim, next_input_ptr, next_output_ptr);
+    recursive_sum_reduce(dim + 1, shape, input_strides, output_strides, input_to_output_dim,
+                         next_input_ptr, next_output_ptr);
   }
 }
 
 /*
  * Executes additive reduction with a precomputed plan.
  */
-[[nodiscard]] bt::Tensor sum_with_plan(const bt::Tensor &tensor,
-                                       const ReductionPlan &plan) {
+[[nodiscard]] bt::Tensor sum_with_plan(const bt::Tensor &tensor, const ReductionPlan &plan) {
   bt::Tensor out(plan.output_shape);
   out.storage->fill(0.0f);
 
-  recursive_sum_reduce(0, tensor.shape, tensor.strides, out.strides,
-                       plan.input_to_output_dim, tensor.data_ptr<float>(),
-                       out.data_ptr<float>());
+  recursive_sum_reduce(0, tensor.shape, tensor.strides, out.strides, plan.input_to_output_dim,
+                       tensor.data_ptr<float>(), out.data_ptr<float>());
   return out;
 }
 
 /*
  * Computes the number of input elements reduced into each output element.
  */
-[[nodiscard]] int64_t
-reduction_element_count(const bt::Tensor &tensor,
-                        const std::vector<int64_t> &normalized_dims) {
+[[nodiscard]] int64_t reduction_element_count(const bt::Tensor &tensor,
+                                              const std::vector<int64_t> &normalized_dims) {
   int64_t count = 1;
   for (const int64_t dim : normalized_dims) {
     count *= tensor.shape[static_cast<size_t>(dim)];
@@ -188,8 +185,8 @@ reduction_element_count(const bt::Tensor &tensor,
 void recursive_max_reduce(const size_t dim, const std::vector<int64_t> &shape,
                           const std::vector<int64_t> &input_strides,
                           const std::vector<int64_t> &output_strides,
-                          const std::vector<int64_t> &input_to_output_dim,
-                          const float *input_ptr, float *output_ptr) {
+                          const std::vector<int64_t> &input_to_output_dim, const float *input_ptr,
+                          float *output_ptr) {
   if (dim == shape.size()) {
     if (*input_ptr > *output_ptr) {
       *output_ptr = *input_ptr;
@@ -209,8 +206,8 @@ void recursive_max_reduce(const size_t dim, const std::vector<int64_t> &shape,
       next_output_ptr += index * output_strides[static_cast<size_t>(out_dim)];
     }
 
-    recursive_max_reduce(dim + 1, shape, input_strides, output_strides,
-                         input_to_output_dim, next_input_ptr, next_output_ptr);
+    recursive_max_reduce(dim + 1, shape, input_strides, output_strides, input_to_output_dim,
+                         next_input_ptr, next_output_ptr);
   }
 }
 
@@ -235,14 +232,12 @@ void validate_non_empty_reduction(const bt::Tensor &tensor,
 /*
  * Executes max reduction with a precomputed plan.
  */
-[[nodiscard]] bt::Tensor max_with_plan(const bt::Tensor &tensor,
-                                       const ReductionPlan &plan) {
+[[nodiscard]] bt::Tensor max_with_plan(const bt::Tensor &tensor, const ReductionPlan &plan) {
   bt::Tensor out(plan.output_shape);
   out.storage->fill(-std::numeric_limits<float>::infinity());
 
-  recursive_max_reduce(0, tensor.shape, tensor.strides, out.strides,
-                       plan.input_to_output_dim, tensor.data_ptr<float>(),
-                       out.data_ptr<float>());
+  recursive_max_reduce(0, tensor.shape, tensor.strides, out.strides, plan.input_to_output_dim,
+                       tensor.data_ptr<float>(), out.data_ptr<float>());
   return out;
 }
 
@@ -269,15 +264,13 @@ void validate_non_empty_reduction(const bt::Tensor &tensor,
  */
 class SumNode final : public bt::Node {
 public:
-  SumNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims,
-          const bool keepdim)
+  SumNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims, const bool keepdim)
       : bt::Node({input}), input_shape_(input.shape), keepdim_(keepdim) {
     reduced_dims_ = reduced_dims;
     std::sort(reduced_dims_.begin(), reduced_dims_.end());
   }
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const bt::Tensor grad = expand_reduction_grad(out_grad, reduced_dims_, keepdim_);
     const bt::Tensor expanded = grad * bt::ones(input_shape_);
     return {expanded};
@@ -295,16 +288,15 @@ private:
  */
 class MeanNode final : public bt::Node {
 public:
-  MeanNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims,
-           const bool keepdim, const int64_t reduced_count)
+  MeanNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims, const bool keepdim,
+           const int64_t reduced_count)
       : bt::Node({input}), input_shape_(input.shape), keepdim_(keepdim),
         reduced_count_(reduced_count) {
     reduced_dims_ = reduced_dims;
     std::sort(reduced_dims_.begin(), reduced_dims_.end());
   }
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const bt::Tensor expanded =
         expand_reduction_grad(out_grad, reduced_dims_, keepdim_) * bt::ones(input_shape_);
     return {expanded / static_cast<float>(reduced_count_)};
@@ -324,8 +316,7 @@ void recursive_count_max_ties(const size_t dim, const std::vector<int64_t> &shap
                               const std::vector<int64_t> &input_strides,
                               const std::vector<int64_t> &output_strides,
                               const std::vector<int64_t> &input_to_output_dim,
-                              const float *input_ptr, const float *max_ptr,
-                              float *count_ptr) {
+                              const float *input_ptr, const float *max_ptr, float *count_ptr) {
   if (dim == shape.size()) {
     if (*input_ptr == *max_ptr) {
       *count_ptr += 1.0f;
@@ -347,23 +338,19 @@ void recursive_count_max_ties(const size_t dim, const std::vector<int64_t> &shap
       next_count_ptr += index * output_strides[static_cast<size_t>(out_dim)];
     }
 
-    recursive_count_max_ties(dim + 1, shape, input_strides, output_strides,
-                             input_to_output_dim, next_input_ptr, next_max_ptr,
-                             next_count_ptr);
+    recursive_count_max_ties(dim + 1, shape, input_strides, output_strides, input_to_output_dim,
+                             next_input_ptr, next_max_ptr, next_count_ptr);
   }
 }
 
 /*
  * Recursively scatters max backward gradients into input positions.
  */
-void recursive_scatter_max_grad(const size_t dim, const std::vector<int64_t> &shape,
-                                const std::vector<int64_t> &input_strides,
-                                const std::vector<int64_t> &in_grad_strides,
-                                const std::vector<int64_t> &output_strides,
-                                const std::vector<int64_t> &input_to_output_dim,
-                                const float *input_ptr, const float *max_ptr,
-                                const float *out_grad_ptr, const float *count_ptr,
-                                float *in_grad_ptr) {
+void recursive_scatter_max_grad(
+    const size_t dim, const std::vector<int64_t> &shape, const std::vector<int64_t> &input_strides,
+    const std::vector<int64_t> &in_grad_strides, const std::vector<int64_t> &output_strides,
+    const std::vector<int64_t> &input_to_output_dim, const float *input_ptr, const float *max_ptr,
+    const float *out_grad_ptr, const float *count_ptr, float *in_grad_ptr) {
   if (dim == shape.size()) {
     if (*input_ptr == *max_ptr && *count_ptr > 0.0f) {
       *in_grad_ptr = *out_grad_ptr / *count_ptr;
@@ -391,10 +378,9 @@ void recursive_scatter_max_grad(const size_t dim, const std::vector<int64_t> &sh
       next_count_ptr += index * output_stride;
     }
 
-    recursive_scatter_max_grad(dim + 1, shape, input_strides, in_grad_strides,
-                               output_strides, input_to_output_dim, next_input_ptr,
-                               next_max_ptr, next_out_grad_ptr, next_count_ptr,
-                               next_in_grad_ptr);
+    recursive_scatter_max_grad(dim + 1, shape, input_strides, in_grad_strides, output_strides,
+                               input_to_output_dim, next_input_ptr, next_max_ptr, next_out_grad_ptr,
+                               next_count_ptr, next_in_grad_ptr);
   }
 }
 
@@ -404,18 +390,15 @@ void recursive_scatter_max_grad(const size_t dim, const std::vector<int64_t> &sh
  */
 class MaxNode final : public bt::Node {
 public:
-  MaxNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims,
-          const bool keepdim)
+  MaxNode(const bt::Tensor &input, const std::vector<int64_t> &reduced_dims, const bool keepdim)
       : bt::Node({input}), keepdim_(keepdim) {
     reduced_dims_ = reduced_dims;
     std::sort(reduced_dims_.begin(), reduced_dims_.end());
   }
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const bt::Tensor &input = this->inputs()[0];
-    const bt::Tensor out_grad_keepdim =
-        expand_reduction_grad(out_grad, reduced_dims_, keepdim_);
+    const bt::Tensor out_grad_keepdim = expand_reduction_grad(out_grad, reduced_dims_, keepdim_);
     const bt::Tensor out_grad_keepdim_contiguous = out_grad_keepdim.contiguous();
     const bt::Tensor max_keepdim = input.max(reduced_dims_, true);
     const bt::Tensor max_keepdim_contiguous = max_keepdim.contiguous();
@@ -428,25 +411,21 @@ public:
       const float max_value = *max_keepdim_contiguous.data_ptr<float>();
       if (input_value == max_value) {
         *tie_counts.data_ptr<float>() = 1.0f;
-        *input_grad.data_ptr<float>() =
-            *out_grad_keepdim_contiguous.data_ptr<float>();
+        *input_grad.data_ptr<float>() = *out_grad_keepdim_contiguous.data_ptr<float>();
       }
       return {input_grad};
     }
 
     const ReductionPlan keepdim_plan = build_reduction_plan(input, reduced_dims_, true);
-    recursive_count_max_ties(0, input.shape, input.strides,
-                             max_keepdim_contiguous.strides,
-                             keepdim_plan.input_to_output_dim,
-                             input.data_ptr<float>(),
+    recursive_count_max_ties(0, input.shape, input.strides, max_keepdim_contiguous.strides,
+                             keepdim_plan.input_to_output_dim, input.data_ptr<float>(),
                              max_keepdim_contiguous.data_ptr<float>(),
                              tie_counts.data_ptr<float>());
-    recursive_scatter_max_grad(
-        0, input.shape, input.strides, input_grad.strides, max_keepdim_contiguous.strides,
-        keepdim_plan.input_to_output_dim, input.data_ptr<float>(),
-        max_keepdim_contiguous.data_ptr<float>(),
-        out_grad_keepdim_contiguous.data_ptr<float>(),
-        tie_counts.data_ptr<float>(), input_grad.data_ptr<float>());
+    recursive_scatter_max_grad(0, input.shape, input.strides, input_grad.strides,
+                               max_keepdim_contiguous.strides, keepdim_plan.input_to_output_dim,
+                               input.data_ptr<float>(), max_keepdim_contiguous.data_ptr<float>(),
+                               out_grad_keepdim_contiguous.data_ptr<float>(),
+                               tie_counts.data_ptr<float>(), input_grad.data_ptr<float>());
 
     return {input_grad};
   }
@@ -483,8 +462,7 @@ Tensor Tensor::sum(const std::vector<int64_t> &dim, const bool keepdim) const {
   bt::detail::validate_copy_metadata(*this, "sum");
   bt::detail::ensure_float32(*this, "sum");
 
-  const std::vector<int64_t> normalized_dims =
-      normalize_reduction_dims(*this, dim, "sum");
+  const std::vector<int64_t> normalized_dims = normalize_reduction_dims(*this, dim, "sum");
   const ReductionPlan plan = build_reduction_plan(*this, normalized_dims, keepdim);
   Tensor out = sum_with_plan(*this, plan);
   if (bt::detail::should_record_unary(*this)) {
@@ -512,15 +490,14 @@ Tensor Tensor::mean(const std::vector<int64_t> &dim, const bool keepdim) const {
   bt::detail::validate_copy_metadata(*this, "mean");
   bt::detail::ensure_float32(*this, "mean");
 
-  const std::vector<int64_t> normalized_dims =
-      normalize_reduction_dims(*this, dim, "mean");
+  const std::vector<int64_t> normalized_dims = normalize_reduction_dims(*this, dim, "mean");
   const ReductionPlan plan = build_reduction_plan(*this, normalized_dims, keepdim);
   const Tensor reduced_sum = sum_with_plan(*this, plan);
   const int64_t reduced_element_count = reduction_element_count(*this, normalized_dims);
   Tensor out = reduced_sum / static_cast<float>(reduced_element_count);
   if (bt::detail::should_record_unary(*this)) {
-    out.set_grad_fn(std::make_shared<MeanNode>(*this, normalized_dims, keepdim,
-                                               reduced_element_count));
+    out.set_grad_fn(
+        std::make_shared<MeanNode>(*this, normalized_dims, keepdim, reduced_element_count));
   }
   return out;
 }
@@ -544,8 +521,7 @@ Tensor Tensor::max(const std::vector<int64_t> &dim, const bool keepdim) const {
   bt::detail::validate_copy_metadata(*this, "max");
   bt::detail::ensure_float32(*this, "max");
 
-  const std::vector<int64_t> normalized_dims =
-      normalize_reduction_dims(*this, dim, "max");
+  const std::vector<int64_t> normalized_dims = normalize_reduction_dims(*this, dim, "max");
   validate_non_empty_reduction(*this, normalized_dims, "max");
   const ReductionPlan plan = build_reduction_plan(*this, normalized_dims, keepdim);
   Tensor out = max_with_plan(*this, plan);

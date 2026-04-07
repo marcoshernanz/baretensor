@@ -53,8 +53,7 @@ struct MatmulKernelParams {
 /*
  * Builds a shape-pair string for diagnostics.
  */
-[[nodiscard]] std::string matmul_shapes_to_string(const bt::Tensor &lhs,
-                                                  const bt::Tensor &rhs) {
+[[nodiscard]] std::string matmul_shapes_to_string(const bt::Tensor &lhs, const bt::Tensor &rhs) {
   std::ostringstream oss;
   oss << "shapes " << bt::detail::shape_to_string(lhs.shape) << " and "
       << bt::detail::shape_to_string(rhs.shape);
@@ -80,9 +79,9 @@ struct MatmulKernelParams {
 /*
  * Removes temporary singleton dimensions introduced by 1-D promotion.
  */
-[[nodiscard]] std::vector<int64_t>
-matmul_result_shape(const std::vector<int64_t> &full_shape, const bool lhs_was_1d,
-                    const bool rhs_was_1d) {
+[[nodiscard]] std::vector<int64_t> matmul_result_shape(const std::vector<int64_t> &full_shape,
+                                                       const bool lhs_was_1d,
+                                                       const bool rhs_was_1d) {
   std::vector<int64_t> out_shape = full_shape;
   if (lhs_was_1d) {
     out_shape.erase(out_shape.end() - 2);
@@ -151,8 +150,7 @@ class MatmulNode final : public bt::Node {
 public:
   MatmulNode(const bt::Tensor &lhs, const bt::Tensor &rhs) : bt::Node({lhs, rhs}) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const std::vector<bt::Tensor> &inputs = this->inputs();
     const bt::Tensor &lhs = inputs[0];
     const bt::Tensor &rhs = inputs[1];
@@ -160,10 +158,10 @@ public:
     const MatmulCanonicalInput lhs_canonical_meta = canonicalize_matmul_input(lhs, true);
     const MatmulCanonicalInput rhs_canonical_meta = canonicalize_matmul_input(rhs, false);
 
-    const bt::Tensor lhs_canonical(lhs.storage, lhs.storage_offset,
-                                   lhs_canonical_meta.shape, lhs_canonical_meta.strides);
-    const bt::Tensor rhs_canonical(rhs.storage, rhs.storage_offset,
-                                   rhs_canonical_meta.shape, rhs_canonical_meta.strides);
+    const bt::Tensor lhs_canonical(lhs.storage, lhs.storage_offset, lhs_canonical_meta.shape,
+                                   lhs_canonical_meta.strides);
+    const bt::Tensor rhs_canonical(rhs.storage, rhs.storage_offset, rhs_canonical_meta.shape,
+                                   rhs_canonical_meta.strides);
 
     const std::vector<int64_t> lhs_batch_shape(lhs_canonical_meta.shape.begin(),
                                                lhs_canonical_meta.shape.end() - 2);
@@ -173,10 +171,8 @@ public:
         bt::detail::infer_broadcast_shape(lhs_batch_shape, rhs_batch_shape);
 
     std::vector<int64_t> full_out_shape = batch_shape;
-    full_out_shape.push_back(
-        lhs_canonical_meta.shape[lhs_canonical_meta.shape.size() - 2]);
-    full_out_shape.push_back(
-        rhs_canonical_meta.shape[rhs_canonical_meta.shape.size() - 1]);
+    full_out_shape.push_back(lhs_canonical_meta.shape[lhs_canonical_meta.shape.size() - 2]);
+    full_out_shape.push_back(rhs_canonical_meta.shape[rhs_canonical_meta.shape.size() - 1]);
 
     const bt::Tensor out_grad_canonical = out_grad.reshape(full_out_shape);
 
@@ -220,8 +216,8 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
   if (ndim() == 0 || tensor2.ndim() == 0) {
     std::ostringstream oss;
     oss << "matmul failed for tensors with " << matmul_shapes_to_string(*this, tensor2)
-        << ": both tensors must be at least 1-D, but got " << ndim() << "-D and "
-        << tensor2.ndim() << "-D.";
+        << ": both tensors must be at least 1-D, but got " << ndim() << "-D and " << tensor2.ndim()
+        << "-D.";
     throw std::invalid_argument(oss.str());
   }
 
@@ -251,10 +247,8 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
     throw std::invalid_argument(oss.str());
   }
 
-  const std::vector<int64_t> lhs_batch_strides(lhs.strides.begin(),
-                                               lhs.strides.end() - 2);
-  const std::vector<int64_t> rhs_batch_strides(rhs.strides.begin(),
-                                               rhs.strides.end() - 2);
+  const std::vector<int64_t> lhs_batch_strides(lhs.strides.begin(), lhs.strides.end() - 2);
+  const std::vector<int64_t> rhs_batch_strides(rhs.strides.begin(), rhs.strides.end() - 2);
 
   const std::vector<int64_t> lhs_batch_broadcast_strides =
       detail::aligned_broadcast_strides(lhs_batch_shape, lhs_batch_strides, batch_shape);
@@ -281,10 +275,9 @@ Tensor Tensor::matmul(const Tensor &tensor2) const {
         .out_n_stride = out_full.strides[out_full.strides.size() - 1],
     };
 
-    recursive_batched_matmul(0, batch_shape, data_ptr<float>(),
-                             tensor2.data_ptr<float>(), out_full.data_ptr<float>(),
-                             lhs_batch_broadcast_strides, rhs_batch_broadcast_strides,
-                             out_batch_strides, params);
+    recursive_batched_matmul(0, batch_shape, data_ptr<float>(), tensor2.data_ptr<float>(),
+                             out_full.data_ptr<float>(), lhs_batch_broadcast_strides,
+                             rhs_batch_broadcast_strides, out_batch_strides, params);
   }
 
   const std::vector<int64_t> out_shape =

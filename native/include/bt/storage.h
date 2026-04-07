@@ -16,7 +16,6 @@
  * Purpose: Public BareTensor C++ API surface.
  */
 namespace bt {
-
 /*
  * Class: Storage
  * Purpose: Owns a contiguous typed buffer and basic memory operations.

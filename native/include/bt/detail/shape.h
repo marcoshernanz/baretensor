@@ -29,9 +29,8 @@ namespace bt::detail {
  * Resolves a requested reshape target against an input shape.
  * Supports at most one inferred '-1' dimension and validates total elements.
  */
-[[nodiscard]] std::vector<int64_t>
-infer_reshape_shape(const std::vector<int64_t> &input_shape,
-                    const std::vector<int64_t> &requested_shape);
+[[nodiscard]] std::vector<int64_t> infer_reshape_shape(const std::vector<int64_t> &input_shape,
+                                                       const std::vector<int64_t> &requested_shape);
 
 /*
  * Computes view strides for a target shape if the current layout is viewable

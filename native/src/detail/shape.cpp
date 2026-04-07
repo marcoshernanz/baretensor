@@ -71,8 +71,7 @@ std::vector<int64_t> infer_reshape_shape(const std::vector<int64_t> &input_shape
 
     if (d == -1) {
       if (inferred_dim_index.has_value()) {
-        throw std::invalid_argument("Invalid reshape target " +
-                                    shape_to_string(requested_shape) +
+        throw std::invalid_argument("Invalid reshape target " + shape_to_string(requested_shape) +
                                     ": at most one '-1' dimension is allowed.");
       }
       inferred_dim_index = i;
@@ -80,9 +79,9 @@ std::vector<int64_t> infer_reshape_shape(const std::vector<int64_t> &input_shape
     }
 
     if (d < -1) {
-      throw std::invalid_argument(
-          "Invalid reshape target " + shape_to_string(requested_shape) + ": dimension " +
-          std::to_string(i) + " has invalid size " + std::to_string(d) + ".");
+      throw std::invalid_argument("Invalid reshape target " + shape_to_string(requested_shape) +
+                                  ": dimension " + std::to_string(i) + " has invalid size " +
+                                  std::to_string(d) + ".");
     }
 
     if (d != 0 && known_numel > std::numeric_limits<int64_t>::max() / d) {
@@ -94,24 +93,22 @@ std::vector<int64_t> infer_reshape_shape(const std::vector<int64_t> &input_shape
 
   if (!inferred_dim_index.has_value()) {
     if (known_numel != input_numel) {
-      throw std::invalid_argument(
-          "Invalid reshape from " + shape_to_string(input_shape) + " to " +
-          shape_to_string(requested_shape) + ": element counts differ (" +
-          std::to_string(input_numel) + " vs " + std::to_string(known_numel) + ").");
+      throw std::invalid_argument("Invalid reshape from " + shape_to_string(input_shape) + " to " +
+                                  shape_to_string(requested_shape) + ": element counts differ (" +
+                                  std::to_string(input_numel) + " vs " +
+                                  std::to_string(known_numel) + ").");
     }
     return requested_shape;
   }
 
   if (known_numel == 0) {
-    throw std::invalid_argument(
-        "Invalid reshape target " + shape_to_string(requested_shape) +
-        ": cannot infer '-1' when known dimensions multiply to zero.");
+    throw std::invalid_argument("Invalid reshape target " + shape_to_string(requested_shape) +
+                                ": cannot infer '-1' when known dimensions multiply to zero.");
   }
 
   if (input_numel % known_numel != 0) {
-    throw std::invalid_argument("Invalid reshape from " + shape_to_string(input_shape) +
-                                " to " + shape_to_string(requested_shape) +
-                                ": cannot infer '-1' because " +
+    throw std::invalid_argument("Invalid reshape from " + shape_to_string(input_shape) + " to " +
+                                shape_to_string(requested_shape) + ": cannot infer '-1' because " +
                                 std::to_string(input_numel) + " is not divisible by " +
                                 std::to_string(known_numel) + ".");
   }
@@ -125,10 +122,9 @@ std::vector<int64_t> infer_reshape_shape(const std::vector<int64_t> &input_shape
  * Computes view strides for a target shape if the current layout is viewable
  * without copying; returns std::nullopt when layout compatibility is not met.
  */
-std::optional<std::vector<int64_t>>
-infer_view_strides(const std::vector<int64_t> &input_shape,
-                   const std::vector<int64_t> &input_strides,
-                   const std::vector<int64_t> &target_shape) {
+std::optional<std::vector<int64_t>> infer_view_strides(const std::vector<int64_t> &input_shape,
+                                                       const std::vector<int64_t> &input_strides,
+                                                       const std::vector<int64_t> &target_shape) {
   if (input_shape.size() != input_strides.size()) {
     return std::nullopt;
   }
@@ -172,8 +168,7 @@ infer_view_strides(const std::vector<int64_t> &input_shape,
 
     while (target_dim >= 0 && (target_chunk_numel < input_chunk_numel ||
                                target_shape[static_cast<size_t>(target_dim)] == 1)) {
-      target_strides[static_cast<size_t>(target_dim)] =
-          target_chunk_numel * chunk_base_stride;
+      target_strides[static_cast<size_t>(target_dim)] = target_chunk_numel * chunk_base_stride;
       target_chunk_numel *= target_shape[static_cast<size_t>(target_dim)];
       --target_dim;
     }

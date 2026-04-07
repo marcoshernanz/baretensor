@@ -131,9 +131,8 @@ Tensor cat(const std::vector<Tensor> &tensors, const int64_t dim) {
       if (tensors[i].dtype() != dtype) {
         std::ostringstream oss;
         oss << "cat failed for tensors with shapes " << join_shapes_to_string(tensors)
-            << ": all tensors must have the same dtype, but found "
-            << bt::scalar_type_name(dtype) << " and "
-            << bt::scalar_type_name(tensors[i].dtype()) << ".";
+            << ": all tensors must have the same dtype, but found " << bt::scalar_type_name(dtype)
+            << " and " << bt::scalar_type_name(tensors[i].dtype()) << ".";
         throw std::invalid_argument(oss.str());
       }
     }
@@ -180,9 +179,8 @@ Tensor cat(const std::vector<Tensor> &tensors, const int64_t dim) {
     if (tensor.dtype() != reference.dtype()) {
       std::ostringstream oss;
       oss << "cat failed for tensors with shapes " << join_shapes_to_string(tensors)
-          << ": tensor at position " << i << " has dtype "
-          << bt::scalar_type_name(tensor.dtype()) << " but expected dtype "
-          << bt::scalar_type_name(reference.dtype()) << ".";
+          << ": tensor at position " << i << " has dtype " << bt::scalar_type_name(tensor.dtype())
+          << " but expected dtype " << bt::scalar_type_name(reference.dtype()) << ".";
       throw std::invalid_argument(oss.str());
     }
 
@@ -243,9 +241,8 @@ Tensor stack(const std::vector<Tensor> &tensors, const int64_t dim) {
     if (tensor.dtype() != reference.dtype()) {
       std::ostringstream oss;
       oss << "stack failed for tensors with shapes " << join_shapes_to_string(tensors)
-          << ": tensor at position " << i << " has dtype "
-          << bt::scalar_type_name(tensor.dtype()) << " but expected dtype "
-          << bt::scalar_type_name(reference.dtype()) << ".";
+          << ": tensor at position " << i << " has dtype " << bt::scalar_type_name(tensor.dtype())
+          << " but expected dtype " << bt::scalar_type_name(reference.dtype()) << ".";
       throw std::invalid_argument(oss.str());
     }
     if (tensor.shape != reference.shape) {

@@ -32,12 +32,10 @@ namespace {
  * Normalizes flatten dimensions, allowing scalar tensors to accept only
  * start_dim/end_dim values of 0 or -1.
  */
-[[nodiscard]] int64_t normalize_flatten_dim_checked(const bt::Tensor &tensor,
-                                                    const int64_t dim,
+[[nodiscard]] int64_t normalize_flatten_dim_checked(const bt::Tensor &tensor, const int64_t dim,
                                                     std::string_view dim_name) {
   if (tensor.ndim() != 0) {
-    return bt::detail::normalize_dim_checked("flatten", tensor.shape, dim,
-                                             dim_name);
+    return bt::detail::normalize_dim_checked("flatten", tensor.shape, dim, dim_name);
   }
 
   if (dim == 0 || dim == -1) {
@@ -45,9 +43,9 @@ namespace {
   }
 
   std::ostringstream oss;
-  oss << "flatten failed for tensor with shape "
-      << bt::detail::shape_to_string(tensor.shape) << ": " << dim_name << "="
-      << dim << " is out of range for rank 0. Scalar tensors only support "
+  oss << "flatten failed for tensor with shape " << bt::detail::shape_to_string(tensor.shape)
+      << ": " << dim_name << "=" << dim
+      << " is out of range for rank 0. Scalar tensors only support "
       << "start_dim/end_dim of 0 or -1.";
   throw std::invalid_argument(oss.str());
 }
@@ -58,11 +56,9 @@ namespace {
  */
 class ViewNode final : public bt::Node {
 public:
-  explicit ViewNode(const bt::Tensor &input)
-      : bt::Node({input}), input_shape_(input.shape) {}
+  explicit ViewNode(const bt::Tensor &input) : bt::Node({input}), input_shape_(input.shape) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     return {out_grad.reshape(input_shape_)};
   }
 
@@ -79,8 +75,7 @@ public:
   PermuteNode(const bt::Tensor &input, const std::vector<int64_t> &inverse_dims)
       : bt::Node({input}), inverse_dims_(inverse_dims) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     return {out_grad.permute(inverse_dims_)};
   }
 
@@ -96,8 +91,7 @@ class ContiguousNode final : public bt::Node {
 public:
   explicit ContiguousNode(const bt::Tensor &input) : bt::Node({input}) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     return {out_grad};
   }
 };
@@ -190,15 +184,12 @@ Tensor Tensor::reshape(const std::vector<int64_t> &shape) const {
 Tensor Tensor::flatten(const int64_t start_dim, const int64_t end_dim) const {
   bt::detail::validate_copy_metadata(*this, "flatten");
 
-  const int64_t normalized_start =
-      normalize_flatten_dim_checked(*this, start_dim, "start_dim");
-  const int64_t normalized_end =
-      normalize_flatten_dim_checked(*this, end_dim, "end_dim");
+  const int64_t normalized_start = normalize_flatten_dim_checked(*this, start_dim, "start_dim");
+  const int64_t normalized_end = normalize_flatten_dim_checked(*this, end_dim, "end_dim");
   if (normalized_start > normalized_end) {
     std::ostringstream oss;
-    oss << "flatten failed for tensor with shape "
-        << detail::shape_to_string(shape) << ": start_dim=" << start_dim
-        << " cannot come after end_dim=" << end_dim << ".";
+    oss << "flatten failed for tensor with shape " << detail::shape_to_string(shape)
+        << ": start_dim=" << start_dim << " cannot come after end_dim=" << end_dim << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -214,13 +205,10 @@ Tensor Tensor::flatten(const int64_t start_dim, const int64_t end_dim) const {
   const int64_t flattened_size = detail::checked_numel(flattened_dims);
 
   std::vector<int64_t> target_shape;
-  target_shape.reserve(shape.size() -
-                       static_cast<size_t>(normalized_end - normalized_start));
-  target_shape.insert(target_shape.end(), shape.begin(),
-                      shape.begin() + normalized_start);
+  target_shape.reserve(shape.size() - static_cast<size_t>(normalized_end - normalized_start));
+  target_shape.insert(target_shape.end(), shape.begin(), shape.begin() + normalized_start);
   target_shape.push_back(flattened_size);
-  target_shape.insert(target_shape.end(), shape.begin() + normalized_end + 1,
-                      shape.end());
+  target_shape.insert(target_shape.end(), shape.begin() + normalized_end + 1, shape.end());
   return reshape(target_shape);
 }
 
@@ -241,8 +229,8 @@ Tensor Tensor::unsqueeze(const int64_t dim) const {
   std::vector<int64_t> target_strides = strides;
   int64_t inserted_stride = 1;
   if (ndim() != 0 && normalized_dim < ndim()) {
-    inserted_stride = shape[static_cast<size_t>(normalized_dim)] *
-                      strides[static_cast<size_t>(normalized_dim)];
+    inserted_stride =
+        shape[static_cast<size_t>(normalized_dim)] * strides[static_cast<size_t>(normalized_dim)];
   }
   target_strides.insert(target_strides.begin() + static_cast<std::ptrdiff_t>(normalized_dim),
                         inserted_stride);
@@ -274,8 +262,8 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
 
   Tensor out(storage, storage_offset, std::move(target_shape), std::move(target_strides));
   if (bt::detail::should_record_unary(*this)) {
-    out.set_grad_fn(std::make_shared<PermuteNode>(
-        *this, detail::invert_permutation(normalized_dims)));
+    out.set_grad_fn(
+        std::make_shared<PermuteNode>(*this, detail::invert_permutation(normalized_dims)));
   }
   return out;
 }
@@ -287,17 +275,14 @@ Tensor Tensor::permute(const std::vector<int64_t> &dims) const {
 Tensor Tensor::transpose(const int64_t dim0, const int64_t dim1) const {
   bt::detail::validate_copy_metadata(*this, "transpose");
 
-  const int64_t normalized_dim0 =
-      detail::normalize_dim_checked("transpose", shape, dim0, "dim0");
-  const int64_t normalized_dim1 =
-      detail::normalize_dim_checked("transpose", shape, dim1, "dim1");
+  const int64_t normalized_dim0 = detail::normalize_dim_checked("transpose", shape, dim0, "dim0");
+  const int64_t normalized_dim1 = detail::normalize_dim_checked("transpose", shape, dim1, "dim1");
   if (normalized_dim0 == normalized_dim1) {
     return *this;
   }
 
   std::vector<int64_t> dims = detail::make_axis_order(shape.size());
-  std::swap(dims[static_cast<size_t>(normalized_dim0)],
-            dims[static_cast<size_t>(normalized_dim1)]);
+  std::swap(dims[static_cast<size_t>(normalized_dim0)], dims[static_cast<size_t>(normalized_dim1)]);
   return permute(dims);
 }
 

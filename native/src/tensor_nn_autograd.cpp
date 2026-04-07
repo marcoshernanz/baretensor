@@ -28,11 +28,9 @@ namespace {
  */
 class SoftmaxNode final : public bt::Node {
 public:
-  SoftmaxNode(const bt::Tensor &input, const int64_t dim)
-      : bt::Node({input}), dim_(dim) {}
+  SoftmaxNode(const bt::Tensor &input, const int64_t dim) : bt::Node({input}), dim_(dim) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const bt::Tensor probs = this->inputs()[0].softmax(dim_);
     const bt::Tensor weighted_sum = (out_grad * probs).sum(dim_, true);
     return {probs * (out_grad - weighted_sum)};
@@ -48,11 +46,9 @@ private:
  */
 class LogSoftmaxNode final : public bt::Node {
 public:
-  LogSoftmaxNode(const bt::Tensor &input, const int64_t dim)
-      : bt::Node({input}), dim_(dim) {}
+  LogSoftmaxNode(const bt::Tensor &input, const int64_t dim) : bt::Node({input}), dim_(dim) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const bt::Tensor probs = this->inputs()[0].softmax(dim_);
     const bt::Tensor out_grad_sum = out_grad.sum(dim_, true);
     return {out_grad - (probs * out_grad_sum)};
@@ -75,8 +71,7 @@ public:
         normalized_numel_(bt::detail::checked_numel(normalized_shape_)), eps_(eps),
         has_weight_(has_weight), has_bias_(has_bias) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const std::vector<bt::Tensor> &inputs = this->inputs();
     const bt::Tensor input_contiguous = inputs[0].contiguous();
     const bt::Tensor out_grad_contiguous = out_grad.contiguous();
@@ -182,14 +177,13 @@ private:
  */
 class CrossEntropyNode final : public bt::Node {
 public:
-  CrossEntropyNode(const bt::Tensor &input, const bt::Tensor &target,
-                   const int64_t class_dim, const int64_t ignore_index,
+  CrossEntropyNode(const bt::Tensor &input, const bt::Tensor &target, const int64_t class_dim,
+                   const int64_t ignore_index,
                    const bt::detail::CrossEntropyReductionMode reduction_mode)
       : bt::Node({input, target}), class_dim_(class_dim), ignore_index_(ignore_index),
         reduction_mode_(reduction_mode) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const std::vector<bt::Tensor> &inputs = this->inputs();
     const bt::Tensor &input = inputs[0];
     const bt::Tensor target_contiguous = inputs[1].contiguous();
@@ -199,8 +193,7 @@ public:
     bt::Tensor target_grad = bt::zeros(inputs[1].shape);
 
     const int64_t class_count = input.shape[static_cast<size_t>(class_dim_)];
-    const int64_t class_stride =
-        probs_contiguous.strides[static_cast<size_t>(class_dim_)];
+    const int64_t class_stride = probs_contiguous.strides[static_cast<size_t>(class_dim_)];
     const int64_t target_numel = target_contiguous.numel();
 
     const int64_t *target_ptr = target_contiguous.data_ptr<int64_t>();
@@ -215,9 +208,8 @@ public:
           continue;
         }
         if (class_index < 0 || class_index >= class_count) {
-          throw std::runtime_error(
-              "cross_entropy backward received out-of-range target class "
-              "index.");
+          throw std::runtime_error("cross_entropy backward received out-of-range target class "
+                                   "index.");
         }
         ++valid_count;
       }
@@ -253,15 +245,13 @@ public:
       const int64_t class_index = target_ptr[linear_idx];
       if (class_index != ignore_index_) {
         if (class_index < 0 || class_index >= class_count) {
-          throw std::runtime_error(
-              "cross_entropy backward received out-of-range target class "
-              "index.");
+          throw std::runtime_error("cross_entropy backward received out-of-range target class "
+                                   "index.");
         }
 
-        const float grad_scale =
-            reduction_mode_ == bt::detail::CrossEntropyReductionMode::kNone
-                ? out_grad_ptr[linear_idx]
-                : reduced_grad_scale;
+        const float grad_scale = reduction_mode_ == bt::detail::CrossEntropyReductionMode::kNone
+                                     ? out_grad_ptr[linear_idx]
+                                     : reduced_grad_scale;
 
         for (int64_t class_idx = 0; class_idx < class_count; ++class_idx) {
           const int64_t offset = probs_base_offset + (class_idx * class_stride);
@@ -274,8 +264,8 @@ public:
         continue;
       }
 
-      for (int64_t dim = static_cast<int64_t>(target_contiguous.shape.size()) - 1;
-           dim >= 0; --dim) {
+      for (int64_t dim = static_cast<int64_t>(target_contiguous.shape.size()) - 1; dim >= 0;
+           --dim) {
         const size_t dim_index = static_cast<size_t>(dim);
         ++coord[dim_index];
         probs_base_offset += probs_target_strides[dim_index];
@@ -307,8 +297,7 @@ public:
   EmbeddingNode(const bt::Tensor &input, const bt::Tensor &weight)
       : bt::Node({input, weight}), embedding_dim_(weight.shape[1]) {}
 
-  [[nodiscard]] std::vector<bt::Tensor>
-  backward(const bt::Tensor &out_grad) const override {
+  [[nodiscard]] std::vector<bt::Tensor> backward(const bt::Tensor &out_grad) const override {
     const std::vector<bt::Tensor> &inputs = this->inputs();
     const bt::Tensor input_contiguous = inputs[0].contiguous();
     const bt::Tensor out_grad_contiguous = out_grad.contiguous();
@@ -355,45 +344,42 @@ namespace bt::detail {
 /*
  * Creates a backward node for Tensor::softmax(dim).
  */
-[[nodiscard]] std::shared_ptr<Node> make_softmax_node(const Tensor &input,
-                                                      const int64_t dim) {
+[[nodiscard]] std::shared_ptr<Node> make_softmax_node(const Tensor &input, const int64_t dim) {
   return std::make_shared<SoftmaxNode>(input, dim);
 }
 
 /*
  * Creates a backward node for Tensor::log_softmax(dim).
  */
-[[nodiscard]] std::shared_ptr<Node> make_log_softmax_node(const Tensor &input,
-                                                          const int64_t dim) {
+[[nodiscard]] std::shared_ptr<Node> make_log_softmax_node(const Tensor &input, const int64_t dim) {
   return std::make_shared<LogSoftmaxNode>(input, dim);
 }
 
 /*
  * Creates a backward node for layer_norm().
  */
-[[nodiscard]] std::shared_ptr<Node>
-make_layer_norm_node(std::vector<Tensor> inputs, std::vector<int64_t> normalized_shape,
-                     const float eps, const bool has_weight, const bool has_bias) {
-  return std::make_shared<LayerNormNode>(std::move(inputs), std::move(normalized_shape),
-                                         eps, has_weight, has_bias);
+[[nodiscard]] std::shared_ptr<Node> make_layer_norm_node(std::vector<Tensor> inputs,
+                                                         std::vector<int64_t> normalized_shape,
+                                                         const float eps, const bool has_weight,
+                                                         const bool has_bias) {
+  return std::make_shared<LayerNormNode>(std::move(inputs), std::move(normalized_shape), eps,
+                                         has_weight, has_bias);
 }
 
 /*
  * Creates a backward node for cross_entropy().
  */
 [[nodiscard]] std::shared_ptr<Node>
-make_cross_entropy_node(const Tensor &input, const Tensor &target,
-                        const int64_t class_dim, const int64_t ignore_index,
+make_cross_entropy_node(const Tensor &input, const Tensor &target, const int64_t class_dim,
+                        const int64_t ignore_index,
                         const CrossEntropyReductionMode reduction_mode) {
-  return std::make_shared<CrossEntropyNode>(input, target, class_dim, ignore_index,
-                                            reduction_mode);
+  return std::make_shared<CrossEntropyNode>(input, target, class_dim, ignore_index, reduction_mode);
 }
 
 /*
  * Creates a backward node for embedding().
  */
-[[nodiscard]] std::shared_ptr<Node> make_embedding_node(const Tensor &input,
-                                                        const Tensor &weight) {
+[[nodiscard]] std::shared_ptr<Node> make_embedding_node(const Tensor &input, const Tensor &weight) {
   return std::make_shared<EmbeddingNode>(input, weight);
 }
 

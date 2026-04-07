@@ -90,40 +90,35 @@ void validate_root_gradient_dtype(const bt::Tensor &output, const bt::Tensor &gr
   }
 
   std::ostringstream oss;
-  oss << "backward() gradient dtype mismatch: output dtype "
-      << bt::scalar_type_name(output.dtype()) << " but got gradient dtype "
-      << bt::scalar_type_name(gradient.dtype()) << ".";
+  oss << "backward() gradient dtype mismatch: output dtype " << bt::scalar_type_name(output.dtype())
+      << " but got gradient dtype " << bt::scalar_type_name(gradient.dtype()) << ".";
   throw std::invalid_argument(oss.str());
 }
 
 /*
  * Validates that a node-produced input gradient matches the input shape.
  */
-void validate_input_gradient_shape(const bt::Tensor &input,
-                                   const bt::Tensor &input_grad) {
+void validate_input_gradient_shape(const bt::Tensor &input, const bt::Tensor &input_grad) {
   if (input_grad.shape == input.shape) {
     return;
   }
 
   std::ostringstream oss;
-  oss << "autograd node produced gradient shape "
-      << bt::detail::shape_to_string(input_grad.shape) << " for input tensor shape "
-      << bt::detail::shape_to_string(input.shape) << ".";
+  oss << "autograd node produced gradient shape " << bt::detail::shape_to_string(input_grad.shape)
+      << " for input tensor shape " << bt::detail::shape_to_string(input.shape) << ".";
   throw std::runtime_error(oss.str());
 }
 
 /*
  * Validates that a node-produced input gradient matches the input dtype.
  */
-void validate_input_gradient_dtype(const bt::Tensor &input,
-                                   const bt::Tensor &input_grad) {
+void validate_input_gradient_dtype(const bt::Tensor &input, const bt::Tensor &input_grad) {
   if (input_grad.dtype() == input.dtype()) {
     return;
   }
 
   std::ostringstream oss;
-  oss << "autograd node produced gradient dtype "
-      << bt::scalar_type_name(input_grad.dtype())
+  oss << "autograd node produced gradient dtype " << bt::scalar_type_name(input_grad.dtype())
       << " for input tensor dtype " << bt::scalar_type_name(input.dtype()) << ".";
   throw std::runtime_error(oss.str());
 }
@@ -199,9 +194,8 @@ Tensor reduce_sum_to_shape(const Tensor &grad, const std::vector<int64_t> &shape
     }
 
     std::ostringstream oss;
-    oss << "reduce_sum_to_shape failed: gradient shape "
-        << detail::shape_to_string(grad.shape) << " cannot be reduced to "
-        << detail::shape_to_string(shape) << ".";
+    oss << "reduce_sum_to_shape failed: gradient shape " << detail::shape_to_string(grad.shape)
+        << " cannot be reduced to " << detail::shape_to_string(shape) << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -221,16 +215,14 @@ Tensor reduce_sum_to_shape(const Tensor &grad, const std::vector<int64_t> &shape
  */
 void backward(const Tensor &output, const std::optional<Tensor> &gradient) {
   if (!output.requires_grad()) {
-    throw std::invalid_argument(
-        "backward() called on a tensor that does not require gradients.");
+    throw std::invalid_argument("backward() called on a tensor that does not require gradients.");
   }
 
   bt::detail::ensure_floating_dtype(output, "backward()", "output");
 
   NoGradGuard guard;
 
-  Tensor root_grad =
-      gradient.has_value() ? gradient.value() : make_default_root_grad(output);
+  Tensor root_grad = gradient.has_value() ? gradient.value() : make_default_root_grad(output);
   validate_root_gradient_shape(output, root_grad);
   validate_root_gradient_dtype(output, root_grad);
 
@@ -260,8 +252,7 @@ void backward(const Tensor &output, const std::optional<Tensor> &gradient) {
     const std::vector<Tensor> &inputs = node->inputs();
 
     if (input_grads.size() != inputs.size()) {
-      throw std::runtime_error(
-          "autograd node returned an unexpected number of input gradients.");
+      throw std::runtime_error("autograd node returned an unexpected number of input gradients.");
     }
 
     for (size_t input_index = 0; input_index < inputs.size(); ++input_index) {

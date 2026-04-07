@@ -20,8 +20,8 @@ namespace bt::detail {
  * Normalizes and validates a single dimension for an operation.
  */
 [[nodiscard]] int64_t normalize_dim_checked(std::string_view operation_name,
-                                            const std::vector<int64_t> &shape,
-                                            int64_t dim, std::string_view dim_name);
+                                            const std::vector<int64_t> &shape, int64_t dim,
+                                            std::string_view dim_name);
 
 /*
  * Normalizes and validates a single insertion dimension for an operation that
@@ -29,16 +29,14 @@ namespace bt::detail {
  */
 [[nodiscard]] int64_t normalize_insertion_dim_checked(std::string_view operation_name,
                                                       const std::vector<int64_t> &shape,
-                                                      int64_t dim,
-                                                      std::string_view dim_name);
+                                                      int64_t dim, std::string_view dim_name);
 
 /*
  * Normalizes and validates a full permutation for an operation.
  */
-[[nodiscard]] std::vector<int64_t>
-normalize_permutation_checked(std::string_view operation_name,
-                              const std::vector<int64_t> &shape,
-                              const std::vector<int64_t> &dims);
+[[nodiscard]] std::vector<int64_t> normalize_permutation_checked(std::string_view operation_name,
+                                                                 const std::vector<int64_t> &shape,
+                                                                 const std::vector<int64_t> &dims);
 
 /*
  * Builds an identity axis order [0, 1, ..., rank - 1].

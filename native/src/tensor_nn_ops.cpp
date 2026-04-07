@@ -44,9 +44,8 @@ parse_cross_entropy_reduction(const std::string &reduction) {
     return bt::detail::CrossEntropyReductionMode::kSum;
   }
 
-  throw std::invalid_argument(
-      "cross_entropy() expected 'reduction' to be one of {'none', 'mean', "
-      "'sum'}.");
+  throw std::invalid_argument("cross_entropy() expected 'reduction' to be one of {'none', 'mean', "
+                              "'sum'}.");
 }
 
 } // namespace
@@ -65,8 +64,7 @@ Tensor Tensor::softmax(const int64_t dim) const {
   bt::detail::ensure_float32(*this, "softmax");
   const bool should_record = bt::detail::should_record_unary(*this);
 
-  const int64_t normalized_dim =
-      detail::normalize_dim_checked("softmax", shape, dim, "dim");
+  const int64_t normalized_dim = detail::normalize_dim_checked("softmax", shape, dim, "dim");
   if (shape[static_cast<size_t>(normalized_dim)] == 0) {
     Tensor out = exp();
     if (should_record) {
@@ -94,8 +92,7 @@ Tensor Tensor::log_softmax(const int64_t dim) const {
   bt::detail::ensure_float32(*this, "log_softmax");
   const bool should_record = bt::detail::should_record_unary(*this);
 
-  const int64_t normalized_dim =
-      detail::normalize_dim_checked("log_softmax", shape, dim, "dim");
+  const int64_t normalized_dim = detail::normalize_dim_checked("log_softmax", shape, dim, "dim");
   if (shape[static_cast<size_t>(normalized_dim)] == 0) {
     Tensor out = log();
     if (should_record) {
@@ -122,10 +119,9 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
                   const float eps) {
   bt::detail::validate_copy_metadata(input, "layer_norm");
   bt::detail::ensure_float32(input, "layer_norm", "input");
-  const bool should_record =
-      bt::detail::should_record_unary(input) ||
-      (weight.has_value() && bt::detail::should_record_unary(*weight)) ||
-      (bias.has_value() && bt::detail::should_record_unary(*bias));
+  const bool should_record = bt::detail::should_record_unary(input) ||
+                             (weight.has_value() && bt::detail::should_record_unary(*weight)) ||
+                             (bias.has_value() && bt::detail::should_record_unary(*bias));
   if (weight.has_value()) {
     bt::detail::validate_copy_metadata(*weight, "layer_norm");
     bt::detail::ensure_float32(*weight, "layer_norm", "weight");
@@ -189,8 +185,8 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
 
   if (weight.has_value() && weight->shape != normalized_shape) {
     std::ostringstream oss;
-    oss << make_error_prefix() << "weight shape "
-        << detail::shape_to_string(weight->shape) << " must match normalized_shape.";
+    oss << make_error_prefix() << "weight shape " << detail::shape_to_string(weight->shape)
+        << " must match normalized_shape.";
     throw std::invalid_argument(oss.str());
   }
   if (bias.has_value() && bias->shape != normalized_shape) {
@@ -202,8 +198,8 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
 
   const int64_t normalized_numel = detail::checked_numel(normalized_shape);
   if (normalized_numel <= 0) {
-    throw std::invalid_argument(
-        make_error_prefix() + "cannot normalize over zero elements in normalized_shape.");
+    throw std::invalid_argument(make_error_prefix() +
+                                "cannot normalize over zero elements in normalized_shape.");
   }
 
   const Tensor input_contiguous = input.contiguous();
@@ -216,7 +212,7 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
 
   if (weight.has_value()) {
     weight_contiguous = weight->contiguous();
-      weight_ptr = weight_contiguous->data_ptr<float>();
+    weight_ptr = weight_contiguous->data_ptr<float>();
   }
   if (bias.has_value()) {
     bias_contiguous = bias->contiguous();
@@ -264,9 +260,8 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
     if (bias.has_value()) {
       node_inputs.push_back(*bias);
     }
-    output.set_grad_fn(
-        bt::detail::make_layer_norm_node(std::move(node_inputs), normalized_shape, eps,
-                                         weight.has_value(), bias.has_value()));
+    output.set_grad_fn(bt::detail::make_layer_norm_node(std::move(node_inputs), normalized_shape,
+                                                        eps, weight.has_value(), bias.has_value()));
   }
 
   return output;
@@ -275,8 +270,8 @@ Tensor layer_norm(const Tensor &input, const std::vector<int64_t> &normalized_sh
 /*
  * Computes cross-entropy loss between logits and class-index targets.
  */
-Tensor cross_entropy(const Tensor &input, const Tensor &target,
-                     const int64_t ignore_index, const std::string &reduction) {
+Tensor cross_entropy(const Tensor &input, const Tensor &target, const int64_t ignore_index,
+                     const std::string &reduction) {
   bt::detail::validate_copy_metadata(input, "cross_entropy");
   bt::detail::validate_copy_metadata(target, "cross_entropy");
   const bool should_record = bt::detail::should_record_binary(input, target);
@@ -288,26 +283,23 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   };
 
   if (input.dtype() != bt::ScalarType::kFloat32) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "input must have dtype float32.");
+    throw std::invalid_argument(make_error_prefix() + "input must have dtype float32.");
   }
   if (target.dtype() != bt::ScalarType::kInt64) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "target must have dtype int64.");
+    throw std::invalid_argument(make_error_prefix() + "target must have dtype int64.");
   }
 
   if (input.ndim() < 1) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "input must have rank >= 1 with shape [C] or "
-                                "[N, C, ...].");
+    throw std::invalid_argument(make_error_prefix() + "input must have rank >= 1 with shape [C] or "
+                                                      "[N, C, ...].");
   }
 
   const int64_t class_dim = input.ndim() == 1 ? 0 : 1;
   const int64_t class_count = input.shape[static_cast<size_t>(class_dim)];
   if (class_count <= 0) {
     std::ostringstream oss;
-    oss << make_error_prefix() << "input class dimension size must be positive, got "
-        << class_count << ".";
+    oss << make_error_prefix() << "input class dimension size must be positive, got " << class_count
+        << ".";
     throw std::invalid_argument(oss.str());
   }
 
@@ -399,8 +391,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
 
   if (reduction_mode == bt::detail::CrossEntropyReductionMode::kNone) {
     if (should_record) {
-      unreduced.set_grad_fn(bt::detail::make_cross_entropy_node(
-          input, target, class_dim, ignore_index, reduction_mode));
+      unreduced.set_grad_fn(bt::detail::make_cross_entropy_node(input, target, class_dim,
+                                                                ignore_index, reduction_mode));
     }
     return unreduced;
   }
@@ -410,8 +402,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
   if (reduction_mode == bt::detail::CrossEntropyReductionMode::kSum) {
     *reduced_ptr = total_loss;
     if (should_record) {
-      reduced.set_grad_fn(bt::detail::make_cross_entropy_node(
-          input, target, class_dim, ignore_index, reduction_mode));
+      reduced.set_grad_fn(bt::detail::make_cross_entropy_node(input, target, class_dim,
+                                                              ignore_index, reduction_mode));
     }
     return reduced;
   }
@@ -422,8 +414,8 @@ Tensor cross_entropy(const Tensor &input, const Tensor &target,
     *reduced_ptr = total_loss / static_cast<float>(valid_count);
   }
   if (should_record) {
-    reduced.set_grad_fn(bt::detail::make_cross_entropy_node(
-        input, target, class_dim, ignore_index, reduction_mode));
+    reduced.set_grad_fn(bt::detail::make_cross_entropy_node(input, target, class_dim, ignore_index,
+                                                            reduction_mode));
   }
   return reduced;
 }
@@ -437,23 +429,19 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
   const bool should_record = bt::detail::should_record_binary(input, weight);
 
   const auto make_error_prefix = [&input, &weight]() {
-    return std::string("embedding failed for input shape ") +
-           detail::shape_to_string(input.shape) + " and weight shape " +
-           detail::shape_to_string(weight.shape) + ": ";
+    return std::string("embedding failed for input shape ") + detail::shape_to_string(input.shape) +
+           " and weight shape " + detail::shape_to_string(weight.shape) + ": ";
   };
 
   if (input.dtype() != bt::ScalarType::kInt64) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "input must have dtype int64.");
+    throw std::invalid_argument(make_error_prefix() + "input must have dtype int64.");
   }
   if (weight.dtype() != bt::ScalarType::kFloat32) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "weight must have dtype float32.");
+    throw std::invalid_argument(make_error_prefix() + "weight must have dtype float32.");
   }
 
   if (weight.ndim() != 2) {
-    throw std::invalid_argument(make_error_prefix() +
-                                "weight must have rank 2 with shape [V, D].");
+    throw std::invalid_argument(make_error_prefix() + "weight must have rank 2 with shape [V, D].");
   }
 
   const int64_t vocab_size = weight.shape[0];
@@ -489,8 +477,8 @@ Tensor embedding(const Tensor &input, const Tensor &weight) {
     const int64_t row_index = input_ptr[input_offset];
     if (row_index < 0 || row_index >= vocab_size) {
       std::ostringstream oss;
-      oss << make_error_prefix() << "index " << row_index
-          << " is out of range for vocab size " << vocab_size << ".";
+      oss << make_error_prefix() << "index " << row_index << " is out of range for vocab size "
+          << vocab_size << ".";
       throw std::invalid_argument(oss.str());
     }
 
