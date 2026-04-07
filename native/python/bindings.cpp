@@ -52,12 +52,10 @@ struct IndexToken {
   };
 }
 
-[[nodiscard]] int64_t cast_index_int(const nb::object &value,
-                                     const char *context) {
+[[nodiscard]] int64_t cast_index_int(const nb::object &value, const char *context) {
   if (nb::isinstance<nb::bool_>(value)) {
     throw nb::type_error(
-        (std::string(context) +
-         " does not support boolean indices. Use int indices instead.")
+        (std::string(context) + " does not support boolean indices. Use int indices instead.")
             .c_str());
   }
 
@@ -65,13 +63,11 @@ struct IndexToken {
     return nb::cast<int64_t>(value);
   } catch (const nb::cast_error &) {
     throw nb::type_error(
-        (std::string(context) + " expected integer-valued index components.")
-            .c_str());
+        (std::string(context) + " expected integer-valued index components.").c_str());
   }
 }
 
-[[nodiscard]] SliceSpec parse_slice_spec(const nb::slice &slice_obj,
-                                         const char *context) {
+[[nodiscard]] SliceSpec parse_slice_spec(const nb::slice &slice_obj, const char *context) {
   const nb::object start_obj = slice_obj.attr("start");
   const nb::object stop_obj = slice_obj.attr("stop");
   const nb::object step_obj = slice_obj.attr("step");
@@ -89,12 +85,10 @@ struct IndexToken {
   return slice;
 }
 
-[[nodiscard]] IndexToken parse_index_token(const nb::object &index_item,
-                                           const char *context) {
+[[nodiscard]] IndexToken parse_index_token(const nb::object &index_item, const char *context) {
   if (index_item.ptr() == Py_Ellipsis) {
-    throw nb::type_error((std::string(context) +
-                          " does not support ellipsis (...) indexing yet.")
-                             .c_str());
+    throw nb::type_error(
+        (std::string(context) + " does not support ellipsis (...) indexing yet.").c_str());
   }
   if (nb::isinstance<nb::slice>(index_item)) {
     return IndexToken{
@@ -105,8 +99,7 @@ struct IndexToken {
   }
   if (index_item.is_none()) {
     throw nb::type_error(
-        (std::string(context) + " does not support None/newaxis indexing yet.")
-            .c_str());
+        (std::string(context) + " does not support None/newaxis indexing yet.").c_str());
   }
 
   if (PyIndex_Check(index_item.ptr()) != 0) {
@@ -118,20 +111,17 @@ struct IndexToken {
   }
 
   throw nb::type_error(
-      (std::string(context) + " only supports int, slice, and tuples thereof.")
-          .c_str());
+      (std::string(context) + " only supports int, slice, and tuples thereof.").c_str());
 }
 
 [[nodiscard]] std::vector<IndexToken>
-normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
-                       const char *context) {
+normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj, const char *context) {
   std::vector<IndexToken> tokens;
   if (nb::isinstance<nb::tuple>(index_obj)) {
     const nb::tuple tuple_index = nb::cast<nb::tuple>(index_obj);
     tokens.reserve(tuple_index.size());
     for (size_t i = 0; i < tuple_index.size(); ++i) {
-      tokens.push_back(
-          parse_index_token(nb::borrow<nb::object>(tuple_index[i]), context));
+      tokens.push_back(parse_index_token(nb::borrow<nb::object>(tuple_index[i]), context));
     }
   } else {
     tokens.push_back(parse_index_token(index_obj, context));
@@ -140,8 +130,7 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
   const int64_t rank = tensor.ndim();
   if (static_cast<int64_t>(tokens.size()) > rank) {
     std::ostringstream oss;
-    oss << context << " received too many indices for tensor of dimension "
-        << rank << ".";
+    oss << context << " received too many indices for tensor of dimension " << rank << ".";
     throw nb::index_error(oss.str().c_str());
   }
   std::vector<IndexToken> normalized = tokens;
@@ -151,8 +140,7 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
   return normalized;
 }
 
-[[nodiscard]] bt::Tensor tensor_getitem(const bt::Tensor &tensor,
-                                        const nb::object &index_obj) {
+[[nodiscard]] bt::Tensor tensor_getitem(const bt::Tensor &tensor, const nb::object &index_obj) {
   constexpr const char *kContext = "__getitem__()";
   const std::vector<IndexToken> normalized_tokens =
       normalize_index_tokens(tensor, index_obj, kContext);
@@ -165,9 +153,8 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
       continue;
     }
 
-    const bool is_full_slice =
-        !token.slice.start.has_value() && !token.slice.stop.has_value() &&
-        (!token.slice.step.has_value() || token.slice.step.value() == 1);
+    const bool is_full_slice = !token.slice.start.has_value() && !token.slice.stop.has_value() &&
+                               (!token.slice.step.has_value() || token.slice.step.value() == 1);
     if (!is_full_slice) {
       const int64_t dim_size = out.shape[static_cast<size_t>(current_dim)];
       const int64_t start = token.slice.start.value_or(0);
@@ -189,8 +176,8 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
   if (count != 1) {
     std::ostringstream oss;
     oss << "item() can only be called on tensors with exactly one element, "
-        << "but got shape " << bt::detail::shape_to_string(tensor.shape) << " ("
-        << count << " elements).";
+        << "but got shape " << bt::detail::shape_to_string(tensor.shape) << " (" << count
+        << " elements).";
     throw nb::value_error(oss.str().c_str());
   }
 
@@ -209,8 +196,7 @@ normalize_index_tokens(const bt::Tensor &tensor, const nb::object &index_obj,
  * Copies contiguous tensor data into a std::vector for Python conversion
  * helpers.
  */
-template <typename T>
-[[nodiscard]] std::vector<T> tensor_to_vector(const bt::Tensor &t) {
+template <typename T> [[nodiscard]] std::vector<T> tensor_to_vector(const bt::Tensor &t) {
   std::vector<T> out(static_cast<size_t>(t.numel()));
   if (!out.empty()) {
     std::memcpy(out.data(), t.data_ptr<T>(), out.size() * sizeof(T));
@@ -221,20 +207,19 @@ template <typename T>
 /*
  * Converts a tensor to a NumPy array while preserving dtype.
  */
-[[nodiscard]] nb::object tensor_numpy(const bt::Tensor &tensor,
-                                      const nb::module_ &numpy) {
+[[nodiscard]] nb::object tensor_numpy(const bt::Tensor &tensor, const nb::module_ &numpy) {
   const bt::Tensor contiguous = tensor.contiguous();
   switch (contiguous.dtype()) {
   case bt::ScalarType::kFloat32: {
     const std::vector<float> values = tensor_to_vector<float>(contiguous);
-    nb::object array = numpy.attr("array")(
-        nb::cast(values), nb::arg("dtype") = numpy.attr("float32"));
+    nb::object array =
+        numpy.attr("array")(nb::cast(values), nb::arg("dtype") = numpy.attr("float32"));
     return array.attr("reshape")(nb::cast(tensor.shape));
   }
   case bt::ScalarType::kInt64: {
     const std::vector<int64_t> values = tensor_to_vector<int64_t>(contiguous);
-    nb::object array = numpy.attr("array")(
-        nb::cast(values), nb::arg("dtype") = numpy.attr("int64"));
+    nb::object array =
+        numpy.attr("array")(nb::cast(values), nb::arg("dtype") = numpy.attr("int64"));
     return array.attr("reshape")(nb::cast(tensor.shape));
   }
   case bt::ScalarType::kBool: {
@@ -243,8 +228,7 @@ template <typename T>
     for (int64_t i = 0; i < contiguous.numel(); ++i) {
       values.append(nb::cast(values_ptr[i]));
     }
-    nb::object array =
-        numpy.attr("array")(values, nb::arg("dtype") = numpy.attr("bool_"));
+    nb::object array = numpy.attr("array")(values, nb::arg("dtype") = numpy.attr("bool_"));
     return array.attr("reshape")(nb::cast(tensor.shape));
   }
   }
@@ -266,11 +250,10 @@ template <typename T>
  * Dispatches a reduction call where dim can be None, int, or sequence[int].
  */
 template <typename SingleDimReducer, typename MultiDimReducer>
-[[nodiscard]] bt::Tensor
-dispatch_reduction_call(const bt::Tensor &tensor, nb::object dim,
-                        const bool keepdim, const char *operation_name,
-                        const SingleDimReducer &single_dim_reducer,
-                        const MultiDimReducer &multi_dim_reducer) {
+[[nodiscard]] bt::Tensor dispatch_reduction_call(const bt::Tensor &tensor, nb::object dim,
+                                                 const bool keepdim, const char *operation_name,
+                                                 const SingleDimReducer &single_dim_reducer,
+                                                 const MultiDimReducer &multi_dim_reducer) {
   if (dim.is_none()) {
     return multi_dim_reducer(make_all_dims(tensor), keepdim);
   }
@@ -281,9 +264,8 @@ dispatch_reduction_call(const bt::Tensor &tensor, nb::object dim,
   try {
     return multi_dim_reducer(nb::cast<std::vector<int64_t>>(dim), keepdim);
   } catch (const nb::cast_error &) {
-    const std::string message =
-        std::string(operation_name) +
-        "() expected 'dim' to be an int, a sequence of ints, or None.";
+    const std::string message = std::string(operation_name) +
+                                "() expected 'dim' to be an int, a sequence of ints, or None.";
     throw nb::type_error(message.c_str());
   }
 }
@@ -299,8 +281,7 @@ bt::Tensor &set_requires_grad(bt::Tensor &tensor, const bool requires_grad) {
  * Constructs a tensor from a typed NumPy array.
  */
 template <typename T, typename NdArray>
-[[nodiscard]] bt::Tensor tensor_from_numpy(const NdArray &array,
-                                           const bt::ScalarType dtype,
+[[nodiscard]] bt::Tensor tensor_from_numpy(const NdArray &array, const bt::ScalarType dtype,
                                            const bool requires_grad) {
   std::vector<int64_t> shape;
   shape.reserve(array.ndim());
@@ -309,13 +290,11 @@ template <typename T, typename NdArray>
   }
 
   bt::Tensor tensor(shape, dtype);
-  const size_t expected_nbytes =
-      static_cast<size_t>(tensor.numel()) * sizeof(T);
+  const size_t expected_nbytes = static_cast<size_t>(tensor.numel()) * sizeof(T);
   if (array.nbytes() != expected_nbytes) {
     std::ostringstream oss;
-    oss << "Failed to copy NumPy array into Tensor(shape="
-        << bt::detail::shape_to_string(shape) << "): expected "
-        << expected_nbytes << " bytes but got " << array.nbytes() << ".";
+    oss << "Failed to copy NumPy array into Tensor(shape=" << bt::detail::shape_to_string(shape)
+        << "): expected " << expected_nbytes << " bytes but got " << array.nbytes() << ".";
     throw std::runtime_error(oss.str());
   }
   if (array.nbytes() != 0) {
@@ -337,14 +316,11 @@ template <typename NdArrayF32, typename NdArrayI64, typename NdArrayBool>
   try {
     switch (dtype) {
     case bt::ScalarType::kFloat32:
-      return tensor_from_numpy<float>(nb::cast<NdArrayF32>(array_obj), dtype,
-                                      requires_grad);
+      return tensor_from_numpy<float>(nb::cast<NdArrayF32>(array_obj), dtype, requires_grad);
     case bt::ScalarType::kInt64:
-      return tensor_from_numpy<int64_t>(nb::cast<NdArrayI64>(array_obj), dtype,
-                                        requires_grad);
+      return tensor_from_numpy<int64_t>(nb::cast<NdArrayI64>(array_obj), dtype, requires_grad);
     case bt::ScalarType::kBool:
-      return tensor_from_numpy<bool>(nb::cast<NdArrayBool>(array_obj), dtype,
-                                     requires_grad);
+      return tensor_from_numpy<bool>(nb::cast<NdArrayBool>(array_obj), dtype, requires_grad);
     }
   } catch (const nb::cast_error &) {
     std::ostringstream oss;
@@ -383,12 +359,9 @@ NB_MODULE(_C, m) {
   m.doc() = "BareTensor native extension (bootstrap)";
   nb::module_ numpy = nb::module_::import_("numpy");
 
-  using NdArrayF32 =
-      nb::ndarray<nb::numpy, const float, nb::c_contig, nb::device::cpu>;
-  using NdArrayI64 =
-      nb::ndarray<nb::numpy, const int64_t, nb::c_contig, nb::device::cpu>;
-  using NdArrayBool =
-      nb::ndarray<nb::numpy, const bool, nb::c_contig, nb::device::cpu>;
+  using NdArrayF32 = nb::ndarray<nb::numpy, const float, nb::c_contig, nb::device::cpu>;
+  using NdArrayI64 = nb::ndarray<nb::numpy, const int64_t, nb::c_contig, nb::device::cpu>;
+  using NdArrayBool = nb::ndarray<nb::numpy, const bool, nb::c_contig, nb::device::cpu>;
 
   nb::enum_<bt::ScalarType> dtype_enum(m, "DType");
   dtype_enum.value("float32", bt::ScalarType::kFloat32);
@@ -400,8 +373,7 @@ NB_MODULE(_C, m) {
 
   nb::class_<PyNoGradGuard>(m, "_NoGradGuard")
       .def(nb::init<>())
-      .def("__enter__", &PyNoGradGuard::enter,
-           nb::rv_policy::reference_internal)
+      .def("__enter__", &PyNoGradGuard::enter, nb::rv_policy::reference_internal)
       .def("close", &PyNoGradGuard::exit)
       .def(
           "__exit__",
@@ -409,8 +381,7 @@ NB_MODULE(_C, m) {
             guard.exit();
             return false;
           },
-          nb::arg("exc_type").none(), nb::arg("exc").none(),
-          nb::arg("traceback").none());
+          nb::arg("exc_type").none(), nb::arg("exc").none(), nb::arg("traceback").none());
 
   nb::class_<bt::Tensor>(m, "Tensor")
       .def_ro("shape", &bt::Tensor::shape)
@@ -430,19 +401,16 @@ NB_MODULE(_C, m) {
       .def_prop_ro("grad", &bt::Tensor::grad)
       .def("zero_grad", &bt::Tensor::zero_grad)
       .def("detach", &bt::Tensor::detach)
-      .def("backward", &bt::Tensor::backward,
-           nb::arg("gradient") = std::nullopt)
+      .def("backward", &bt::Tensor::backward, nb::arg("gradient") = std::nullopt)
       .def("is_contiguous", &bt::Tensor::is_contiguous)
       .def("contiguous", &bt::Tensor::contiguous)
       .def("to", &bt::Tensor::to, nb::arg("dtype"))
       .def("view", &bt::Tensor::view, nb::arg("shape"))
       .def("reshape", &bt::Tensor::reshape, nb::arg("shape"))
-      .def("flatten", &bt::Tensor::flatten, nb::arg("start_dim") = 0,
-           nb::arg("end_dim") = -1)
+      .def("flatten", &bt::Tensor::flatten, nb::arg("start_dim") = 0, nb::arg("end_dim") = -1)
       .def("unsqueeze", &bt::Tensor::unsqueeze, nb::arg("dim"))
       .def("permute", &bt::Tensor::permute, nb::arg("dims"))
-      .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"),
-           nb::arg("dim1"))
+      .def("transpose", &bt::Tensor::transpose, nb::arg("dim0"), nb::arg("dim1"))
       .def("triu", &bt::Tensor::triu, nb::arg("diagonal") = 0)
       .def("tril", &bt::Tensor::tril, nb::arg("diagonal") = 0)
       .def("__getitem__", &tensor_getitem, nb::arg("index").none())
@@ -450,89 +418,53 @@ NB_MODULE(_C, m) {
       .def_prop_ro("T", &bt::Tensor::T)
       .def_prop_ro("mT", &bt::Tensor::mT)
       .def("matmul", &bt::Tensor::matmul, nb::arg("tensor2"))
-      .def("__matmul__", [](const bt::Tensor &lhs,
-                            const bt::Tensor &rhs) { return lhs.matmul(rhs); })
-      .def("__neg__", static_cast<bt::Tensor (bt::Tensor::*)() const>(
-                          &bt::Tensor::operator-))
-      .def("__radd__",
-           [](const bt::Tensor &rhs, const float lhs) { return lhs + rhs; })
-      .def("__rsub__",
-           [](const bt::Tensor &rhs, const float lhs) { return lhs - rhs; })
-      .def("__rmul__",
-           [](const bt::Tensor &rhs, const float lhs) { return lhs * rhs; })
-      .def("__rtruediv__",
-           [](const bt::Tensor &rhs, const float lhs) { return lhs / rhs; })
-      .def("__eq__", [](const bt::Tensor &lhs,
-                        const bt::Tensor &rhs) { return lhs == rhs; })
-      .def("__eq__",
-           [](const bt::Tensor &lhs, const float rhs) { return lhs == rhs; })
-      .def("__ne__", [](const bt::Tensor &lhs,
-                        const bt::Tensor &rhs) { return lhs != rhs; })
-      .def("__ne__",
-           [](const bt::Tensor &lhs, const float rhs) { return lhs != rhs; })
-      .def("__lt__", [](const bt::Tensor &lhs,
-                        const bt::Tensor &rhs) { return lhs < rhs; })
-      .def("__lt__",
-           [](const bt::Tensor &lhs, const float rhs) { return lhs < rhs; })
-      .def("__le__", [](const bt::Tensor &lhs,
-                        const bt::Tensor &rhs) { return lhs <= rhs; })
-      .def("__le__",
-           [](const bt::Tensor &lhs, const float rhs) { return lhs <= rhs; })
-      .def("__gt__", [](const bt::Tensor &lhs,
-                        const bt::Tensor &rhs) { return lhs > rhs; })
-      .def("__gt__",
-           [](const bt::Tensor &lhs, const float rhs) { return lhs > rhs; })
-      .def("__ge__", [](const bt::Tensor &lhs,
-                        const bt::Tensor &rhs) { return lhs >= rhs; })
-      .def("__ge__",
-           [](const bt::Tensor &lhs, const float rhs) { return lhs >= rhs; })
+      .def("__matmul__",
+           [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs.matmul(rhs); })
+      .def("__neg__", static_cast<bt::Tensor (bt::Tensor::*)() const>(&bt::Tensor::operator-))
+      .def("__radd__", [](const bt::Tensor &rhs, const float lhs) { return lhs + rhs; })
+      .def("__rsub__", [](const bt::Tensor &rhs, const float lhs) { return lhs - rhs; })
+      .def("__rmul__", [](const bt::Tensor &rhs, const float lhs) { return lhs * rhs; })
+      .def("__rtruediv__", [](const bt::Tensor &rhs, const float lhs) { return lhs / rhs; })
+      .def("__eq__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs == rhs; })
+      .def("__eq__", [](const bt::Tensor &lhs, const float rhs) { return lhs == rhs; })
+      .def("__ne__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs != rhs; })
+      .def("__ne__", [](const bt::Tensor &lhs, const float rhs) { return lhs != rhs; })
+      .def("__lt__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs < rhs; })
+      .def("__lt__", [](const bt::Tensor &lhs, const float rhs) { return lhs < rhs; })
+      .def("__le__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs <= rhs; })
+      .def("__le__", [](const bt::Tensor &lhs, const float rhs) { return lhs <= rhs; })
+      .def("__gt__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs > rhs; })
+      .def("__gt__", [](const bt::Tensor &lhs, const float rhs) { return lhs > rhs; })
+      .def("__ge__", [](const bt::Tensor &lhs, const bt::Tensor &rhs) { return lhs >= rhs; })
+      .def("__ge__", [](const bt::Tensor &lhs, const float rhs) { return lhs >= rhs; })
       .def(
           "__iadd__",
-          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
-            return lhs += rhs;
-          },
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & { return lhs += rhs; },
           nb::rv_policy::reference_internal)
       .def(
-          "__iadd__",
-          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & {
-            return lhs += rhs;
-          },
+          "__iadd__", [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs += rhs; },
           nb::rv_policy::reference_internal)
       .def(
           "__isub__",
-          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
-            return lhs -= rhs;
-          },
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & { return lhs -= rhs; },
           nb::rv_policy::reference_internal)
       .def(
-          "__isub__",
-          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & {
-            return lhs -= rhs;
-          },
+          "__isub__", [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs -= rhs; },
           nb::rv_policy::reference_internal)
       .def(
           "__imul__",
-          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
-            return lhs *= rhs;
-          },
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & { return lhs *= rhs; },
           nb::rv_policy::reference_internal)
       .def(
-          "__imul__",
-          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & {
-            return lhs *= rhs;
-          },
+          "__imul__", [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs *= rhs; },
           nb::rv_policy::reference_internal)
       .def(
           "__itruediv__",
-          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & {
-            return lhs /= rhs;
-          },
+          [](bt::Tensor &lhs, const bt::Tensor &rhs) -> bt::Tensor & { return lhs /= rhs; },
           nb::rv_policy::reference_internal)
       .def(
           "__itruediv__",
-          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & {
-            return lhs /= rhs;
-          },
+          [](bt::Tensor &lhs, const float rhs) -> bt::Tensor & { return lhs /= rhs; },
           nb::rv_policy::reference_internal)
       .def("exp", &bt::Tensor::exp)
       .def("log", &bt::Tensor::log)
@@ -548,8 +480,7 @@ NB_MODULE(_C, m) {
                 [&tensor](const int64_t one_dim, const bool keepdim_inner) {
                   return tensor.sum(one_dim, keepdim_inner);
                 },
-                [&tensor](const std::vector<int64_t> &many_dims,
-                          const bool keepdim_inner) {
+                [&tensor](const std::vector<int64_t> &many_dims, const bool keepdim_inner) {
                   return tensor.sum(many_dims, keepdim_inner);
                 });
           },
@@ -562,8 +493,7 @@ NB_MODULE(_C, m) {
                 [&tensor](const int64_t one_dim, const bool keepdim_inner) {
                   return tensor.mean(one_dim, keepdim_inner);
                 },
-                [&tensor](const std::vector<int64_t> &many_dims,
-                          const bool keepdim_inner) {
+                [&tensor](const std::vector<int64_t> &many_dims, const bool keepdim_inner) {
                   return tensor.mean(many_dims, keepdim_inner);
                 });
           },
@@ -576,16 +506,12 @@ NB_MODULE(_C, m) {
                 [&tensor](const int64_t one_dim, const bool keepdim_inner) {
                   return tensor.max(one_dim, keepdim_inner);
                 },
-                [&tensor](const std::vector<int64_t> &many_dims,
-                          const bool keepdim_inner) {
+                [&tensor](const std::vector<int64_t> &many_dims, const bool keepdim_inner) {
                   return tensor.max(many_dims, keepdim_inner);
                 });
           },
           nb::arg("dim") = nb::none(), nb::arg("keepdim") = false)
-      .def("numpy",
-           [numpy](const bt::Tensor &tensor) {
-             return tensor_numpy(tensor, numpy);
-           })
+      .def("numpy", [numpy](const bt::Tensor &tensor) { return tensor_numpy(tensor, numpy); })
       .def(nb::self + nb::self)
       .def(nb::self + float())
       .def(nb::self - nb::self)
@@ -596,34 +522,27 @@ NB_MODULE(_C, m) {
       .def(nb::self / float());
 
   m.def("full", &bt::full, nb::arg("shape"), nb::arg("fill_value"),
-        nb::arg("dtype") = bt::ScalarType::kFloat32,
+        nb::arg("dtype") = bt::ScalarType::kFloat32, nb::arg("requires_grad") = false);
+  m.def("zeros", &bt::zeros, nb::arg("shape"), nb::arg("dtype") = bt::ScalarType::kFloat32,
         nb::arg("requires_grad") = false);
-  m.def("zeros", &bt::zeros, nb::arg("shape"),
-        nb::arg("dtype") = bt::ScalarType::kFloat32,
-        nb::arg("requires_grad") = false);
-  m.def("ones", &bt::ones, nb::arg("shape"),
-        nb::arg("dtype") = bt::ScalarType::kFloat32,
+  m.def("ones", &bt::ones, nb::arg("shape"), nb::arg("dtype") = bt::ScalarType::kFloat32,
         nb::arg("requires_grad") = false);
   m.def("triu", &bt::triu, nb::arg("input"), nb::arg("diagonal") = 0);
   m.def("tril", &bt::tril, nb::arg("input"), nb::arg("diagonal") = 0);
   m.def("cat", &bt::cat, nb::arg("tensors"), nb::arg("dim") = 0);
   m.def("stack", &bt::stack, nb::arg("tensors"), nb::arg("dim") = 0);
-  m.def("where", &bt::where, nb::arg("condition"), nb::arg("input"),
-        nb::arg("other"));
-  m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"),
-        nb::arg("target"), nb::arg("ignore_index") = -100,
-        nb::arg("reduction") = "mean");
-  m.def("layer_norm", &bt::layer_norm, nb::arg("input"),
-        nb::arg("normalized_shape"), nb::arg("weight") = std::nullopt,
-        nb::arg("bias") = std::nullopt, nb::arg("eps") = 1e-5f);
+  m.def("where", &bt::where, nb::arg("condition"), nb::arg("input"), nb::arg("other"));
+  m.def("cross_entropy", &bt::cross_entropy, nb::arg("input"), nb::arg("target"),
+        nb::arg("ignore_index") = -100, nb::arg("reduction") = "mean");
+  m.def("layer_norm", &bt::layer_norm, nb::arg("input"), nb::arg("normalized_shape"),
+        nb::arg("weight") = std::nullopt, nb::arg("bias") = std::nullopt, nb::arg("eps") = 1e-5f);
   m.def("embedding", &bt::embedding, nb::arg("input"), nb::arg("weight"));
 
   m.def(
       "tensor_from_numpy",
-      [](const nb::object &array, const bt::ScalarType dtype,
-         const bool requires_grad) {
-        return tensor_from_numpy_object<NdArrayF32, NdArrayI64, NdArrayBool>(
-            array, dtype, requires_grad);
+      [](const nb::object &array, const bt::ScalarType dtype, const bool requires_grad) {
+        return tensor_from_numpy_object<NdArrayF32, NdArrayI64, NdArrayBool>(array, dtype,
+                                                                             requires_grad);
       },
       nb::arg("array"), nb::arg("dtype"), nb::arg("requires_grad") = false);
 }
