@@ -5,5 +5,7 @@
   "ruff.enable": true,
   "ruff.organizeImports": true,
 
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+
   "cSpell.words": ["maxval", "minval", "nanobind", "numel", "softmax"]
 }
